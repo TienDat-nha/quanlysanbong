@@ -52,7 +52,7 @@ const NavbarView = ({
                 </li>
                 <li className="navItem">
                   <button className="btn outlineBtn" type="button" onClick={onLogoutClick}>
-                    Đăng xuất
+                    Đăng Xuất
                   </button>
                 </li>
               </>

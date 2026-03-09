@@ -3,8 +3,8 @@ import { Link } from "react-router-dom"
 
 const PAYMENT_NOTES = [
   "Tiền đặt cọc tối thiểu mặc định là 100.000 VND cho mỗi đơn đặt sân.",
-  "VNPAY và MoMo chỉ cập nhật `depositPaid` sau khi cổng thanh toán trả callback thành công.",
-  "Với chuyển khoản / QR tĩnh, hệ thống sẽ đánh dấu đã đặt cọc ngay sau khi bạn bấm xác nhận thanh toán.",
+  "VNPAY và MoMo sẽ cập nhật trạng thái sau khi cổng thanh toán trả kết quả thành công.",
+  "Với chuyển khoản hoặc QR tĩnh, khách chỉ gửi yêu cầu thanh toán; chủ sân sẽ xác nhận sau khi kiểm tra giao dịch.",
 ]
 
 const formatPaidAt = (value) => {
@@ -67,6 +67,7 @@ const DepositPaymentView = ({
   formatPrice,
   formatStatus,
   formatDepositStatus,
+  formatPaymentStatus,
   formatDepositMethod,
   loginPath,
   bookingPath,
@@ -84,12 +85,24 @@ const DepositPaymentView = ({
     message: "Đăng nhập để tiếp tục thanh toán đặt cọc.",
   }
 
+  const paymentStatus = String(
+    booking?.paymentStatus || (booking?.depositPaid ? "deposit_paid" : "unpaid")
+  )
+    .trim()
+    .toLowerCase()
+  const isFullyPaid = paymentStatus === "paid" || Boolean(booking?.fullyPaid)
+  const paymentStatusLabel = formatPaymentStatus(booking?.paymentStatus, booking?.depositStatus)
+  const depositStatusLabel = formatDepositStatus(booking?.depositStatus)
+  const successMessage = isFullyPaid
+    ? "Chủ sân đã xác nhận thanh toán thành công cho đơn này. Bạn không cần thanh toán thêm."
+    : "Chủ sân đã xác nhận đặt cọc thành công cho đơn này. Bạn có thể theo dõi phần còn lại tại mục Sân đã đặt."
+
   if (loading) {
     return (
       <section className="page section">
         <div className="container pageHeader">
-          <h1>Đang tải trang đặt cọc</h1>
-          <p>Hệ thống đang tải thông tin đơn đặt sân, mức đặt cọc và các kênh thanh toán.</p>
+          <h1>Đang tải trang thanh toán</h1>
+          <p>Hệ thống đang tải thông tin đơn đặt sân và trạng thái thanh toán hiện tại.</p>
         </div>
       </section>
     )
@@ -103,7 +116,7 @@ const DepositPaymentView = ({
             <h1>Thanh toán đặt cọc</h1>
             <p className="message warning">
               Bạn cần <Link to={loginPath} state={loginState}>đăng nhập</Link> để xem và thanh
-              toán đặt cọc cho đơn đặt sân này.
+              toán đơn đặt sân này.
             </p>
           </div>
         </div>
@@ -117,7 +130,7 @@ const DepositPaymentView = ({
         <div className="container narrowContainer">
           <div className="formCard">
             <h1>Thanh toán đặt cọc</h1>
-            <p className="message error">{error || "Không tìm thấy đơn đặt sân cần đặt cọc."}</p>
+            <p className="message error">{error || "Không tìm thấy đơn đặt sân cần thanh toán."}</p>
             <div className="depositActions">
               <button type="button" className="btn" onClick={onRefresh}>
                 Tải lại
@@ -136,7 +149,7 @@ const DepositPaymentView = ({
     <section className="page section">
       <div className="container pageHeader">
         <h1>Thanh toán đặt cọc</h1>
-        <p>Đơn đặt sân đã được tạo. Chọn một kênh thanh toán để đặt cọc trước và giữ lịch sân.</p>
+        <p>Đơn đặt sân đã được tạo. Bạn có thể theo dõi trạng thái thanh toán và gửi yêu cầu xác nhận tại đây.</p>
       </div>
 
       <div className="container depositPage">
@@ -155,7 +168,7 @@ const DepositPaymentView = ({
             <div className="depositStatusGroup">
               <span className="depositStatus">Trạng thái đơn: {formatStatus(booking.status)}</span>
               <span className="depositStatus depositStatus--payment">
-                Đặt cọc: {formatDepositStatus(booking.depositStatus)}
+                Thanh toán: {paymentStatusLabel}
               </span>
             </div>
           </div>
@@ -179,6 +192,9 @@ const DepositPaymentView = ({
             <p>
               <strong>Địa chỉ:</strong> {field.address}
             </p>
+            <p>
+              <strong>Trạng thái đặt cọc:</strong> {depositStatusLabel}
+            </p>
             {booking.depositMethod && (
               <p>
                 <strong>Kênh đã dùng:</strong> {formatDepositMethod(booking.depositMethod)}
@@ -186,14 +202,19 @@ const DepositPaymentView = ({
             )}
             {booking.depositPaidAt && (
               <p>
-                <strong>Ghi nhận lúc:</strong> {formatPaidAt(booking.depositPaidAt)}
+                <strong>Xác nhận cọc lúc:</strong> {formatPaidAt(booking.depositPaidAt)}
+              </p>
+            )}
+            {booking.fullyPaidAt && (
+              <p>
+                <strong>Xác nhận thanh toán lúc:</strong> {formatPaidAt(booking.fullyPaidAt)}
               </p>
             )}
           </div>
         </section>
 
         <section className="depositCard depositCard--amount">
-          <h2>Chi tiết đặt cọc</h2>
+          <h2>Chi tiết thanh toán</h2>
 
           <div className="depositAmountGrid">
             <div className="depositAmountBox">
@@ -202,12 +223,12 @@ const DepositPaymentView = ({
             </div>
 
             <div className="depositAmountBox depositAmountBox--highlight">
-              <span>Cần đặt cọc trước</span>
+              <span>Tiền đặt cọc</span>
               <strong>{formatPrice(depositAmount)} VND</strong>
             </div>
 
             <div className="depositAmountBox">
-              <span>Còn lại tại sân</span>
+              <span>Còn lại</span>
               <strong>{formatPrice(remainingAmount)} VND</strong>
             </div>
           </div>
@@ -224,10 +245,7 @@ const DepositPaymentView = ({
 
         {paymentConfirmed ? (
           <section className="depositCard depositSuccessBox">
-            <p className="message success">
-              Hệ thống đã lưu trạng thái đã đặt cọc cho đơn này. Bạn có thể quay về mục Sân đã
-              đặt để theo dõi.
-            </p>
+            <p className="message success">{successMessage}</p>
             <div className="depositActions">
               <button type="button" className="btn" onClick={onGoToBookings}>
                 Về sân đã đặt
@@ -243,7 +261,7 @@ const DepositPaymentView = ({
               <div className="depositMethodHeader">
                 <div>
                   <h2>Chuyển khoản / QR tĩnh</h2>
-                  <p>Phù hợp khi bạn muốn chuyển khoản thủ công vào tài khoản đã cấu hình.</p>
+                  <p>Phù hợp khi bạn muốn chuyển khoản thủ công rồi chờ chủ sân xác nhận giao dịch.</p>
                 </div>
               </div>
 
@@ -290,7 +308,7 @@ const DepositPaymentView = ({
                   onClick={onConfirmStaticDeposit}
                 >
                   {actionLoading === "static"
-                    ? "Đang ghi nhận..."
+                    ? "Đang gửi yêu cầu..."
                     : `Tôi đã chuyển khoản ${formatPrice(depositAmount)} VND`}
                 </button>
                 {paymentMethods?.staticTransfer?.message && (
@@ -304,23 +322,23 @@ const DepositPaymentView = ({
               <div className="depositMethodGrid">
                 <PaymentMethodCard
                   title="VNPAY"
-                  description="Tạo link redirect sang cổng thanh toán VNPAY và đợi callback từ provider."
+                  description="Tạo link thanh toán VNPAY và cập nhật trạng thái khi hệ thống nhận callback thành công."
                   enabled={Boolean(paymentMethods?.vnpay?.enabled)}
                   disabledMessage={paymentMethods?.vnpay?.message}
                   loading={actionLoading === "vnpay"}
                   loadingLabel="Đang chuyển đến VNPAY..."
-                  buttonLabel={`Thanh toan ${formatPrice(depositAmount)} VND bang VNPAY`}
+                  buttonLabel={`Thanh toán ${formatPrice(depositAmount)} VND bằng VNPAY`}
                   onClick={onCreateVnpayPayment}
                 />
 
                 <PaymentMethodCard
                   title="MoMo"
-                  description="Tạo liên kết thanh toán MoMo và cập nhật đặt cọc sau khi callback thành công."
+                  description="Tạo liên kết thanh toán MoMo và cập nhật trạng thái khi giao dịch thành công."
                   enabled={Boolean(paymentMethods?.momo?.enabled)}
                   disabledMessage={paymentMethods?.momo?.message}
                   loading={actionLoading === "momo"}
                   loadingLabel="Đang chuyển đến MoMo..."
-                  buttonLabel={`Thanh toan ${formatPrice(depositAmount)} VND bang MoMo`}
+                  buttonLabel={`Thanh toán ${formatPrice(depositAmount)} VND bằng MoMo`}
                   onClick={onCreateMomoPayment}
                 />
               </div>

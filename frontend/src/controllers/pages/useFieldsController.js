@@ -1,11 +1,17 @@
-import { useEffect, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { getFields } from "../../models/api"
-import { getFieldList } from "../../models/fieldModel"
+import {
+  createFieldSearchState,
+  filterFieldListBySearch,
+  getFieldList,
+  getFieldSearchOptions,
+} from "../../models/fieldModel"
 
 export const useFieldsController = () => {
   const [fields, setFields] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
+  const [search, setSearch] = useState(createFieldSearchState)
 
   useEffect(() => {
     let mounted = true
@@ -34,9 +40,42 @@ export const useFieldsController = () => {
     }
   }, [])
 
+  const filteredFields = useMemo(
+    () => filterFieldListBySearch(fields, search),
+    [fields, search]
+  )
+
+  const searchOptions = useMemo(
+    () => getFieldSearchOptions(fields),
+    [fields]
+  )
+
+  const hasActiveFilters = useMemo(
+    () => Object.values(search).some((value) => String(value || "").trim() !== ""),
+    [search]
+  )
+
+  const handleSearchChange = (field, value) => {
+    setSearch((prev) => ({
+      ...prev,
+      [field]: value,
+    }))
+  }
+
+  const handleResetSearch = () => {
+    setSearch(createFieldSearchState())
+  }
+
   return {
-    fields,
+    fields: filteredFields,
+    totalFields: fields.length,
+    resultCount: filteredFields.length,
+    search,
+    searchOptions,
+    hasActiveFilters,
     loading,
     error,
+    handleSearchChange,
+    handleResetSearch,
   }
 }

@@ -1,6 +1,6 @@
 import React from "react"
 import { Navigate, Route, Routes } from "react-router-dom"
-import "../app.css"
+import "../App.css"
 import { getAuthCheckingMessage } from "../models/authModel"
 import { ROUTES } from "../models/routeModel"
 import { useAppController } from "./useAppController"

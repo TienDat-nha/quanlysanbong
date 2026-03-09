@@ -1,10 +1,11 @@
 import React from "react"
 import DepositPaymentView from "../../views/pages/DepositPaymentView"
 import {
-  formatBookingStatus,
-  formatDepositMethod,
-  formatDepositStatus,
-} from "../../models/bookingModel"
+  formatBookingStatusVi,
+  formatDepositMethodVi,
+  formatDepositStatusVi,
+  formatPaymentStatusVi,
+} from "../../models/bookingTextModel"
 import { useDepositPaymentController } from "./useDepositPaymentController"
 
 const DepositPaymentController = ({ authToken, currentUser }) => {
@@ -53,9 +54,10 @@ const DepositPaymentController = ({ authToken, currentUser }) => {
       remainingAmount={remainingAmount}
       summary={summary}
       formatPrice={formatPrice}
-      formatStatus={formatBookingStatus}
-      formatDepositStatus={formatDepositStatus}
-      formatDepositMethod={formatDepositMethod}
+      formatStatus={formatBookingStatusVi}
+      formatDepositStatus={formatDepositStatusVi}
+      formatPaymentStatus={formatPaymentStatusVi}
+      formatDepositMethod={formatDepositMethodVi}
       loginPath={loginPath}
       bookingPath={bookingPath}
       fieldsPath={fieldsPath}

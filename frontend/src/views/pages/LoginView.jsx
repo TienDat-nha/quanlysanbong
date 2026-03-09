@@ -13,8 +13,8 @@ const LoginView = ({
   return (
     <section className="page section authPage">
       <div className="container narrowContainer">
-        <h1>Dang nhap</h1>
-        <p>Dang nhap de dat san, theo doi lich su dat cho va quan ly san cua ban.</p>
+        <h1>Đăng Nhập</h1>
+        <p>Đăng nhập để đặt sân, theo dõi lịch sử đặt chỗ và quản lý sân của bạn.</p>
 
         <form className="formCard" onSubmit={onSubmit}>
           {infoMessage && <p className="message success">{infoMessage}</p>}
@@ -28,24 +28,24 @@ const LoginView = ({
             placeholder="email@domain.com"
           />
 
-          <label htmlFor="login-password">Mat khau</label>
+          <label htmlFor="login-password">Mật khẩu</label>
           <input
             id="login-password"
             type="password"
             value={form.password}
             onChange={(event) => onFieldChange("password", event.target.value)}
-            placeholder="Nhap mat khau"
+            placeholder="Nhập mật khẩu"
           />
 
           {error && <p className="message error">{error}</p>}
 
           <button className="btn" type="submit" disabled={submitting}>
-            {submitting ? "Dang xu ly..." : "Dang nhap"}
+            {submitting ? "Đang xử lý..." : "Đăng Nhập"}
           </button>
         </form>
 
         <p className="helperText">
-          Chua co tai khoan? <Link to={registerPath}>Dang ky ngay</Link>
+          Chưa có tài khoản? <Link to={registerPath}>Đăng ký ngay</Link>
         </p>
       </div>
     </section>

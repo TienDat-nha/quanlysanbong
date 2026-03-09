@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState } from "react"
 import {
   cancelAdminBooking,
   confirmAdminBooking,
+  confirmAdminBookingDeposit,
+  confirmAdminBookingPayment,
   createAdminField,
   deleteAdminContact,
   deleteAdminField,
@@ -54,6 +56,7 @@ export const useAdminFieldsController = ({ authToken, currentUser }) => {
   const [uploadingCover, setUploadingCover] = useState(false)
   const [uploadingGallery, setUploadingGallery] = useState(false)
   const [processingBookingId, setProcessingBookingId] = useState("")
+  const [processingBookingAction, setProcessingBookingAction] = useState("")
   const [deletingFieldId, setDeletingFieldId] = useState("")
   const [deletingContactId, setDeletingContactId] = useState("")
   const [editingFieldId, setEditingFieldId] = useState(null)
@@ -85,6 +88,7 @@ export const useAdminFieldsController = ({ authToken, currentUser }) => {
       setCustomerSummaries([])
       setLoading(false)
       setProcessingBookingId("")
+      setProcessingBookingAction("")
       setDeletingFieldId("")
       setDeletingContactId("")
       resetForm()
@@ -231,7 +235,7 @@ export const useAdminFieldsController = ({ authToken, currentUser }) => {
     }
 
     if (!authToken || !isAdmin) {
-      setError("Ban can dang nhap bang tai khoan admin.")
+      setError("Bạn cần đăng nhập bằng tài khoản admin.")
       return
     }
 
@@ -243,7 +247,7 @@ export const useAdminFieldsController = ({ authToken, currentUser }) => {
       const imageUrl = String(response?.file?.url || response?.file?.path || "").trim()
 
       if (!imageUrl) {
-        throw new Error("Khong nhan duoc duong dan anh sau khi tai len.")
+        throw new Error("Không nhận được đường dẫn ảnh sau khi tải lên.")
       }
 
       setForm((prev) => ({
@@ -264,7 +268,7 @@ export const useAdminFieldsController = ({ authToken, currentUser }) => {
     }
 
     if (!authToken || !isAdmin) {
-      setError("Ban can dang nhap bang tai khoan admin.")
+      setError("Bạn cần đăng nhập bằng tài khoản admin.")
       return
     }
 
@@ -277,7 +281,7 @@ export const useAdminFieldsController = ({ authToken, currentUser }) => {
         const imageUrl = String(response?.file?.url || response?.file?.path || "").trim()
 
         if (!imageUrl) {
-          throw new Error(`Khong nhan duoc duong dan anh cho tep ${file.name}.`)
+          throw new Error(`Không nhận được đường dẫn ảnh cho tệp ${file.name}.`)
         }
 
         setForm((prev) => ({
@@ -336,12 +340,12 @@ export const useAdminFieldsController = ({ authToken, currentUser }) => {
     }
 
     if (!authToken || !isAdmin) {
-      setError("Ban can dang nhap bang tai khoan admin.")
+      setError("Bạn cần đăng nhập bằng tài khoản admin.")
       return
     }
 
     if (uploadingCover || uploadingGallery) {
-      setError("Anh dang duoc tai len. Vui long doi xong roi tiep tuc.")
+      setError("Ảnh đang được tải lên. Vui lòng đợi xong rồi tiếp tục.")
       return
     }
 
@@ -355,7 +359,7 @@ export const useAdminFieldsController = ({ authToken, currentUser }) => {
       resetForm()
       setSuccessMessage(
         String(response?.message || "").trim()
-        || (editingFieldId ? "Da cap nhat san." : "Da tao san moi.")
+        || (editingFieldId ? "Đã cập nhật sân." : "Đã tạo sân mới.")
       )
       setRefreshKey((currentValue) => currentValue + 1)
     } catch (apiError) {
@@ -371,7 +375,7 @@ export const useAdminFieldsController = ({ authToken, currentUser }) => {
     }
 
     const shouldDelete = window.confirm(
-      `Xoa san "${field.name}"? Tat ca booking lien quan se bi xoa.`
+      `Xóa sân "${field.name}"? Tất cả booking liên quan sẽ bị xóa.`
     )
 
     if (!shouldDelete) {
@@ -393,7 +397,7 @@ export const useAdminFieldsController = ({ authToken, currentUser }) => {
 
       setSuccessMessage(
         String(response?.message || "").trim()
-        || "Da xoa san thanh cong."
+        || "Đã xóa sân thành công."
       )
       setRefreshKey((currentValue) => currentValue + 1)
     } catch (apiError) {
@@ -408,7 +412,7 @@ export const useAdminFieldsController = ({ authToken, currentUser }) => {
       return
     }
 
-    const shouldDelete = window.confirm(`Xoa lien he cua ${contact.name || contact.email}?`)
+    const shouldDelete = window.confirm(`Xóa liên hệ của ${contact.name || contact.email}?`)
     if (!shouldDelete) {
       return
     }
@@ -420,7 +424,7 @@ export const useAdminFieldsController = ({ authToken, currentUser }) => {
     try {
       const response = await deleteAdminContact(authToken, contact.id)
       setContacts((currentContacts) => currentContacts.filter((item) => item.id !== contact.id))
-      setSuccessMessage(String(response?.message || "").trim() || "Da xoa lien he.")
+      setSuccessMessage(String(response?.message || "").trim() || "Đã xóa liên hệ.")
     } catch (apiError) {
       setError(apiError.message)
     } finally {
@@ -434,24 +438,32 @@ export const useAdminFieldsController = ({ authToken, currentUser }) => {
     }
 
     setProcessingBookingId(String(bookingId))
+    setProcessingBookingAction(String(action || ""))
     setError("")
     setSuccessMessage("")
 
     try {
-      const response =
-        action === "confirm"
-          ? await confirmAdminBooking(authToken, bookingId)
-          : await cancelAdminBooking(authToken, bookingId)
+      let response
+      if (action === "confirm") {
+        response = await confirmAdminBooking(authToken, bookingId)
+      } else if (action === "deposit") {
+        response = await confirmAdminBookingDeposit(authToken, bookingId)
+      } else if (action === "payment") {
+        response = await confirmAdminBookingPayment(authToken, bookingId)
+      } else {
+        response = await cancelAdminBooking(authToken, bookingId)
+      }
 
       setSuccessMessage(
         String(response?.message || "").trim()
-        || (action === "confirm" ? "Da xac nhan don dat." : "Da huy don dat.")
+        || (action === "confirm" ? "Đã xác nhận đơn đặt." : "Đã hủy đơn đặt.")
       )
       setRefreshKey((currentValue) => currentValue + 1)
     } catch (apiError) {
       setError(apiError.message)
     } finally {
       setProcessingBookingId("")
+      setProcessingBookingAction("")
     }
   }
 
@@ -473,6 +485,7 @@ export const useAdminFieldsController = ({ authToken, currentUser }) => {
     uploadingCover,
     uploadingGallery,
     processingBookingId,
+    processingBookingAction,
     deletingFieldId,
     deletingContactId,
     error,
@@ -497,6 +510,8 @@ export const useAdminFieldsController = ({ authToken, currentUser }) => {
     handleDeleteContact,
     handleSubmit,
     handleConfirmBooking: (bookingId) => handleBookingAction(bookingId, "confirm"),
+    handleConfirmDeposit: (bookingId) => handleBookingAction(bookingId, "deposit"),
+    handleConfirmPayment: (bookingId) => handleBookingAction(bookingId, "payment"),
     handleCancelBooking: (bookingId) => handleBookingAction(bookingId, "cancel"),
   }
 }

@@ -17,12 +17,11 @@ import {
   createBookingTimeline,
   createFeedbackState,
   formatBookingDateTime,
-  formatBookingStatus,
   getTodayBookingDate,
   isSelectedTimeSlotStillAvailable,
   normalizeSubFieldKey,
-  validateBookingForm,
 } from "../../models/bookingModel"
+import { formatBookingStatusVi, validateBookingFormVi } from "../../models/bookingTextModel"
 import { getFieldList } from "../../models/fieldModel"
 import { createDepositPaymentRoute, ROUTES } from "../../models/routeModel"
 
@@ -30,10 +29,7 @@ export const useBookingController = ({ authToken }) => {
   const navigate = useNavigate()
   const location = useLocation()
   const { fieldSlug = "" } = useParams()
-  const searchParams = useMemo(
-    () => new URLSearchParams(location.search),
-    [location.search]
-  )
+  const searchParams = useMemo(() => new URLSearchParams(location.search), [location.search])
   const preselectedField = searchParams.get("fieldId") || ""
   const minBookingDate = getTodayBookingDate()
 
@@ -204,14 +200,7 @@ export const useBookingController = ({ authToken }) => {
         selectedTimeSlot: form.timeSlot,
         timeline,
       }),
-    [
-      availabilityBookings,
-      selectedField,
-      form.date,
-      form.subFieldKey,
-      form.timeSlot,
-      timeline,
-    ]
+    [availabilityBookings, selectedField, form.date, form.subFieldKey, form.timeSlot, timeline]
   )
 
   useEffect(() => {
@@ -271,10 +260,7 @@ export const useBookingController = ({ authToken }) => {
       setFeedback(createFeedbackState())
     }
 
-    if (
-      bookingStep !== "schedule"
-      && (field === "fieldId" || field === "date")
-    ) {
+    if (bookingStep !== "schedule" && (field === "fieldId" || field === "date")) {
       setBookingStep("schedule")
     }
   }
@@ -307,7 +293,7 @@ export const useBookingController = ({ authToken }) => {
       return
     }
 
-    const validationError = validateBookingForm(form)
+    const validationError = validateBookingFormVi(form)
     if (validationError) {
       setFeedback({ type: "error", text: validationError })
       return
@@ -360,7 +346,7 @@ export const useBookingController = ({ authToken }) => {
       return
     }
 
-    const shouldCancel = window.confirm(`Huy don dat san ${booking.fieldName}?`)
+    const shouldCancel = window.confirm(`Hủy đơn đặt sân ${booking.fieldName}?`)
     if (!shouldCancel) {
       return
     }
@@ -377,7 +363,7 @@ export const useBookingController = ({ authToken }) => {
       )
       setFeedback({
         type: "success",
-        text: data.message || "Da huy don dat cua ban.",
+        text: data.message || "Đã hủy đơn đặt của bạn.",
       })
       setAvailabilityRefreshKey((value) => value + 1)
     } catch (apiError) {
@@ -409,7 +395,7 @@ export const useBookingController = ({ authToken }) => {
     adminFieldsPath: ROUTES.adminFields,
     minBookingDate,
     formatDateTime: formatBookingDateTime,
-    formatStatus: formatBookingStatus,
+    formatStatus: formatBookingStatusVi,
     handleFieldChange,
     handleSlotSelect,
     handleContinueToConfirm,

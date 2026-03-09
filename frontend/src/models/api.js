@@ -1,6 +1,21 @@
 const normalizeApiBaseUrl = (value) => String(value || "").trim().replace(/\/+$/g, "")
-const DEFAULT_API_URL = "https://api-be-football.onrender.com"
-const API_BASE_URL = normalizeApiBaseUrl(process.env.REACT_APP_API_URL || DEFAULT_API_URL)
+
+const getDefaultApiUrl = () => {
+  const hostname = typeof window !== "undefined" ? String(window.location.hostname || "").trim() : ""
+  const isLocalHost =
+    hostname === "localhost"
+    || hostname === "127.0.0.1"
+    || hostname === "::1"
+    || /^\d{1,3}(\.\d{1,3}){3}$/.test(hostname)
+
+  if (isLocalHost) {
+    return `http://${hostname || "localhost"}:5000`
+  }
+
+  return "https://api-be-football.onrender.com"
+}
+
+const API_BASE_URL = normalizeApiBaseUrl(process.env.REACT_APP_API_URL || getDefaultApiUrl())
 
 const isHtmlLike = (value) => {
   const trimmed = String(value || "").trim().toLowerCase()
@@ -8,7 +23,7 @@ const isHtmlLike = (value) => {
 }
 
 const buildApiUnavailableMessage = (requestPath) =>
-  `Khong the ket noi den API (${API_BASE_URL}). Vui long kiem tra backend dang chay (${requestPath}).`
+  `Không thể kết nối đến API (${API_BASE_URL}). Vui lòng kiểm tra backend đang chạy (${requestPath}).`
 
 const getMessageFromBody = (bodyData, rawBodyText) => {
   if (typeof bodyData?.message === "string" && bodyData.message.trim()) {
@@ -75,8 +90,8 @@ const request = async (path, options = {}) => {
   }
 
   if (!response.ok) {
-    const errorMessage = getMessageFromBody(data, rawBodyText) || "Yeu cau that bai."
-    throw new Error(`${errorMessage} (HTTP ${response.status}, ${requestPath})`)
+    const errorMessage = getMessageFromBody(data, rawBodyText) || "Yêu cầu thất bại."
+    throw new Error(errorMessage)
   }
 
   return data || {}
@@ -209,9 +224,21 @@ export const cancelAdminBooking = async (token, bookingId) =>
     headers: createTokenHeaders(token),
   })
 
+export const confirmAdminBookingDeposit = async (token, bookingId) =>
+  request(`/api/admin/bookings/${encodeURIComponent(bookingId)}/deposit/confirm`, {
+    method: "POST",
+    headers: createTokenHeaders(token),
+  })
+
+export const confirmAdminBookingPayment = async (token, bookingId) =>
+  request(`/api/admin/bookings/${encodeURIComponent(bookingId)}/payment/confirm`, {
+    method: "POST",
+    headers: createTokenHeaders(token),
+  })
+
 export const uploadAdminImage = async (token, file) => {
   if (!file) {
-    throw new Error("Vui long chon tep anh.")
+    throw new Error("Vui lòng chọn tệp ảnh.")
   }
 
   return request("/api/admin/uploads/images", {

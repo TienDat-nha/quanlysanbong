@@ -8,10 +8,25 @@ const nextAdminSubFieldDraftId = () => {
   return `admin-subfield-${adminSubFieldDraftId}`
 }
 
+const isValidFieldPrice = (value) => {
+  const price = Math.round(Number(value || 0))
+  return Number.isFinite(price) && price >= 1000 && price % 1000 === 0
+}
+
+const normalizeOptionalCoordinate = (value) => {
+  const normalized = String(value ?? "").trim()
+  if (!normalized) {
+    return null
+  }
+
+  const coordinate = Number(normalized)
+  return Number.isFinite(coordinate) ? Number(coordinate.toFixed(6)) : null
+}
+
 export const createAdminSubFieldDraft = (index = 1, defaults = {}) => ({
   id: nextAdminSubFieldDraftId(),
   key: String(defaults.key || "").trim(),
-  name: String(defaults.name || `San ${index}`).trim(),
+  name: String(defaults.name || `Sân ${index}`).trim(),
   type: normalizeFieldType(defaults.type, DEFAULT_FIELD_TYPE),
   pricePerHour: String(defaults.pricePerHour || "").trim(),
 })
@@ -20,6 +35,8 @@ export const createAdminFieldForm = () => ({
   name: "",
   address: "",
   district: "",
+  latitude: "",
+  longitude: "",
   type: DEFAULT_FIELD_TYPE,
   openHours: "06:00 - 22:00",
   pricePerHour: "",
@@ -34,6 +51,14 @@ export const createAdminFieldFormFromField = (field) => ({
   name: String(field?.name || "").trim(),
   address: String(field?.address || "").trim(),
   district: String(field?.district || "").trim(),
+  latitude:
+    Number.isFinite(Number(field?.latitude)) && field?.latitude !== null
+      ? String(field.latitude)
+      : "",
+  longitude:
+    Number.isFinite(Number(field?.longitude)) && field?.longitude !== null
+      ? String(field.longitude)
+      : "",
   type: normalizeFieldType(field?.type, DEFAULT_FIELD_TYPE),
   openHours: String(field?.openHours || "06:00 - 22:00").trim(),
   pricePerHour: String(field?.pricePerHour || "").trim(),
@@ -56,20 +81,29 @@ export const createAdminFieldFormFromField = (field) => ({
 
 export const validateAdminFieldForm = (form) => {
   const normalizedType = normalizeFieldType(form.type)
-  const requiredValues = [form.name, form.address, form.district, normalizedType, form.openHours, form.pricePerHour].map(
-    (value) => String(value || "").trim()
-  )
+  const requiredValues = [
+    form.name,
+    form.address,
+    form.district,
+    normalizedType,
+    form.openHours,
+    form.pricePerHour,
+  ].map((value) => String(value || "").trim())
 
   if (requiredValues.some((value) => !value)) {
     return "Vui lòng nhập đầy đủ thông tin sân."
   }
 
-  if (!/^([01]\d|2[0-3]):([0-5]\d)\s*-\s*([01]\d|2[0-3]):([0-5]\d)$/.test(String(form.openHours || "").trim())) {
+  if (
+    !/^([01]\d|2[0-3]):([0-5]\d)\s*-\s*([01]\d|2[0-3]):([0-5]\d)$/.test(
+      String(form.openHours || "").trim()
+    )
+  ) {
     return "Giờ mở cửa phải theo định dạng HH:mm - HH:mm."
   }
 
-  if (Number(form.pricePerHour || 0) <= 0) {
-    return "Giá mặc định phải lớn hơn 0."
+  if (!isValidFieldPrice(form.pricePerHour)) {
+    return "Giá mặc định theo giờ phải từ 1.000 VND trở lên và là bội số của 1.000."
   }
 
   const subFields = Array.isArray(form.subFields) ? form.subFields : []
@@ -82,7 +116,7 @@ export const validateAdminFieldForm = (form) => {
     const type = normalizeFieldType(subField?.type, normalizedType)
     const pricePerHour = Number(subField?.pricePerHour || form.pricePerHour || 0)
 
-    return !name || !type || pricePerHour <= 0
+    return !name || !type || !isValidFieldPrice(pricePerHour)
   })
 
   if (hasInvalidSubField) {
@@ -96,6 +130,8 @@ export const buildAdminFieldPayload = (form) => ({
   name: String(form.name || "").trim(),
   address: String(form.address || "").trim(),
   district: String(form.district || "").trim(),
+  latitude: normalizeOptionalCoordinate(form.latitude),
+  longitude: normalizeOptionalCoordinate(form.longitude),
   type: normalizeFieldType(form.type, DEFAULT_FIELD_TYPE),
   openHours: String(form.openHours || "").trim(),
   pricePerHour: Math.round(Number(form.pricePerHour || 0)),

@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom"
 import {
   createRegisterForm,
   isValidEmail,
+  REGISTER_ROLE_OPTIONS,
   validateRegisterDetails,
 } from "../../models/authModel"
 import { registerUser, requestRegisterOtp } from "../../models/api"
@@ -36,12 +37,12 @@ export const useRegisterController = () => {
     const email = String(form.email || "").trim().toLowerCase()
 
     if (!email) {
-      setError("Vui long nhap email truoc khi yeu cau OTP.")
+      setError("Vui lòng nhập email trước khi yêu cầu OTP.")
       return
     }
 
     if (!isValidEmail(email)) {
-      setError("Email khong hop le.")
+      setError("Email không hợp lệ.")
       return
     }
 
@@ -52,7 +53,7 @@ export const useRegisterController = () => {
     try {
       const data = await requestRegisterOtp({ email })
       setSuccessMessage(
-        String(data?.message || "").trim() || "Da gui ma OTP. Vui long kiem tra email."
+        String(data?.message || "").trim() || "Đã gửi mã OTP. Vui lòng kiểm tra email."
       )
     } catch (apiError) {
       setError(apiError.message)
@@ -84,14 +85,14 @@ export const useRegisterController = () => {
 
       setSuccessMessage(
         String(data?.message || "").trim()
-        || "Dang ky thanh cong. Dang chuyen sang trang dang nhap..."
+          || "Đăng ký thành công. Đang chuyển sang trang đăng nhập..."
       )
       redirectTimeoutRef.current = setTimeout(() => {
         navigate(ROUTES.login, {
           replace: true,
           state: {
             registered: true,
-            message: "Dang ky thanh cong. Vui long dang nhap de tiep tuc.",
+            message: "Đăng ký thành công. Vui lòng đăng nhập để tiếp tục.",
           },
         })
       }, 1200)
@@ -109,10 +110,7 @@ export const useRegisterController = () => {
     error,
     successMessage,
     loginPath: ROUTES.login,
-    roleOptions: [
-      { value: "customer", label: "Khach dat san" },
-      { value: "admin", label: "Admin / Chu san" },
-    ],
+    roleOptions: REGISTER_ROLE_OPTIONS,
     handleFieldChange,
     handleRequestOtp,
     handleSubmit,

@@ -13,7 +13,7 @@ export const useLoginController = ({ onLoginSuccess }) => {
 
   const infoMessage = location.state?.message
     || (location.state?.registered
-      ? "Dang ky thanh cong. Vui long dang nhap de tiep tuc."
+      ? "Đăng ký thành công. Vui lòng đăng nhập để tiếp tục."
       : "")
 
   const handleFieldChange = (field, value) => {

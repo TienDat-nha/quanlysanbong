@@ -72,23 +72,23 @@ export const useUsersController = ({ authToken, currentUser }) => {
 
   const validateAdminForm = () => {
     if (!canManageUsers) {
-      return "Chi tai khoan ADMIN moi duoc tao, sua hoac xoa nguoi dung."
+      return "Chỉ tài khoản ADMIN mới được tạo, sửa hoặc xóa người dùng."
     }
 
     if (!String(formValues.name || "").trim()) {
-      return "Vui long nhap ten nguoi dung."
+      return "Vui lòng nhập tên người dùng."
     }
 
     if (!String(formValues.email || "").trim()) {
-      return "Vui long nhap email."
+      return "Vui lòng nhập email."
     }
 
     if (!String(formValues.phone || "").trim()) {
-      return "Vui long nhap so dien thoai."
+      return "Vui lòng nhập số điện thoại."
     }
 
     if (!editingUserId && !String(formValues.password || "").trim()) {
-      return "Vui long nhap mat khau cho nguoi dung moi."
+      return "Vui lòng nhập mật khẩu cho người dùng mới."
     }
 
     return ""
@@ -116,12 +116,12 @@ export const useUsersController = ({ authToken, currentUser }) => {
         setUsers((currentUsers) =>
           currentUsers.map((user) => (user.id === editingUserId ? updatedUser || user : user))
         )
-        setSuccessMessage("Cap nhat nguoi dung thanh cong.")
+        setSuccessMessage("Cập nhật người dùng thành công.")
       } else {
         const createdUser = getUserItem(await createPublicUser(authToken, formValues))
 
         setUsers((currentUsers) => getUserList([...currentUsers, createdUser].filter(Boolean)))
-        setSuccessMessage("Them nguoi dung thanh cong.")
+        setSuccessMessage("Thêm người dùng thành công.")
       }
 
       resetForm()
@@ -134,7 +134,7 @@ export const useUsersController = ({ authToken, currentUser }) => {
 
   const handleEditUser = (user) => {
     if (!canManageUsers) {
-      setError("Chi tai khoan ADMIN moi duoc sua nguoi dung.")
+      setError("Chỉ tài khoản ADMIN mới được sửa người dùng.")
       return
     }
 
@@ -158,11 +158,11 @@ export const useUsersController = ({ authToken, currentUser }) => {
 
   const handleDeleteUser = async (user) => {
     if (!canManageUsers) {
-      setError("Chi tai khoan ADMIN moi duoc xoa nguoi dung.")
+      setError("Chỉ tài khoản ADMIN mới được xóa người dùng.")
       return
     }
 
-    const shouldDelete = window.confirm(`Xoa nguoi dung ${user.name}?`)
+    const shouldDelete = window.confirm(`Xóa người dùng ${user.name}?`)
     if (!shouldDelete) {
       return
     }
@@ -180,7 +180,7 @@ export const useUsersController = ({ authToken, currentUser }) => {
         resetForm()
       }
 
-      setSuccessMessage("Xoa nguoi dung thanh cong.")
+      setSuccessMessage("Xóa người dùng thành công.")
     } catch (apiError) {
       setError(apiError.message)
     } finally {

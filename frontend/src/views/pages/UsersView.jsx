@@ -22,7 +22,7 @@ const UsersView = ({
         <div>
           <p className="usersEyebrow">Render Backend</p>
           <h1>Danh sách người dùng</h1>
-          <p>Frontend này đang lấy dữ liệu trực tiếp từ api-be-football.onrender.com.</p>
+          <p>Frontend này đang lấy dữ liệu trực tiếp từ API backend.</p>
         </div>
 
         <div className="usersHighlight">
@@ -40,8 +40,8 @@ const UsersView = ({
 
             <p>
               {canManageUsers
-                ? "Tai khoan ADMIN co the tao, sua va xoa nguoi dung tren backend."
-                : "Danh sach nguoi dung la cong khai. Dang nhap bang tai khoan ADMIN de quan ly."}
+                ? "Tài khoản ADMIN có thể tạo, sửa và xóa người dùng trên backend."
+                : "Danh sách người dùng là công khai. Đăng nhập bằng tài khoản ADMIN để quản lý."}
             </p>
 
             <label htmlFor="user-name">Tên người dùng</label>
@@ -49,7 +49,7 @@ const UsersView = ({
               id="user-name"
               name="name"
               type="text"
-              placeholder="Nguyen Van A"
+              placeholder="Nguyễn Văn A"
               value={formValues.name}
               onChange={onInputChange}
               disabled={!canManageUsers || submitting}
@@ -82,7 +82,7 @@ const UsersView = ({
               id="user-password"
               name="password"
               type="password"
-              placeholder={isEditing ? "Bo trong neu khong doi" : "Nhap mat khau"}
+              placeholder={isEditing ? "Bỏ trống nếu không đổi" : "Nhập mật khẩu"}
               value={formValues.password}
               onChange={onInputChange}
               disabled={!canManageUsers || submitting}
@@ -102,7 +102,7 @@ const UsersView = ({
 
             <div className="usersActionsRow">
               <button className="btn" type="submit" disabled={!canManageUsers || submitting}>
-                {submitting ? "Dang luu..." : isEditing ? "Cap nhat nguoi dung" : "Them nguoi dung"}
+                {submitting ? "Đang lưu..." : isEditing ? "Cập nhật người dùng" : "Thêm người dùng"}
               </button>
 
               {isEditing && (
@@ -112,7 +112,7 @@ const UsersView = ({
                   onClick={onCancelEdit}
                   disabled={submitting}
                 >
-                  Huy sua
+                  Hủy sửa
                 </button>
               )}
             </div>
@@ -125,7 +125,7 @@ const UsersView = ({
 
           {loading ? (
             <article className="usersPanel">
-              <p>Dang tai danh sach nguoi dung...</p>
+              <p>Đang tải danh sách người dùng...</p>
             </article>
           ) : (
             <article className="usersPanel">
@@ -167,7 +167,7 @@ const UsersView = ({
                                   onClick={() => onEditUser(user)}
                                   disabled={submitting || deletingUserId === user.id}
                                 >
-                                  Sua
+                                  Sửa
                                 </button>
                                 <button
                                   className="outlineBtnInline usersDeleteBtn"
@@ -175,7 +175,7 @@ const UsersView = ({
                                   onClick={() => onDeleteUser(user)}
                                   disabled={submitting || deletingUserId === user.id}
                                 >
-                                  {deletingUserId === user.id ? "Dang xoa..." : "Xoa"}
+                                  {deletingUserId === user.id ? "Đang xóa..." : "Xóa"}
                                 </button>
                               </div>
                             </td>

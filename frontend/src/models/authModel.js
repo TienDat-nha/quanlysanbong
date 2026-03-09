@@ -8,8 +8,8 @@ export const USER_ROLES = Object.freeze({
 })
 
 export const REGISTER_ROLE_OPTIONS = Object.freeze([
-  { value: USER_ROLES.customer, label: "Khach dat san" },
-  { value: USER_ROLES.admin, label: "Admin / Chu san" },
+  { value: USER_ROLES.customer, label: "Người đặt sân" },
+  { value: USER_ROLES.admin, label: "Admin / Chủ sân" },
 ])
 
 export const createLoginForm = () => ({
@@ -40,13 +40,13 @@ export const clearStoredAuthToken = () => {
   localStorage.removeItem(TOKEN_STORAGE_KEY)
 }
 
-export const getAuthCheckingMessage = () => "Dang xac thuc tai khoan..."
+export const getAuthCheckingMessage = () => "Đang xác thực tài khoản..."
 
 export const isAdminUser = (user) =>
   String(user?.role || "").trim().toLowerCase() === USER_ROLES.admin
 
 export const getUserRoleLabel = (role) =>
-  isAdminUser({ role }) ? "Quan tri vien san" : "Khach dat san"
+  isAdminUser({ role }) ? "Quản trị viên sân" : "Người đặt sân"
 
 export const validateRegisterDetails = (form) => {
   const fullName = String(form.fullName || "").trim()
@@ -57,27 +57,27 @@ export const validateRegisterDetails = (form) => {
   const role = String(form.role || "").trim().toLowerCase()
 
   if (!fullName || !email || !password || !confirmPassword || !otp) {
-    return "Vui long nhap day du thong tin dang ky va ma OTP."
+    return "Vui lòng nhập đầy đủ thông tin đăng ký và mã OTP."
   }
 
   if (!isValidEmail(email)) {
-    return "Email khong hop le."
+    return "Email không hợp lệ."
   }
 
   if (password.length < 6) {
-    return "Mat khau toi thieu 6 ky tu."
+    return "Mật khẩu tối thiểu 6 ký tự."
   }
 
   if (password !== confirmPassword) {
-    return "Xac nhan mat khau khong khop."
+    return "Xác nhận mật khẩu không khớp."
   }
 
   if (!OTP_PATTERN.test(otp)) {
-    return "Ma OTP gom 6 chu so."
+    return "Mã OTP gồm 6 chữ số."
   }
 
   if (role !== USER_ROLES.customer && role !== USER_ROLES.admin) {
-    return "Vai tro dang ky khong hop le."
+    return "Vai trò đăng ký không hợp lệ."
   }
 
   return ""

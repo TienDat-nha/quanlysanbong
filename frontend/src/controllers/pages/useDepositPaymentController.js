@@ -27,7 +27,7 @@ const createProviderFeedback = (search) => {
 
   return {
     type: paymentStatus === "success" ? "success" : "error",
-    text: paymentMessage || "Không thể xử lý kết quả thanh toán đặt cọc.",
+    text: paymentMessage || "Không thể xử lý kết quả thanh toán.",
   }
 }
 
@@ -104,7 +104,7 @@ export const useDepositPaymentController = ({ authToken }) => {
   const remainingAmount = useMemo(
     () =>
       Number(
-        booking?.remainingAmount || calculateRemainingPaymentAmount(totalPrice, depositAmount)
+        booking?.remainingAmount ?? calculateRemainingPaymentAmount(totalPrice, depositAmount)
       ),
     [booking?.remainingAmount, depositAmount, totalPrice]
   )
@@ -118,7 +118,11 @@ export const useDepositPaymentController = ({ authToken }) => {
     [booking?.date, booking?.timeSlot]
   )
 
-  const paymentConfirmed = Boolean(booking?.depositPaid)
+  const paymentConfirmed = Boolean(
+    booking?.depositPaid
+    || booking?.fullyPaid
+    || String(booking?.paymentStatus || "").trim().toLowerCase() === "paid"
+  )
 
   const handleConfirmStaticDeposit = async () => {
     if (!authToken || !bookingId || paymentConfirmed) {
@@ -137,7 +141,9 @@ export const useDepositPaymentController = ({ authToken }) => {
       setStaticTransfer(data.staticTransfer || null)
       setFeedback({
         type: "success",
-        text: data.message || "Đã ghi nhận thanh toán đặt cọc bằng chuyển khoản/QR tĩnh.",
+        text:
+          data.message
+          || "Đã gửi yêu cầu xác nhận chuyển khoản. Vui lòng chờ chủ sân kiểm tra giao dịch.",
       })
     } catch (apiError) {
       setFeedback({

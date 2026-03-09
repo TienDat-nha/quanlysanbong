@@ -5,16 +5,34 @@ import FieldsView from "../../views/pages/FieldsView"
 import { useFieldsController } from "./useFieldsController"
 
 const FieldsController = () => {
-  const { fields, loading, error } = useFieldsController()
+  const {
+    fields,
+    totalFields,
+    resultCount,
+    search,
+    searchOptions,
+    hasActiveFilters,
+    loading,
+    error,
+    handleSearchChange,
+    handleResetSearch,
+  } = useFieldsController()
 
   return (
     <FieldsView
       loading={loading}
       error={error}
       fields={fields}
+      totalFields={totalFields}
+      resultCount={resultCount}
+      search={search}
+      searchOptions={searchOptions}
+      hasActiveFilters={hasActiveFilters}
       formatPrice={formatPrice}
       createFieldDetailRoute={createFieldDetailRoute}
       createBookingRoute={createBookingRoute}
+      onSearchChange={handleSearchChange}
+      onResetSearch={handleResetSearch}
     />
   )
 }
