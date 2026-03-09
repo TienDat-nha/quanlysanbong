@@ -10,6 +10,7 @@ const RegisterController = () => {
     error,
     successMessage,
     loginPath,
+    roleOptions,
     handleFieldChange,
     handleRequestOtp,
     handleSubmit,
@@ -23,6 +24,7 @@ const RegisterController = () => {
       error={error}
       successMessage={successMessage}
       loginPath={loginPath}
+      roleOptions={roleOptions}
       onFieldChange={handleFieldChange}
       onRequestOtp={handleRequestOtp}
       onSubmit={handleSubmit}

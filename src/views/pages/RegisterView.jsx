@@ -7,6 +7,7 @@ const RegisterView = ({
   otpSending,
   error,
   successMessage,
+  roleOptions,
   onFieldChange,
   onRequestOtp,
   onSubmit,
@@ -55,6 +56,21 @@ const RegisterView = ({
                 onChange={(event) => onFieldChange("email", event.target.value)}
                 placeholder="email@domain.com"
               />
+            </div>
+
+            <div className="registerField">
+              <label htmlFor="register-role">Vai tro</label>
+              <select
+                id="register-role"
+                value={form.role}
+                onChange={(event) => onFieldChange("role", event.target.value)}
+              >
+                {roleOptions.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
             </div>
 
             <div className="registerField">

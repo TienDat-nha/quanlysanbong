@@ -7,6 +7,11 @@ export const USER_ROLES = Object.freeze({
   admin: "admin",
 })
 
+export const REGISTER_ROLE_OPTIONS = Object.freeze([
+  { value: USER_ROLES.customer, label: "Khach dat san" },
+  { value: USER_ROLES.admin, label: "Admin / Chu san" },
+])
+
 export const createLoginForm = () => ({
   email: "",
   password: "",
@@ -18,6 +23,7 @@ export const createRegisterForm = () => ({
   password: "",
   confirmPassword: "",
   otp: "",
+  role: USER_ROLES.customer,
 })
 
 export const isValidEmail = (value) => EMAIL_PATTERN.test(String(value || "").trim().toLowerCase())
@@ -48,6 +54,7 @@ export const validateRegisterDetails = (form) => {
   const password = String(form.password || "")
   const confirmPassword = String(form.confirmPassword || "")
   const otp = String(form.otp || "").trim()
+  const role = String(form.role || "").trim().toLowerCase()
 
   if (!fullName || !email || !password || !confirmPassword || !otp) {
     return "Vui long nhap day du thong tin dang ky va ma OTP."
@@ -67,6 +74,10 @@ export const validateRegisterDetails = (form) => {
 
   if (!OTP_PATTERN.test(otp)) {
     return "Ma OTP gom 6 chu so."
+  }
+
+  if (role !== USER_ROLES.customer && role !== USER_ROLES.admin) {
+    return "Vai tro dang ky khong hop le."
   }
 
   return ""

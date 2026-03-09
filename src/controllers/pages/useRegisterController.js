@@ -79,6 +79,7 @@ export const useRegisterController = () => {
         email: form.email,
         password: form.password,
         otp: form.otp,
+        role: form.role,
       })
 
       setSuccessMessage(
@@ -108,6 +109,10 @@ export const useRegisterController = () => {
     error,
     successMessage,
     loginPath: ROUTES.login,
+    roleOptions: [
+      { value: "customer", label: "Khach dat san" },
+      { value: "admin", label: "Admin / Chu san" },
+    ],
     handleFieldChange,
     handleRequestOtp,
     handleSubmit,
