@@ -7,9 +7,8 @@ const isHtmlLike = (value) => {
   return trimmed.startsWith("<!doctype html") || trimmed.startsWith("<html")
 }
 
-const buildApiUnavailableMessage = (requestPath) => {
-  return `Khong the ket noi den API (${API_BASE_URL}). Vui long kiem tra backend dang chay (${requestPath}).`
-}
+const buildApiUnavailableMessage = (requestPath) =>
+  `Khong the ket noi den API (${API_BASE_URL}). Vui long kiem tra backend dang chay (${requestPath}).`
 
 const getMessageFromBody = (bodyData, rawBodyText) => {
   if (typeof bodyData?.message === "string" && bodyData.message.trim()) {
@@ -24,6 +23,11 @@ const getMessageFromBody = (bodyData, rawBodyText) => {
 
   return normalizedText.slice(0, 180)
 }
+
+const createTokenHeaders = (token, headers = {}) => ({
+  ...headers,
+  Authorization: `Bearer ${String(token || "").trim()}`,
+})
 
 const request = async (path, options = {}) => {
   const method = String(options.method || "GET").toUpperCase()
@@ -78,150 +82,219 @@ const request = async (path, options = {}) => {
   return data || {}
 }
 
-const createTokenHeaders = (token, headers = {}) => ({
-  ...headers,
-  "x-token": String(token || "").trim(),
-})
+const buildSearchParams = (params = {}) => {
+  const searchParams = new URLSearchParams()
 
-const toAuthResult = (payload) => {
-  const data = payload?.data || {}
+  Object.entries(params).forEach(([key, value]) => {
+    if (value !== undefined && value !== null && String(value).trim() !== "") {
+      searchParams.set(key, String(value))
+    }
+  })
 
-  return {
-    token: String(data.token || "").trim(),
-    user: data.user || null,
-  }
+  const queryString = searchParams.toString()
+  return queryString ? `?${queryString}` : ""
 }
 
-const toUserPayload = (payload) => {
-  const data = payload?.data || {}
+export const requestRegisterOtp = async (payload) => {
+  const email =
+    typeof payload === "string"
+      ? String(payload).trim().toLowerCase()
+      : String(payload?.email || "").trim().toLowerCase()
 
-  return {
-    user: data.user || null,
-    users: Array.isArray(data.users) ? data.users : [],
-  }
+  return request("/api/auth/request-register-otp", {
+    method: "POST",
+    body: JSON.stringify({ email }),
+  })
 }
 
-const createUnsupportedFeatureError = (featureName) => {
-  throw new Error(`Backend api-be-football hien tai khong ho tro chuc nang "${featureName}".`)
-}
-
-export const registerUser = async (payload) => {
-  const response = await request("/api/user/register", {
+export const registerUser = async (payload) =>
+  request("/api/auth/register", {
     method: "POST",
     body: JSON.stringify({
-      name: String(payload?.fullName || payload?.name || "").trim(),
+      fullName: String(payload?.fullName || payload?.name || "").trim(),
       email: String(payload?.email || "").trim().toLowerCase(),
-      phone: String(payload?.phone || "").trim(),
       password: String(payload?.password || ""),
+      otp: String(payload?.otp || "").trim(),
+      role: String(payload?.role || "").trim() || undefined,
     }),
   })
 
-  return toAuthResult(response)
-}
-
-export const requestRegisterOtp = async () => {
-  createUnsupportedFeatureError("dang ky OTP")
-}
-
-export const loginUser = async (payload) => {
-  const response = await request("/api/user/login", {
+export const loginUser = async (payload) =>
+  request("/api/auth/login", {
     method: "POST",
     body: JSON.stringify({
-      username: String(payload?.username || payload?.email || "").trim(),
+      email: String(payload?.email || "").trim().toLowerCase(),
       password: String(payload?.password || ""),
     }),
   })
 
-  return toAuthResult(response)
-}
-
-export const getMe = async (token) => {
-  const response = await request("/api/user/getMe", {
+export const getMe = async (token) =>
+  request("/api/auth/me", {
     headers: createTokenHeaders(token),
   })
-
-  return {
-    user: response?.data?.user || null,
-  }
-}
 
 export const getPublicUsers = async () => {
-  const response = await request("/api/user/getAllUser")
+  const response = await request("/api/users")
   return {
-    users: toUserPayload(response).users,
+    users: Array.isArray(response) ? response : Array.isArray(response?.users) ? response.users : [],
   }
 }
 
-export const createPublicUser = async (token, payload) => {
-  const response = await request("/api/user/createUser", {
+export const createPublicUser = async (_token, payload) => {
+  const response = await request("/api/users", {
+    method: "POST",
+    body: JSON.stringify({
+      name: String(payload?.name || payload?.fullName || "").trim(),
+    }),
+  })
+
+  return {
+    user: response,
+  }
+}
+
+export const updatePublicUser = async (_token, userId, payload) => {
+  const response = await request(`/api/users/${encodeURIComponent(userId)}`, {
+    method: "PUT",
+    body: JSON.stringify({
+      name: String(payload?.name || payload?.fullName || "").trim(),
+    }),
+  })
+
+  return {
+    user: response,
+  }
+}
+
+export const deletePublicUser = async (_token, userId) =>
+  request(`/api/users/${encodeURIComponent(userId)}`, {
+    method: "DELETE",
+  })
+
+export const getFields = async () => request("/api/fields")
+
+export const getFieldById = async (fieldId) =>
+  request(`/api/fields/${encodeURIComponent(fieldId)}`)
+
+export const getAdminFields = async (token) =>
+  request("/api/admin/fields", {
+    headers: createTokenHeaders(token),
+  })
+
+export const getAdminDashboard = async (token, params = {}) =>
+  request(`/api/admin/dashboard${buildSearchParams(params)}`, {
+    headers: createTokenHeaders(token),
+  })
+
+export const getAdminContacts = async (token) =>
+  request("/api/admin/contacts", {
+    headers: createTokenHeaders(token),
+  })
+
+export const deleteAdminContact = async (token, contactId) =>
+  request(`/api/admin/contacts/${encodeURIComponent(contactId)}`, {
+    method: "DELETE",
+    headers: createTokenHeaders(token),
+  })
+
+export const confirmAdminBooking = async (token, bookingId) =>
+  request(`/api/admin/bookings/${encodeURIComponent(bookingId)}/confirm`, {
     method: "POST",
     headers: createTokenHeaders(token),
+  })
+
+export const cancelAdminBooking = async (token, bookingId) =>
+  request(`/api/admin/bookings/${encodeURIComponent(bookingId)}/cancel`, {
+    method: "POST",
+    headers: createTokenHeaders(token),
+  })
+
+export const uploadAdminImage = async (token, file) => {
+  if (!file) {
+    throw new Error("Vui long chon tep anh.")
+  }
+
+  return request("/api/admin/uploads/images", {
+    method: "POST",
+    headers: createTokenHeaders(token, {
+      "Content-Type": String(file.type || "").trim() || "application/octet-stream",
+      "x-file-name": encodeURIComponent(String(file.name || "image")),
+    }),
+    body: file,
+  })
+}
+
+export const createAdminField = async (token, payload) =>
+  request("/api/admin/fields", {
+    method: "POST",
+    headers: createTokenHeaders(token),
+    body: JSON.stringify(payload),
+  })
+
+export const updateAdminField = async (token, fieldId, payload) =>
+  request(`/api/admin/fields/${encodeURIComponent(fieldId)}`, {
+    method: "PUT",
+    headers: createTokenHeaders(token),
+    body: JSON.stringify(payload),
+  })
+
+export const deleteAdminField = async (token, fieldId) =>
+  request(`/api/admin/fields/${encodeURIComponent(fieldId)}`, {
+    method: "DELETE",
+    headers: createTokenHeaders(token),
+  })
+
+export const createBooking = async (token, payload) =>
+  request("/api/bookings", {
+    method: "POST",
+    headers: createTokenHeaders(token),
+    body: JSON.stringify(payload),
+  })
+
+export const getBookingAvailability = async (date, fieldId) =>
+  request(`/api/bookings/availability${buildSearchParams({ date, fieldId })}`)
+
+export const getMyBookings = async (token) =>
+  request("/api/bookings/me", {
+    headers: createTokenHeaders(token),
+  })
+
+export const cancelMyBooking = async (token, bookingId) =>
+  request(`/api/bookings/${encodeURIComponent(bookingId)}/cancel`, {
+    method: "POST",
+    headers: createTokenHeaders(token),
+  })
+
+export const getBookingDepositInfo = async (token, bookingId) =>
+  request(`/api/bookings/${encodeURIComponent(bookingId)}/deposit`, {
+    headers: createTokenHeaders(token),
+  })
+
+export const confirmStaticDeposit = async (token, bookingId) =>
+  request(`/api/bookings/${encodeURIComponent(bookingId)}/deposit/static-confirm`, {
+    method: "POST",
+    headers: createTokenHeaders(token),
+  })
+
+export const createVnpayDepositPayment = async (token, bookingId) =>
+  request(`/api/bookings/${encodeURIComponent(bookingId)}/deposit/vnpay/create`, {
+    method: "POST",
+    headers: createTokenHeaders(token),
+  })
+
+export const createMomoDepositPayment = async (token, bookingId) =>
+  request(`/api/bookings/${encodeURIComponent(bookingId)}/deposit/momo/create`, {
+    method: "POST",
+    headers: createTokenHeaders(token),
+  })
+
+export const sendContact = async (payload) =>
+  request("/api/contact", {
+    method: "POST",
     body: JSON.stringify({
       name: String(payload?.name || "").trim(),
       email: String(payload?.email || "").trim().toLowerCase(),
       phone: String(payload?.phone || "").trim(),
-      password: String(payload?.password || ""),
-      role: String(payload?.role || "").trim(),
+      message: String(payload?.message || "").trim(),
     }),
   })
-
-  return {
-    user: toUserPayload(response).user,
-  }
-}
-
-export const updatePublicUser = async (token, userId, payload) => {
-  const nextPayload = {
-    userId: String(userId || "").trim(),
-    name: String(payload?.name || "").trim(),
-    email: String(payload?.email || "").trim().toLowerCase(),
-    phone: String(payload?.phone || "").trim(),
-    role: String(payload?.role || "").trim(),
-  }
-
-  if (String(payload?.password || "").trim()) {
-    nextPayload.password = String(payload.password)
-  }
-
-  const response = await request("/api/user/updateUserForAdmin", {
-    method: "POST",
-    headers: createTokenHeaders(token),
-    body: JSON.stringify(nextPayload),
-  })
-
-  return {
-    user: toUserPayload(response).user,
-  }
-}
-
-export const deletePublicUser = async (token, userId) => {
-  return request("/api/user/deleteUser", {
-    method: "POST",
-    headers: createTokenHeaders(token),
-    body: JSON.stringify({
-      userId: String(userId || "").trim(),
-    }),
-  })
-}
-
-export const getFields = async () => createUnsupportedFeatureError("danh sach san")
-export const getAdminFields = async () => createUnsupportedFeatureError("quan ly san")
-export const getAdminDashboard = async () => createUnsupportedFeatureError("dashboard admin")
-export const createAdminField = async () => createUnsupportedFeatureError("tao san")
-export const updateAdminField = async () => createUnsupportedFeatureError("cap nhat san")
-export const deleteAdminField = async () => createUnsupportedFeatureError("xoa san")
-export const uploadAdminImage = async () => createUnsupportedFeatureError("upload anh")
-export const confirmAdminBooking = async () => createUnsupportedFeatureError("xac nhan dat san")
-export const cancelAdminBooking = async () => createUnsupportedFeatureError("huy dat san")
-export const getAdminContacts = async () => createUnsupportedFeatureError("danh sach lien he")
-export const deleteAdminContact = async () => createUnsupportedFeatureError("xoa lien he")
-export const getFieldById = async () => createUnsupportedFeatureError("chi tiet san")
-export const createBooking = async () => createUnsupportedFeatureError("dat san")
-export const getBookingAvailability = async () => createUnsupportedFeatureError("lich trong")
-export const getMyBookings = async () => createUnsupportedFeatureError("lich su dat san")
-export const cancelMyBooking = async () => createUnsupportedFeatureError("huy lich dat san")
-export const getBookingDepositInfo = async () => createUnsupportedFeatureError("thanh toan dat coc")
-export const confirmStaticDeposit = async () => createUnsupportedFeatureError("xac nhan dat coc")
-export const createVnpayDepositPayment = async () => createUnsupportedFeatureError("thanh toan VNPAY")
-export const createMomoDepositPayment = async () => createUnsupportedFeatureError("thanh toan MoMo")
-export const sendContact = async () => createUnsupportedFeatureError("gui lien he")

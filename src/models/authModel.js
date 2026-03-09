@@ -1,23 +1,26 @@
 const TOKEN_STORAGE_KEY = "sanbong_auth_token"
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+const OTP_PATTERN = /^\d{6}$/
 
 export const USER_ROLES = Object.freeze({
-  customer: "USER",
-  admin: "ADMIN",
+  customer: "customer",
+  admin: "admin",
 })
 
 export const createLoginForm = () => ({
-  username: "",
+  email: "",
   password: "",
 })
 
 export const createRegisterForm = () => ({
   fullName: "",
   email: "",
-  phone: "",
   password: "",
   confirmPassword: "",
+  otp: "",
 })
+
+export const isValidEmail = (value) => EMAIL_PATTERN.test(String(value || "").trim().toLowerCase())
 
 export const getStoredAuthToken = () => {
   return localStorage.getItem(TOKEN_STORAGE_KEY) || ""
@@ -31,35 +34,39 @@ export const clearStoredAuthToken = () => {
   localStorage.removeItem(TOKEN_STORAGE_KEY)
 }
 
-export const getAuthCheckingMessage = () => "Đang xác thực tài khoản..."
+export const getAuthCheckingMessage = () => "Dang xac thuc tai khoan..."
 
 export const isAdminUser = (user) =>
-  String(user?.role || "").trim().toUpperCase() === USER_ROLES.admin
+  String(user?.role || "").trim().toLowerCase() === USER_ROLES.admin
 
 export const getUserRoleLabel = (role) =>
-  isAdminUser({ role }) ? "Quản trị viên sân" : "Người dùng"
+  isAdminUser({ role }) ? "Quan tri vien san" : "Khach dat san"
 
 export const validateRegisterDetails = (form) => {
   const fullName = String(form.fullName || "").trim()
   const email = String(form.email || "").trim().toLowerCase()
-  const phone = String(form.phone || "").trim()
   const password = String(form.password || "")
   const confirmPassword = String(form.confirmPassword || "")
+  const otp = String(form.otp || "").trim()
 
-  if (!fullName || !email || !phone || !password || !confirmPassword) {
-    return "Vui lòng nhập đầy đủ thông tin đăng ký."
+  if (!fullName || !email || !password || !confirmPassword || !otp) {
+    return "Vui long nhap day du thong tin dang ky va ma OTP."
   }
 
-  if (!EMAIL_PATTERN.test(email)) {
-    return "Email không hợp lệ."
+  if (!isValidEmail(email)) {
+    return "Email khong hop le."
   }
 
   if (password.length < 6) {
-    return "Mật khẩu tối thiểu 6 ký tự."
+    return "Mat khau toi thieu 6 ky tu."
   }
 
   if (password !== confirmPassword) {
-    return "Xác nhận mật khẩu không khớp."
+    return "Xac nhan mat khau khong khop."
+  }
+
+  if (!OTP_PATTERN.test(otp)) {
+    return "Ma OTP gom 6 chu so."
   }
 
   return ""

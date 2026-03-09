@@ -1,6 +1,6 @@
 import { useState } from "react"
 import { useLocation, useNavigate } from "react-router-dom"
-import { createLoginForm } from "../../models/authModel"
+import { createLoginForm, isAdminUser } from "../../models/authModel"
 import { loginUser } from "../../models/api"
 import { ROUTES } from "../../models/routeModel"
 
@@ -13,7 +13,7 @@ export const useLoginController = ({ onLoginSuccess }) => {
 
   const infoMessage = location.state?.message
     || (location.state?.registered
-      ? "Đăng ký thành công. Vui lòng đăng nhập để tiếp tục."
+      ? "Dang ky thanh cong. Vui long dang nhap de tiep tuc."
       : "")
 
   const handleFieldChange = (field, value) => {
@@ -31,7 +31,10 @@ export const useLoginController = ({ onLoginSuccess }) => {
     try {
       const data = await loginUser(form)
       onLoginSuccess?.(data.token, data.user)
-      navigate(location.state?.from || ROUTES.users, { replace: true })
+      navigate(
+        location.state?.from || (isAdminUser(data.user) ? ROUTES.adminFields : ROUTES.booking),
+        { replace: true }
+      )
     } catch (apiError) {
       setError(apiError.message)
     } finally {

@@ -1,13 +1,18 @@
 import { useEffect, useRef, useState } from "react"
 import { useNavigate } from "react-router-dom"
-import { createRegisterForm, validateRegisterDetails } from "../../models/authModel"
-import { registerUser } from "../../models/api"
+import {
+  createRegisterForm,
+  isValidEmail,
+  validateRegisterDetails,
+} from "../../models/authModel"
+import { registerUser, requestRegisterOtp } from "../../models/api"
 import { ROUTES } from "../../models/routeModel"
 
 export const useRegisterController = () => {
   const navigate = useNavigate()
   const [form, setForm] = useState(createRegisterForm)
   const [submitting, setSubmitting] = useState(false)
+  const [otpSending, setOtpSending] = useState(false)
   const [error, setError] = useState("")
   const [successMessage, setSuccessMessage] = useState("")
   const redirectTimeoutRef = useRef(null)
@@ -27,6 +32,35 @@ export const useRegisterController = () => {
     }))
   }
 
+  const handleRequestOtp = async () => {
+    const email = String(form.email || "").trim().toLowerCase()
+
+    if (!email) {
+      setError("Vui long nhap email truoc khi yeu cau OTP.")
+      return
+    }
+
+    if (!isValidEmail(email)) {
+      setError("Email khong hop le.")
+      return
+    }
+
+    setOtpSending(true)
+    setError("")
+    setSuccessMessage("")
+
+    try {
+      const data = await requestRegisterOtp({ email })
+      setSuccessMessage(
+        String(data?.message || "").trim() || "Da gui ma OTP. Vui long kiem tra email."
+      )
+    } catch (apiError) {
+      setError(apiError.message)
+    } finally {
+      setOtpSending(false)
+    }
+  }
+
   const handleSubmit = async (event) => {
     event.preventDefault()
     setError("")
@@ -40,20 +74,23 @@ export const useRegisterController = () => {
 
     setSubmitting(true)
     try {
-      await registerUser({
+      const data = await registerUser({
         fullName: form.fullName,
         email: form.email,
-        phone: form.phone,
         password: form.password,
+        otp: form.otp,
       })
 
-      setSuccessMessage("Đăng ký thành công. Đang chuyển sang trang đăng nhập...")
+      setSuccessMessage(
+        String(data?.message || "").trim()
+        || "Dang ky thanh cong. Dang chuyen sang trang dang nhap..."
+      )
       redirectTimeoutRef.current = setTimeout(() => {
         navigate(ROUTES.login, {
           replace: true,
           state: {
             registered: true,
-            message: "Đăng ký thành công. Vui lòng đăng nhập để tiếp tục.",
+            message: "Dang ky thanh cong. Vui long dang nhap de tiep tuc.",
           },
         })
       }, 1200)
@@ -67,10 +104,12 @@ export const useRegisterController = () => {
   return {
     form,
     submitting,
+    otpSending,
     error,
     successMessage,
     loginPath: ROUTES.login,
     handleFieldChange,
+    handleRequestOtp,
     handleSubmit,
   }
 }

@@ -13,39 +13,39 @@ const LoginView = ({
   return (
     <section className="page section authPage">
       <div className="container narrowContainer">
-        <h1>Đăng nhập</h1>
-        <p>Đăng nhập bằng email hoặc số điện thoại để làm việc với backend api-be-football.</p>
+        <h1>Dang nhap</h1>
+        <p>Dang nhap de dat san, theo doi lich su dat cho va quan ly san cua ban.</p>
 
         <form className="formCard" onSubmit={onSubmit}>
           {infoMessage && <p className="message success">{infoMessage}</p>}
 
-          <label htmlFor="login-username">Email hoặc số điện thoại</label>
+          <label htmlFor="login-email">Email</label>
           <input
-            id="login-username"
-            type="text"
-            value={form.username}
-            onChange={(event) => onFieldChange("username", event.target.value)}
-            placeholder="email@domain.com hoặc 09xxxxxxxx"
+            id="login-email"
+            type="email"
+            value={form.email}
+            onChange={(event) => onFieldChange("email", event.target.value)}
+            placeholder="email@domain.com"
           />
 
-          <label htmlFor="login-password">Mật khẩu</label>
+          <label htmlFor="login-password">Mat khau</label>
           <input
             id="login-password"
             type="password"
             value={form.password}
             onChange={(event) => onFieldChange("password", event.target.value)}
-            placeholder="Nhập mật khẩu"
+            placeholder="Nhap mat khau"
           />
 
           {error && <p className="message error">{error}</p>}
 
           <button className="btn" type="submit" disabled={submitting}>
-            {submitting ? "Đang xử lý..." : "Đăng nhập"}
+            {submitting ? "Dang xu ly..." : "Dang nhap"}
           </button>
         </form>
 
         <p className="helperText">
-          Chưa có tài khoản? <Link to={registerPath}>Đăng ký ngay</Link>
+          Chua co tai khoan? <Link to={registerPath}>Dang ky ngay</Link>
         </p>
       </div>
     </section>

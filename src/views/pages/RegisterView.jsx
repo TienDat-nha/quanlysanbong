@@ -4,9 +4,11 @@ import { Link } from "react-router-dom"
 const RegisterView = ({
   form,
   submitting,
+  otpSending,
   error,
   successMessage,
   onFieldChange,
+  onRequestOtp,
   onSubmit,
   loginPath,
 }) => {
@@ -15,26 +17,26 @@ const RegisterView = ({
       <div className="container narrowContainer registerContainer">
         <div className="registerHero">
           <div className="registerHeroTop">
-            <span className="registerEyebrow">api-be-football</span>
+            <span className="registerEyebrow">SanBong</span>
           </div>
 
-          <h1>Đăng ký tài khoản</h1>
+          <h1>Dang ky tai khoan</h1>
           <p className="registerHeroText">
-            Tạo tài khoản mới để đăng nhập và làm việc với backend Render hiện tại.
+            Tao tai khoan moi de dat san, quan ly lich dat va nhan thong bao qua email.
           </p>
         </div>
 
         <form className="formCard registerCard" onSubmit={onSubmit}>
           <div className="registerSectionTitle">
             <div>
-              <h2>Thông tin tài khoản</h2>
-              <p>Backend yêu cầu họ tên, email, số điện thoại và mật khẩu.</p>
+              <h2>Thong tin tai khoan</h2>
+              <p>Nhap email, xin ma OTP, sau do hoan tat dang ky.</p>
             </div>
           </div>
 
           <div className="registerFieldGrid">
             <div className="registerField">
-              <label htmlFor="register-full-name">Họ và tên</label>
+              <label htmlFor="register-full-name">Ho va ten</label>
               <input
                 id="register-full-name"
                 type="text"
@@ -56,35 +58,35 @@ const RegisterView = ({
             </div>
 
             <div className="registerField">
-              <label htmlFor="register-phone">Số điện thoại</label>
-              <input
-                id="register-phone"
-                type="text"
-                value={form.phone}
-                onChange={(event) => onFieldChange("phone", event.target.value)}
-                placeholder="09xxxxxxxx"
-              />
-            </div>
-
-            <div className="registerField">
-              <label htmlFor="register-password">Mật khẩu</label>
+              <label htmlFor="register-password">Mat khau</label>
               <input
                 id="register-password"
                 type="password"
                 value={form.password}
                 onChange={(event) => onFieldChange("password", event.target.value)}
-                placeholder="Tối thiểu 6 ký tự"
+                placeholder="Toi thieu 6 ky tu"
               />
             </div>
 
             <div className="registerField">
-              <label htmlFor="register-confirm-password">Xác nhận mật khẩu</label>
+              <label htmlFor="register-confirm-password">Xac nhan mat khau</label>
               <input
                 id="register-confirm-password"
                 type="password"
                 value={form.confirmPassword}
                 onChange={(event) => onFieldChange("confirmPassword", event.target.value)}
-                placeholder="Nhập lại mật khẩu"
+                placeholder="Nhap lai mat khau"
+              />
+            </div>
+
+            <div className="registerField">
+              <label htmlFor="register-otp">Ma OTP</label>
+              <input
+                id="register-otp"
+                type="text"
+                value={form.otp}
+                onChange={(event) => onFieldChange("otp", event.target.value)}
+                placeholder="Nhap 6 chu so"
               />
             </div>
           </div>
@@ -92,13 +94,22 @@ const RegisterView = ({
           {error && <p className="message error">{error}</p>}
           {successMessage && <p className="message success">{successMessage}</p>}
 
+          <button
+            className="ghostBtn registerOtpBtn"
+            type="button"
+            onClick={onRequestOtp}
+            disabled={otpSending || submitting}
+          >
+            {otpSending ? "Dang gui OTP..." : "Gui ma OTP"}
+          </button>
+
           <button className="btn registerSubmitBtn" type="submit" disabled={submitting}>
-            {submitting ? "Đang tạo tài khoản..." : "Đăng ký"}
+            {submitting ? "Dang tao tai khoan..." : "Dang ky"}
           </button>
         </form>
 
         <p className="helperText registerFooterText">
-          Đã có tài khoản? <Link to={loginPath}>Đăng nhập</Link>
+          Da co tai khoan? <Link to={loginPath}>Dang nhap</Link>
         </p>
       </div>
     </section>

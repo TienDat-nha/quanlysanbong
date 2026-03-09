@@ -6,10 +6,12 @@ const RegisterController = () => {
   const {
     form,
     submitting,
+    otpSending,
     error,
     successMessage,
     loginPath,
     handleFieldChange,
+    handleRequestOtp,
     handleSubmit,
   } = useRegisterController()
 
@@ -17,10 +19,12 @@ const RegisterController = () => {
     <RegisterView
       form={form}
       submitting={submitting}
+      otpSending={otpSending}
       error={error}
       successMessage={successMessage}
       loginPath={loginPath}
       onFieldChange={handleFieldChange}
+      onRequestOtp={handleRequestOtp}
       onSubmit={handleSubmit}
     />
   )

@@ -1,31 +1,31 @@
 import { ROUTES } from "./routeModel"
 
 const HOME_STATS = Object.freeze([
-  { id: 1, iconKey: "location", value: "Render", label: "Backend đang hoạt động" },
-  { id: 2, iconKey: "flash", value: "MongoDB", label: "Dữ liệu người dùng trực tuyến" },
-  { id: 3, iconKey: "shield", value: "Auth", label: "Đăng nhập bằng token" },
+  { id: 1, iconKey: "location", value: "24/7", label: "Ho tro tim san gan ban nhanh hon" },
+  { id: 2, iconKey: "flash", value: "San 5-11", label: "Da dang loai san va khung gio" },
+  { id: 3, iconKey: "shield", value: "Dat coc", label: "Xac nhan lich dat va thanh toan ro rang" },
 ])
 
 const HOT_SLOTS = Object.freeze([
-  { id: 1, time: "POST", fieldName: "/api/user/login" },
-  { id: 2, time: "POST", fieldName: "/api/user/register" },
-  { id: 3, time: "GET", fieldName: "/api/user/getAllUser" },
+  { id: 1, time: "18:00 - 19:30", fieldName: "San 7 Quan 8" },
+  { id: 2, time: "19:30 - 21:00", fieldName: "San 5 Trung Son" },
+  { id: 3, time: "20:00 - 22:00", fieldName: "San 11 Binh Chanh" },
 ])
 
 export const createHomeModel = () => ({
-  tagline: "Frontend ket noi backend Render",
-  title: "Quan ly nguoi dung voi api-be-football",
+  tagline: "He thong dat san bong truc tuyen",
+  title: "Dat san nhanh, quan ly lich san va thanh toan de dang",
   description:
-    "Ung dung nay da duoc chinh de goi truc tiep backend api-be-football.onrender.com thong qua cac API dang nhap, dang ky va danh sach nguoi dung.",
+    "Tim san phu hop, chon khung gio trong, dat coc online va theo doi lich su dat san tren mot giao dien duy nhat.",
   primaryAction: {
-    to: ROUTES.users,
-    label: "Xem danh sach nguoi dung",
+    to: ROUTES.fields,
+    label: "Kham pha san bong",
   },
   secondaryAction: {
-    to: ROUTES.register,
-    label: "Tao tai khoan moi",
+    to: ROUTES.booking,
+    label: "Dat san ngay",
   },
-  panelTitle: "API dang duoc su dung",
+  panelTitle: "Khung gio duoc dat nhieu",
   hotSlots: HOT_SLOTS,
   stats: HOME_STATS,
 })
