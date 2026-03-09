@@ -1,23 +1,7 @@
 {
-  "name": "sanbong",
+  "name": "sanbong-frontend",
   "version": "0.1.0",
   "private": true,
-  "workspaces": [
-    "frontend",
-    "backend"
-  ],
-  "scripts": {
-    "start": "react-scripts start",
-    "start:frontend-folder": "npm run start --workspace frontend",
-    "dev": "concurrently \"npm run server\" \"npm run start\"",
-    "client": "npm run start",
-    "server": "npm run dev --workspace backend",
-    "build": "react-scripts build",
-    "build:frontend-folder": "npm run build --workspace frontend",
-    "test": "react-scripts test",
-    "eject": "react-scripts eject",
-    "migrate": "npm run migrate --workspace backend"
-  },
   "dependencies": {
     "@testing-library/dom": "^10.4.1",
     "@testing-library/jest-dom": "^6.9.1",
@@ -31,8 +15,17 @@
     "sass": "^1.97.3",
     "web-vitals": "^2.1.4"
   },
-  "devDependencies": {
-    "concurrently": "^9.2.1"
+  "scripts": {
+    "start": "react-scripts start",
+    "build": "react-scripts build",
+    "test": "react-scripts test",
+    "eject": "react-scripts eject"
+  },
+  "eslintConfig": {
+    "extends": [
+      "react-app",
+      "react-app/jest"
+    ]
   },
   "browserslist": {
     "production": [

@@ -1,0 +1,798 @@
+TAI LIEU TOM TAT CAU TRUC DU AN SANBONG
+Cap nhat: 2026-03-09
+
+GHI CHU CAU TRUC MOI:
+- Frontend da nam trong thu muc `frontend/`.
+- Backend da nam trong thu muc `backend/`.
+- Entry point backend hien tai la `backend/server.js`.
+- Route backend hien tai tap trung trong `backend/routes/index.js`.
+- Data layer MongoDB hien tai nam trong `backend/models/mongo.js`.
+
+==================================================
+1. MUC DICH TAI LIEU
+==================================================
+Tai lieu nay dung de:
+- Giai thich nhanh cau truc source cho thanh vien moi.
+- Biet file nao dung de lam gi, sua o dau.
+- Hieu luong ket noi giua frontend, backend, MongoDB va email/payment.
+- Hieu cac model/frontend view-model va model du lieu backend.
+
+
+==================================================
+2. TONG QUAN KIEN TRUC
+==================================================
+Du an dung:
+- Frontend: React + react-router-dom.
+- Backend: Express.
+- Database: MongoDB.
+- Email OTP: Nodemailer.
+- Thanh toan dat coc: VNPAY, MoMo, chuyen khoan tinh.
+
+Frontend duoc tach theo kieu gan MVC:
+- View: nam trong src/views, chi render giao dien.
+- Controller: nam trong src/controllers, noi view voi logic.
+- Hook controller: cac file useXController.js chua state, side effects, xu ly su kien.
+- Model: nam trong src/models, chua ham xu ly du lieu, validate, format, route map, API client.
+
+Luong chinh:
+src/index.js
+-> src/App.js
+-> src/controllers/AppController.jsx
+-> Route den page controller
+-> useXController.js lay / xu ly data
+-> src/models/api.js goi backend
+-> server/index.js xu ly request
+-> server/mongo.js ket noi MongoDB
+-> tra JSON ve frontend
+-> Controller dua du lieu vao View de render.
+
+Luong UI:
+Controller -> View.
+
+Luong du lieu:
+Model API -> Backend API -> MongoDB.
+
+
+==================================================
+3. SO DO KET NOI NHANH
+==================================================
+3.1. Boot app frontend
+- src/index.js: tao React root va boc App bang BrowserRouter.
+- src/App.js: re-export AppController.
+- src/controllers/AppController.jsx:
+  - nap app.css.
+  - doc auth state tu useAppController.
+  - gan Routes.
+  - gan NavbarController va FooterController.
+- src/controllers/useAppController.js:
+  - doc token tu localStorage.
+  - goi getMe() de lay user hien tai.
+  - quan ly login/logout.
+
+3.2. Luong mot page thong thuong
+- Page route trong AppController.
+- Controller page (vi du FieldsController.jsx) goi hook logic.
+- Hook page (vi du useFieldsController.js) goi src/models/api.js.
+- src/models/api.js dung fetch goi server/index.js.
+- Ket qua API duoc dua qua model chuyen doi (vi du fieldModel.js).
+- View page render giao dien tu props.
+
+3.3. Luong backend
+- server/index.js: tap trung route API va nghiep vu.
+- server/mongo.js:
+  - tao MongoClient.
+  - dam bao index.
+  - seed du lieu ban dau tu server/data/db.json neu collection rong.
+- server/mailer.js: gui OTP dang ky qua SMTP hoac console.
+- server/dev.js: chay ca client va server trong dev.
+- server/migrate.js: chay index + seed truoc khi su dung.
+
+
+==================================================
+4. CAY THU MUC VA CHUC NANG TUNG NHOM FILE
+==================================================
+4.1. Thu muc goc
+- package.json:
+  - khai bao dependency.
+  - script quan trong:
+    - npm run dev: chay ca frontend + backend qua server/dev.js.
+    - npm run server: chay backend.
+    - npm run client: chay React client.
+    - npm run migrate: dam bao Mongo index + seed.
+    - npm run build: build frontend production.
+- package-lock.json: lock version dependency.
+- README.md: tai lieu tong quan project.
+- TAI_LIEU_CAU_TRUC_DU_AN.txt: tai lieu phan tich codebase cho team.
+
+4.2. public
+- public/index.html:
+  - HTML shell cua React app.
+  - chua div root de React mount vao.
+
+4.3. src
+- src/index.js:
+  - diem vao frontend.
+- src/App.js:
+  - re-export AppController de import gon.
+- src/app.css:
+  - CSS global cua toan bo app.
+
+4.4. src/controllers
+- src/controllers/AppController.jsx:
+  - trung tam route frontend.
+  - quyet dinh hien footer hay khong.
+  - redirect admin ve /quan-ly-san.
+- src/controllers/useAppController.js:
+  - auth bootstrap.
+  - kiem tra token.
+  - cap nhat currentUser.
+  - login/logout.
+
+4.5. src/controllers/layout
+- src/controllers/layout/NavbarController.jsx:
+  - tao navbar view-model tu navbarModel.
+  - noi event mo/dong menu va logout vao NavbarView.
+- src/controllers/layout/useNavbarController.js:
+  - state isMenuOpen.
+  - dieu huong sau khi logout.
+- src/controllers/layout/FooterController.jsx:
+  - tao footer view-model va render FooterView.
+
+4.6. src/controllers/pages
+- HomeController.jsx:
+  - render trang chu tu homeModel.
+- FieldsController.jsx:
+  - lay danh sach san.
+  - truyen helper route va formatPrice vao view.
+- FieldDetailController.jsx:
+  - lay chi tiet san theo id tu URL.
+- BookingController.jsx:
+  - controller cho luong dat san va lich da dat.
+- ContactController.jsx:
+  - gui form lien he.
+- LoginController.jsx:
+  - xu ly dang nhap.
+- RegisterController.jsx:
+  - xu ly dang ky + OTP.
+- UsersController.jsx:
+  - CRUD danh sach user cong khai.
+- AdminFieldsController.jsx:
+  - dashboard quan tri san.
+  - tao san moi.
+  - xem booking.
+  - xac nhan/huy booking.
+- DepositPaymentController.jsx:
+  - xu ly trang thanh toan dat coc.
+
+4.7. Hook controller cua tung page
+- useFieldsController.js:
+  - goi getFields().
+  - set loading/error/list.
+- useFieldDetailController.js:
+  - doc params id.
+  - goi getFieldById().
+- useBookingController.js:
+  - page logic quan trong nhat ben frontend.
+  - goi danh sach san, booking availability, lich da dat cua toi.
+  - quan ly form dat san, chon slot, validate, tao booking.
+  - dieu huong qua trang dat coc.
+- useContactController.js:
+  - quan ly form lien he.
+  - goi sendContact().
+- useLoginController.js:
+  - goi loginUser().
+  - navigate theo role.
+- useRegisterController.js:
+  - validate thong tin.
+  - goi requestRegisterOtp().
+  - goi registerUser().
+- useUsersController.js:
+  - goi getPublicUsers(), createPublicUser(), updatePublicUser(), deletePublicUser().
+- useAdminFieldsController.js:
+  - goi getAdminFields() + getAdminDashboard().
+  - tao san, upload anh, tao san con.
+  - xac nhan/huy booking.
+  - tinh refresh dashboard.
+- useDepositPaymentController.js:
+  - goi getBookingDepositInfo().
+  - goi confirmStaticDeposit(), createVnpayDepositPayment(), createMomoDepositPayment().
+  - xu ly callback status tren query string.
+
+4.8. src/models
+- src/models/api.js:
+  - API client chinh cua frontend.
+  - boc fetch, xu ly error message, JSON parse.
+  - la diem ket noi truc tiep tu frontend sang backend.
+- src/models/authModel.js:
+  - form dang nhap/dang ky.
+  - storage token.
+  - validate register.
+  - role user/admin.
+- src/models/routeModel.js:
+  - map route frontend.
+  - helper tao link chi tiet san, dat san, dat coc.
+- src/models/fieldModel.js:
+  - normalize field data tu API.
+  - normalize subFields.
+  - formatPrice.
+  - tong hop loai san.
+- src/models/bookingModel.js:
+  - model nghiep vu dat san.
+  - tao timeline slot.
+  - parse date/time slot.
+  - validate booking form.
+  - tinh tong tien, tien dat coc, tien con lai.
+  - build lich booking theo subfield.
+  - format status booking/dat coc.
+- src/models/adminFieldModel.js:
+  - form tao san ben admin.
+  - validate form admin.
+  - build payload gui len API admin.
+- src/models/adminDashboardModel.js:
+  - normalize response dashboard admin.
+  - gom stats, recent bookings, availability, customer stats.
+- src/models/contactModel.js:
+  - state form lien he va feedback.
+- src/models/homeModel.js:
+  - du lieu tinh cho trang chu.
+- src/models/fieldTypeModel.js:
+  - enum loai san.
+  - normalize "San 5 / San 7 / San 11 / Futsal".
+- src/models/userModel.js:
+  - normalize user list/user item cho trang users.
+- src/models/layout/navbarModel.js:
+  - xac dinh menu theo role.
+- src/models/layout/footerModel.js:
+  - du lieu footer.
+
+4.9. src/services
+- src/services/api.js:
+  - chi re-export src/models/api.js.
+  - dung khi muon giu alias import services/api.
+
+4.10. src/pages
+- src/pages/*.jsx:
+  - file wrapper/re-export.
+  - khong chua logic.
+  - chi tro den page controller tuong ung.
+
+4.11. src/views
+- src/views/AppView.jsx:
+  - layout goc cua app.
+  - hien navbar, footer, loading auth, children.
+
+4.12. src/views/layout
+- NavbarView.jsx:
+  - giao dien menu chinh, auth action, mobile menu.
+- FooterView.jsx:
+  - giao dien footer.
+- navbar.scss:
+  - style navbar.
+- footer.scss:
+  - style footer.
+
+4.13. src/views/pages
+- HomeView.jsx:
+  - giao dien trang chu.
+- FieldsView.jsx:
+  - danh sach san.
+- FieldDetailView.jsx:
+  - chi tiet san, anh, thong tin dat san.
+- BookingView.jsx:
+  - giao dien chon lich, form xac nhan dat san, lich da dat.
+- DepositPaymentView.jsx:
+  - giao dien dat coc, chon phuong thuc thanh toan, xem trang thai.
+- ContactView.jsx:
+  - giao dien form lien he.
+- LoginView.jsx:
+  - giao dien dang nhap.
+- RegisterView.jsx:
+  - giao dien dang ky va OTP.
+- UsersView.jsx:
+  - giao dien CRUD user danh muc /users.
+- AdminFieldsView.jsx:
+  - dashboard admin, tao san, lich san, booking, customer stats.
+- home.scss:
+  - style rieng cho home page.
+
+4.14. server
+- server/index.js:
+  - backend chinh.
+  - chua middleware auth/admin.
+  - chua normalize/sanitize data.
+  - chua route users, auth, fields, admin, bookings, payments, contact.
+  - chua logic tinh dat coc, callback thanh toan, upload anh.
+- server/mongo.js:
+  - connection MongoDB.
+  - create index.
+  - seed data tu server/data/db.json.
+  - quan ly collection users, email_otps, fields, bookings, contacts, counters.
+- server/mailer.js:
+  - gui OTP dang ky.
+- server/migrate.js:
+  - script khoi tao Mongo indexes + seed data.
+- server/dev.js:
+  - helper chay server/client cung luc trong dev.
+- server/data/db.json:
+  - du lieu seed ban dau.
+  - dung de bo vao Mongo khi collection rong.
+  - hien dang la nguon seed cho users, con fields co the de rong hoac bo seed khi can.
+
+
+==================================================
+5. KET NOI FILE VOI NHAU
+==================================================
+5.1. Kieu ket noi frontend
+- AppController.jsx
+  -> NavbarController.jsx
+  -> FooterController.jsx
+  -> cac page controller.
+
+- Page controller
+  -> hook controller useXController.js
+  -> model xu ly du lieu
+  -> view page.
+
+5.2. Ket noi API frontend -> backend
+- src/models/api.js la diem trung gian duy nhat nen uu tien sua o day neu:
+  - doi endpoint.
+  - doi auth header.
+  - doi cach xu ly loi.
+
+5.3. Ket noi backend -> database
+- server/index.js khong tu noi truc tiep MongoClient.
+- server/index.js goi ham trong server/mongo.js:
+  - getUsersCollection()
+  - getEmailOtpsCollection()
+  - getFieldsCollection()
+  - getBookingsCollection()
+  - getContactsCollection()
+  - getNextSequenceValue()
+
+5.4. Ket noi auth
+- useAppController.js doc token trong localStorage.
+- src/models/authModel.js luu/xoa token.
+- src/models/api.js goi /api/auth/me.
+- server/index.js authMiddleware verify JWT.
+
+5.5. Ket noi OTP dang ky
+- RegisterView -> RegisterController -> useRegisterController
+-> requestRegisterOtp/registerUser
+-> server/index.js
+-> server/mailer.js gui mail
+-> collection email_otps trong MongoDB.
+
+5.6. Ket noi booking
+- BookingView -> useBookingController
+-> getFields + getBookingAvailability + createBooking + getMyBookings
+-> server/index.js
+-> collections fields + bookings.
+
+5.7. Ket noi admin tao san
+- AdminFieldsView -> useAdminFieldsController
+-> createAdminField + uploadAdminImage + getAdminDashboard
+-> server/index.js
+-> fields collection + uploads folder + bookings collection.
+
+5.8. Ket noi thanh toan dat coc
+- DepositPaymentView -> useDepositPaymentController
+-> getBookingDepositInfo / createVnpayDepositPayment / createMomoDepositPayment / confirmStaticDeposit
+-> server/index.js
+-> provider callback quay ve server/index.js
+-> cap nhat booking trong MongoDB
+-> redirect ve frontend route /thanh-toan-dat-coc/:bookingId.
+
+
+==================================================
+6. CAC MODEL FRONTEND QUAN TRONG
+==================================================
+6.1. Auth model
+File: src/models/authModel.js
+Chua:
+- USER_ROLES: customer, admin.
+- REGISTER_STEPS: details, otp.
+- createLoginForm(), createRegisterForm().
+- getStoredAuthToken(), persistAuthToken(), clearStoredAuthToken().
+- validateRegisterDetails().
+
+6.2. Route model
+File: src/models/routeModel.js
+Chua:
+- ROUTES:
+  - /
+  - /users
+  - /dang-nhap
+  - /dang-ky
+  - /quan-ly-san
+  - /san-bong
+  - /lien-he
+  - /dat-san
+  - /thanh-toan-dat-coc
+- helper tao route dong.
+
+6.3. Field model
+File: src/models/fieldModel.js
+Field frontend sau normalize thuong co:
+- id
+- name
+- slug
+- address
+- district
+- type
+- openHours
+- pricePerHour
+- rating
+- coverImage
+- article
+- images[]
+- subFields[]
+- ownerUserId
+- ownerFullName
+- managedByAdmin
+
+SubField frontend:
+- key
+- name
+- type
+- pricePerHour
+- openHours
+
+6.4. Booking model
+File: src/models/bookingModel.js
+Booking frontend/response hay dung:
+- id
+- userId
+- fieldId
+- fieldName
+- subFieldKey
+- subFieldName
+- subFieldType
+- date
+- timeSlot
+- phone
+- note
+- status
+- totalPrice
+- depositAmount
+- remainingAmount
+- depositStatus
+- depositMethod
+- createdAt
+
+6.5. Admin field form model
+File: src/models/adminFieldModel.js
+Form admin tao san:
+- name
+- address
+- district
+- type
+- openHours
+- pricePerHour
+- rating
+- coverImage
+- article
+- subFields[]
+- galleryImages[]
+
+6.6. Admin dashboard state model
+File: src/models/adminDashboardModel.js
+Dashboard admin chua:
+- stats
+- recentBookings[]
+- managedBookings[]
+- availabilityDate
+- dailyAvailability[]
+- customerMonthlyStats[]
+- customerSummaries[]
+
+6.7. Contact model
+File: src/models/contactModel.js
+Form lien he:
+- name
+- email
+- phone
+- message
+
+6.8. User model
+File: src/models/userModel.js
+User hien thi trang /users:
+- id
+- name
+
+
+==================================================
+7. CAC COLLECTION / DATA MODEL BACKEND
+==================================================
+Quan ly o server/mongo.js.
+
+7.1. users
+Muc dich:
+- luu tai khoan dang nhap.
+- co ca customer va admin.
+- co nhom directoryVisible cho bai /users seed.
+Field thuong gap:
+- _id
+- id
+- fullName
+- name
+- email
+- passwordHash
+- role
+- directoryVisible
+- createdAt
+
+7.2. email_otps
+Muc dich:
+- luu OTP dang ky.
+Field thuong gap:
+- email
+- purpose
+- otpCode
+- expiresAt
+- createdAt
+
+7.3. fields
+Muc dich:
+- luu san bong do admin tao.
+Field thuong gap:
+- id
+- name
+- slug
+- address
+- district
+- type
+- openHours
+- pricePerHour
+- rating
+- coverImage
+- article
+- images[]
+- subFields[]
+- ownerUserId
+- ownerFullName
+- createdAt
+- updatedAt
+
+7.4. bookings
+Muc dich:
+- luu dat san cua user.
+Field thuong gap:
+- _id
+- userId
+- fieldId
+- fieldName
+- subFieldKey
+- subFieldName
+- subFieldType
+- date
+- timeSlot
+- phone
+- note
+- status
+- totalPrice
+- depositAmount
+- remainingAmount
+- depositStatus
+- depositMethod
+- depositPaid
+- depositReference
+- createdAt
+- confirmedAt
+- cancelledAt
+
+7.5. contacts
+Muc dich:
+- luu form lien he.
+
+7.6. counters
+Muc dich:
+- tao sequence cho fields, directory_users, contacts.
+
+
+==================================================
+8. CAC API CHINH TRONG BACKEND
+==================================================
+Tat ca nam trong server/index.js.
+
+8.1. Health
+- GET /api/health
+
+8.2. Users public/directory
+- GET /users
+- GET /api/users
+- GET /users/:id
+- GET /api/users/:id
+- POST /users
+- POST /api/users
+- PUT /users/:id
+- PUT /api/users/:id
+- PATCH /users/:id
+- PATCH /api/users/:id
+- DELETE /users/:id
+- DELETE /api/users/:id
+
+8.3. Auth
+- POST /api/auth/request-register-otp
+- POST /api/auth/register
+- POST /api/auth/login
+- GET /api/auth/me
+
+8.4. Fields public
+- GET /api/fields
+- GET /api/fields/:id
+
+8.5. Admin
+- GET /api/admin/fields
+- GET /api/admin/dashboard
+- POST /api/admin/fields
+- POST /api/admin/uploads/images
+- POST /api/admin/bookings/:id/confirm
+- POST /api/admin/bookings/:id/cancel
+
+8.6. Booking
+- POST /api/bookings
+- GET /api/bookings/availability
+- GET /api/bookings/me
+- GET /api/bookings/:id/deposit
+- POST /api/bookings/:id/deposit/static-confirm
+- POST /api/bookings/:id/deposit/vnpay/create
+- POST /api/bookings/:id/deposit/momo/create
+
+8.7. Payment callback
+- GET /api/payments/vnpay/return
+- GET /api/payments/vnpay/ipn
+- GET /api/payments/momo/return
+- POST /api/payments/momo/ipn
+
+8.8. Contact
+- POST /api/contact
+
+
+==================================================
+9. FILE NAO SUA KHI CAN DOI MOT CHUC NANG
+==================================================
+9.1. Muon doi route frontend
+- src/models/routeModel.js
+- src/controllers/AppController.jsx
+
+9.2. Muon doi menu/navbar/footer
+- src/models/layout/navbarModel.js
+- src/models/layout/footerModel.js
+- src/controllers/layout/*.jsx
+- src/views/layout/*.jsx
+- src/views/layout/*.scss
+
+9.3. Muon doi UI cua tung page
+- src/views/pages/TenPageView.jsx
+- neu can them style global: src/app.css
+- neu rieng home: src/views/pages/home.scss
+
+9.4. Muon doi logic cua tung page
+- src/controllers/pages/useTenController.js
+- src/models lien quan.
+
+9.5. Muon doi API frontend
+- src/models/api.js
+- src/services/api.js neu du an dang import qua services.
+
+9.6. Muon doi logic dang nhap/dang ky/OTP
+- src/models/authModel.js
+- src/controllers/pages/useLoginController.js
+- src/controllers/pages/useRegisterController.js
+- server/index.js
+- server/mailer.js
+- Mongo collections: users, email_otps
+
+9.7. Muon doi logic danh sach san / chi tiet san
+- src/controllers/pages/useFieldsController.js
+- src/controllers/pages/useFieldDetailController.js
+- src/models/fieldModel.js
+- server/index.js route /api/fields*
+
+9.8. Muon doi logic dat san
+- src/controllers/pages/useBookingController.js
+- src/models/bookingModel.js
+- src/views/pages/BookingView.jsx
+- server/index.js route /api/bookings*
+- Mongo collections: fields, bookings
+
+9.9. Muon doi logic admin tao san / dashboard
+- src/controllers/pages/useAdminFieldsController.js
+- src/models/adminFieldModel.js
+- src/models/adminDashboardModel.js
+- src/views/pages/AdminFieldsView.jsx
+- server/index.js route /api/admin/*
+- server/uploads neu lien quan upload anh
+
+9.10. Muon doi logic dat coc
+- src/controllers/pages/useDepositPaymentController.js
+- src/views/pages/DepositPaymentView.jsx
+- src/models/bookingModel.js
+- server/index.js route deposit + payment callback
+
+9.11. Muon doi trang users bai tap /users
+- src/controllers/pages/useUsersController.js
+- src/models/userModel.js
+- src/views/pages/UsersView.jsx
+- server/index.js route /users va /api/users
+
+9.12. Muon doi seed du lieu
+- server/data/db.json
+- server/migrate.js
+- server/mongo.js
+
+
+==================================================
+10. GOI Y PHAN CONG CHO TEAM
+==================================================
+Neu chia viec voi thanh vien khac, co the tach nhu sau:
+
+Nhom Frontend giao dien:
+- src/views/**
+- src/app.css
+- src/views/layout/*.scss
+- src/views/pages/home.scss
+
+Nhom Frontend logic:
+- src/controllers/**
+- src/models/**
+- src/models/api.js
+
+Nhom Backend API:
+- server/index.js
+- server/mongo.js
+- server/mailer.js
+- server/migrate.js
+
+Nhom Data/Seed:
+- server/data/db.json
+- collection MongoDB.
+
+Nhom nghiep vu dat san:
+- src/controllers/pages/useBookingController.js
+- src/models/bookingModel.js
+- src/views/pages/BookingView.jsx
+- server/index.js booking routes.
+
+Nhom quan tri san:
+- src/controllers/pages/useAdminFieldsController.js
+- src/models/adminFieldModel.js
+- src/models/adminDashboardModel.js
+- src/views/pages/AdminFieldsView.jsx
+- server/index.js admin routes.
+
+
+==================================================
+11. NHUNG FILE TRUNG TAM NEN DOC DAU TIEN
+==================================================
+Neu la thanh vien moi, nen doc theo thu tu nay:
+- package.json
+- src/controllers/AppController.jsx
+- src/controllers/useAppController.js
+- src/models/api.js
+- src/models/routeModel.js
+- src/controllers/pages/useBookingController.js
+- src/controllers/pages/useAdminFieldsController.js
+- src/models/bookingModel.js
+- src/models/fieldModel.js
+- server/index.js
+- server/mongo.js
+
+
+==================================================
+12. KET LUAN NGAN
+==================================================
+Codebase nay duoc tach kha ro:
+- View render giao dien.
+- Controller va hook controller giu logic.
+- Model xu ly du lieu va format.
+- models/api.js la cau noi frontend-backend.
+- server/index.js la trung tam nghiep vu backend.
+- server/mongo.js la trung tam database.
+
+Neu can ban giao nhanh cho nguoi khac, chi can dua tai lieu nay kem theo:
+- route frontend trong src/models/routeModel.js
+- API client trong src/models/api.js
+- backend route trong server/index.js
+- data layer trong server/mongo.js
+la du de mot thanh vien moi bat dau lam viec.
