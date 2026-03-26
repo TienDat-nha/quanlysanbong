@@ -20,66 +20,12 @@ const splitLocationSegments = (...values) =>
     .map((part) => part.trim())
     .filter(Boolean)
 
-const detectWardSegment = (value) => {
-  const normalized = normalizeSearchText(value)
-  return /^(phuong|p|xa|x|thi tran|tt)\b/.test(normalized) ? String(value || "").trim() : ""
-}
-
-const detectCitySegment = (value) => {
-  const normalized = normalizeSearchText(value)
-
-  if (/^(thanh pho|tp|tinh)\b/.test(normalized)) {
-    return String(value || "").trim()
-  }
-
-  if (
-    normalized.includes("ho chi minh")
-    || normalized === "hcm"
-    || normalized === "tphcm"
-    || normalized.includes("ha noi")
-    || normalized.includes("da nang")
-    || normalized.includes("can tho")
-    || normalized.includes("hai phong")
-  ) {
-    return String(value || "").trim()
-  }
-
-  return ""
-}
-
-const extractLocationParts = (address, district) => {
-  const segments = splitLocationSegments(address, district)
-
-  let ward = ""
-  let city = ""
-
-  segments.forEach((segment) => {
-    if (!ward) {
-      ward = detectWardSegment(segment)
-    }
-
-    if (!city) {
-      city = detectCitySegment(segment)
-    }
-  })
-
-  if (!city && segments.length >= 3) {
-    const lastSegment = segments[segments.length - 1]
-    const normalizedLast = normalizeSearchText(lastSegment)
-    const normalizedDistrict = normalizeSearchText(district)
-
-    if (
-      normalizedLast
-      && normalizedLast !== normalizedDistrict
-      && !detectWardSegment(lastSegment)
-    ) {
-      city = lastSegment
-    }
-  }
+const extractLocationParts = (address, district, city, ward) => {
+  const segments = splitLocationSegments(address, district, city, ward)
 
   return {
-    ward,
-    city,
+    ward: String(ward || segments.find((segment) => /^(phuong|p|xa|x|thi tran|tt)\b/i.test(segment)) || "").trim(),
+    city: String(city || segments[segments.length - 1] || "").trim(),
   }
 }
 
@@ -110,6 +56,7 @@ const normalizeSubFields = (value, field = null) => {
         const name = subField.trim()
         return name
           ? {
+              id: buildFallbackSlug(name, `san-${index + 1}`),
               key: buildFallbackSlug(name, `san-${index + 1}`),
               name,
               type: normalizeFieldType(field?.type, String(field?.type || "").trim()),
@@ -120,10 +67,13 @@ const normalizeSubFields = (value, field = null) => {
       }
 
       if (subField && typeof subField === "object") {
-        const name = String(subField.name || `Sân ${index + 1}`).trim()
-        const key = buildFallbackSlug(subField.key || name, `san-${index + 1}`)
+        const id = String(subField.id || subField._id || subField.subFieldId || "").trim()
+        const name = String(subField.name || `SÃ¢n ${index + 1}`).trim()
+        const key = buildFallbackSlug(subField.key || id || name, `san-${index + 1}`)
         return name
           ? {
+              ...subField,
+              id: id || key,
               key,
               name,
               type: normalizeFieldType(
@@ -142,23 +92,24 @@ const normalizeSubFields = (value, field = null) => {
 }
 
 const normalizeField = (field) => {
-  const id = Number(field?.id)
-  const name = String(field?.name || "").trim()
+  const id = String(field?.id || field?._id || field?.fieldId || "").trim()
+  const name = String(field?.name || field?.fieldName || "").trim()
 
-  if (!Number.isInteger(id) || id < 1 || !name) {
+  if (!id && !name) {
     return null
   }
 
-  const coverImage = String(field?.coverImage || "").trim()
-  const address = String(field?.address || "").trim()
-  const district = String(field?.district || "").trim()
-  const subFields = normalizeSubFields(field?.subFields, field)
-  const locationParts = extractLocationParts(address, district)
+  const coverImage = String(field?.coverImage || field?.image || field?.thumbnail || "").trim()
+  const address = String(field?.address || field?.location || "").trim()
+  const district = String(field?.district || field?.area || "").trim()
+  const locationParts = extractLocationParts(address, district, field?.city, field?.ward)
+  const subFields = normalizeSubFields(field?.subFields || field?.subfields, field)
 
   const normalizedField = {
-    id,
-    name,
-    slug: String(field?.slug || "").trim() || buildFallbackSlug(name, `san-${id}`),
+    ...field,
+    id: id || name,
+    name: name || id,
+    slug: String(field?.slug || "").trim() || buildFallbackSlug(name, id || "san-moi"),
     address,
     district,
     ward: locationParts.ward,
@@ -166,20 +117,20 @@ const normalizeField = (field) => {
     latitude: Number.isFinite(Number(field?.latitude)) ? Number(field.latitude) : null,
     longitude: Number.isFinite(Number(field?.longitude)) ? Number(field.longitude) : null,
     type: normalizeFieldType(field?.type, String(field?.type || "").trim()),
-    openHours: String(field?.openHours || "").trim(),
-    pricePerHour: Number(field?.pricePerHour || 0),
+    openHours: String(field?.openHours || field?.timeRange || "").trim(),
+    pricePerHour: Number(field?.pricePerHour || field?.price || field?.hourlyPrice || 0),
     rating: Number(field?.rating || 0),
     coverImage,
-    article: String(field?.article || "").trim(),
+    article: String(field?.article || field?.description || "").trim(),
     images: Array.isArray(field?.images)
       ? field.images.filter(Boolean)
       : coverImage
         ? [coverImage]
         : [],
     subFields,
-    ownerUserId: field?.ownerUserId || null,
-    ownerFullName: field?.ownerFullName || "",
-    managedByAdmin: Boolean(field?.managedByAdmin || field?.ownerUserId),
+    ownerUserId: field?.ownerUserId || field?.userId || null,
+    ownerFullName: field?.ownerFullName || field?.ownerName || "",
+    managedByAdmin: Boolean(field?.managedByAdmin || field?.ownerUserId || field?.userId),
   }
 
   return {
@@ -197,7 +148,7 @@ export const createFieldSearchState = () => ({
 })
 
 export const getFieldList = (data) => {
-  const source = Array.isArray(data?.fields) ? data.fields : []
+  const source = Array.isArray(data?.fields) ? data.fields : Array.isArray(data) ? data : []
   return source.map((field) => normalizeField(field)).filter(Boolean)
 }
 

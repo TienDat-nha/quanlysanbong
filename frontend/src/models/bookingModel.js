@@ -2,12 +2,6 @@ import { normalizeFieldType } from "./fieldTypeModel"
 
 const BOOKING_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/
 const TIME_SLOT_PATTERN = /^([01]\d|2[0-3]):([0-5]\d)\s*-\s*([01]\d|2[0-3]):([0-5]\d)$/
-const BLOCKING_BOOKING_STATUSES = new Set(["pending", "confirmed"])
-
-const GRID_START_MINUTES = 5 * 60
-const GRID_END_MINUTES = 22 * 60
-const GRID_INTERVAL_MINUTES = 30
-export const MINIMUM_BOOKING_DEPOSIT = 100000
 
 const padTime = (value) => String(value).padStart(2, "0")
 
@@ -29,6 +23,7 @@ const normalizeSubFields = (field) => {
         const key = normalizeSubFieldKey(subField)
         return key
           ? {
+              id: key,
               key,
               name: subField,
               type: normalizeFieldType(field?.type, String(field?.type || "").trim()),
@@ -39,15 +34,17 @@ const normalizeSubFields = (field) => {
       }
 
       if (subField && typeof subField === "object") {
-        const fallbackName = `Sân ${index + 1}`
+        const fallbackName = `SÃ¢n ${index + 1}`
         const name = String(subField.name || fallbackName).trim()
-        const key = normalizeSubFieldKey(subField.key || name)
+        const key = normalizeSubFieldKey(subField.key || subField.id || name)
 
         if (!key || !name) {
           return null
         }
 
         return {
+          ...subField,
+          id: String(subField.id || subField._id || key).trim() || key,
           key,
           name,
           type: normalizeFieldType(
@@ -62,6 +59,33 @@ const normalizeSubFields = (field) => {
       return null
     })
     .filter(Boolean)
+}
+
+const normalizeTimeSlotId = (value, fallback = "") => String(value || fallback || "").trim()
+
+const normalizeTimelineSlot = (slot, index = 0) => {
+  if (!slot || typeof slot !== "object") {
+    return null
+  }
+
+  const timeSlot = String(slot.timeSlot || slot.label || "").trim()
+  const parsedRange = parseTimeSlot(timeSlot)
+
+  return {
+    ...slot,
+    id: normalizeTimeSlotId(slot.id, `slot-${index + 1}`),
+    key: normalizeTimeSlotId(slot.id, `slot-${index + 1}`),
+    label: String(slot.label || timeSlot || "").trim() || `Khung gio ${index + 1}`,
+    timeSlot,
+    startMinutes:
+      Number.isFinite(Number(slot.startMinutes))
+        ? Number(slot.startMinutes)
+        : parsedRange?.startMinutes ?? null,
+    endMinutes:
+      Number.isFinite(Number(slot.endMinutes))
+        ? Number(slot.endMinutes)
+        : parsedRange?.endMinutes ?? null,
+  }
 }
 
 export const minutesToTimeLabel = (totalMinutes) => {
@@ -84,8 +108,10 @@ export const createBookingForm = (
   date = getTodayBookingDate()
 ) => ({
   fieldId,
+  subFieldId: "",
   subFieldKey: "",
   date,
+  timeSlotId: "",
   timeSlot: "",
   phone: "",
   confirmPhone: "",
@@ -169,19 +195,9 @@ export const calculateBookingTotalPrice = (pricePerHour, timeSlot) => {
   return Math.round((Number(pricePerHour || 0) * totalMinutes) / 60)
 }
 
-export const calculateBookingDepositAmount = (totalPrice) => {
-  const normalizedTotal = Math.max(Number(totalPrice || 0), 0)
-  if (!normalizedTotal) {
-    return 0
-  }
+export const calculateBookingDepositAmount = (totalPrice) => Math.max(Number(totalPrice || 0), 0)
 
-  return Math.min(normalizedTotal, MINIMUM_BOOKING_DEPOSIT)
-}
-
-export const calculateRemainingPaymentAmount = (
-  totalPrice,
-  depositAmount = calculateBookingDepositAmount(totalPrice)
-) => Math.max(Number(totalPrice || 0) - Number(depositAmount || 0), 0)
+export const calculateRemainingPaymentAmount = (_totalPrice, _depositAmount = 0) => 0
 
 export const formatBookingDateLabel = (value) => {
   if (!value) {
@@ -201,142 +217,73 @@ export const formatCompactTimeSlot = (value) =>
     .replace(/:/g, "h")
     .replace(/\s*-\s*/g, " - ")
 
-const parseOpenHours = (value) => {
-  const match = String(value || "").trim().match(TIME_SLOT_PATTERN)
-  if (!match) {
-    return null
-  }
-
-  const startMinutes = Number(match[1]) * 60 + Number(match[2])
-  let endMinutes = Number(match[3]) * 60 + Number(match[4])
-
-  if (endMinutes === 0) {
-    endMinutes = 24 * 60
-  }
-
-  if (endMinutes <= startMinutes) {
-    return null
-  }
-
-  return {
-    startMinutes,
-    endMinutes,
-  }
-}
-
-const isSameDate = (leftDate, rightDate) =>
-  Boolean(leftDate)
-  && Boolean(rightDate)
-  && leftDate.getTime() === rightDate.getTime()
-
-const doesTimeSlotOverlap = (leftTimeSlot, rightTimeSlot) => {
-  const left = parseTimeSlot(leftTimeSlot)
-  const right = parseTimeSlot(rightTimeSlot)
-
-  if (!left || !right) {
-    return false
-  }
-
-  return left.startMinutes < right.endMinutes && right.startMinutes < left.endMinutes
-}
-
 export const validateBookingForm = (form, now = new Date()) => {
-  const fieldId = Number(form.fieldId)
-  const subFieldKey = normalizeSubFieldKey(form.subFieldKey)
+  const fieldId = String(form.fieldId || "").trim()
+  const subFieldId = String(form.subFieldId || "").trim()
   const date = String(form.date || "").trim()
+  const timeSlotId = String(form.timeSlotId || "").trim()
   const timeSlot = String(form.timeSlot || "").trim()
   const phone = String(form.phone || "").trim()
   const confirmPhone = String(form.confirmPhone || "").trim()
 
-  if (
-    !Number.isInteger(fieldId)
-    || fieldId <= 0
-    || !subFieldKey
-    || !date
-    || !timeSlot
-    || !phone
-    || !confirmPhone
-  ) {
-    return "Vui lòng chọn sân, ô lịch và nhập đầy đủ thông tin."
+  if (!fieldId || !subFieldId || !date || !timeSlotId || !timeSlot || !phone || !confirmPhone) {
+    return "Vui lÃ²ng chá»n sÃ¢n, khung giá» vÃ  nháº­p Ä‘áº§y Ä‘á»§ thÃ´ng tin."
   }
 
   if (!isValidPhoneNumber(phone)) {
-    return "Số điện thoại không hợp lệ."
+    return "Sá»‘ Ä‘iá»‡n thoáº¡i khÃ´ng há»£p lá»‡."
   }
 
   if (normalizePhoneNumber(phone) !== normalizePhoneNumber(confirmPhone)) {
-    return "Số điện thoại xác nhận không khớp."
+    return "Sá»‘ Ä‘iá»‡n thoáº¡i xÃ¡c nháº­n khÃ´ng khá»›p."
   }
 
   const bookingDate = parseBookingDate(date)
   if (!bookingDate) {
-    return "Ngày đặt không hợp lệ."
+    return "NgÃ y Ä‘áº·t khÃ´ng há»£p lá»‡."
   }
 
   const parsedTimeSlot = parseTimeSlot(timeSlot)
   if (!parsedTimeSlot) {
-    return "Khung giờ phải theo định dạng HH:mm - HH:mm."
+    return "Khung giá» pháº£i theo Ä‘á»‹nh dáº¡ng HH:mm - HH:mm."
   }
 
   const today = new Date(now)
   today.setHours(0, 0, 0, 0)
 
   if (bookingDate.getTime() < today.getTime()) {
-    return "Không thể đặt lịch trong ngày đã qua."
+    return "KhÃ´ng thá»ƒ Ä‘áº·t lá»‹ch trong ngÃ y Ä‘Ã£ qua."
   }
 
   const currentMinutes = now.getHours() * 60 + now.getMinutes()
-  if (isSameDate(bookingDate, today) && parsedTimeSlot.startMinutes <= currentMinutes) {
-    return "Khung giờ đặt sân phải ở tương lai."
+  if (bookingDate.getTime() === today.getTime() && parsedTimeSlot.startMinutes <= currentMinutes) {
+    return "Khung giá» Ä‘áº·t sÃ¢n pháº£i á»Ÿ tÆ°Æ¡ng lai."
   }
 
   return ""
 }
 
 export const buildBookingPayload = (form) => ({
-  fieldId: Number(form.fieldId),
-  subFieldKey: normalizeSubFieldKey(form.subFieldKey),
-  date: form.date,
-  timeSlot: form.timeSlot,
+  fieldId: String(form.fieldId || "").trim(),
+  subFieldId: String(form.subFieldId || "").trim(),
+  timeSlotId: String(form.timeSlotId || "").trim(),
+  date: String(form.date || "").trim(),
   phone: normalizePhoneNumber(form.phone),
-  note: form.note,
+  note: String(form.note || "").trim(),
 })
 
-export const createBookingTimeline = (
-  startMinutes = GRID_START_MINUTES,
-  endMinutes = GRID_END_MINUTES,
-  intervalMinutes = GRID_INTERVAL_MINUTES
-) => {
-  const slots = []
+export const createBookingTimeline = (timeSlots = []) =>
+  (Array.isArray(timeSlots) ? timeSlots : [])
+    .map((slot, index) => normalizeTimelineSlot(slot, index))
+    .filter(Boolean)
 
-  for (let currentMinutes = startMinutes; currentMinutes < endMinutes; currentMinutes += intervalMinutes) {
-    const slotEndMinutes = currentMinutes + intervalMinutes
-    slots.push({
-      key: `${currentMinutes}-${slotEndMinutes}`,
-      label: minutesToTimeLabel(currentMinutes),
-      timeSlot: buildTimeSlotLabel(currentMinutes, slotEndMinutes),
-      startMinutes: currentMinutes,
-      endMinutes: slotEndMinutes,
-    })
-  }
-
-  return slots
-}
-
-const isBlockingBooking = (booking) =>
-  BLOCKING_BOOKING_STATUSES.has(String(booking?.status || "").trim().toLowerCase())
-
-const doesBookingBlockSubField = (booking, subFieldKey) => {
-  const bookingSubFieldKey = normalizeSubFieldKey(booking?.subFieldKey)
-  return !bookingSubFieldKey || bookingSubFieldKey === normalizeSubFieldKey(subFieldKey)
-}
+const parseOpenHours = (value) => parseTimeSlot(value)
 
 export const buildBookingScheduleRows = ({
   field,
-  availabilityBookings,
   selectedDate,
   selectedSubFieldKey,
-  selectedTimeSlot,
+  selectedTimeSlotId,
   timeline,
   now = new Date(),
 }) => {
@@ -346,163 +293,91 @@ export const buildBookingScheduleRows = ({
 
   const subFields = normalizeSubFields(field)
   const bookingDate = parseBookingDate(selectedDate)
-  const selectedRange = parseTimeSlot(selectedTimeSlot)
-  const normalizedSelectedSubFieldKey = normalizeSubFieldKey(selectedSubFieldKey)
   const today = new Date(now)
   today.setHours(0, 0, 0, 0)
   const currentMinutes = now.getHours() * 60 + now.getMinutes()
   const openHours = parseOpenHours(field.openHours)
+  const normalizedSelectedSubFieldKey = normalizeSubFieldKey(selectedSubFieldKey)
 
-  return subFields.map((subField) => {
-    const subFieldBookings = availabilityBookings.filter(
-      (booking) =>
-        Number(booking.fieldId) === Number(field.id)
-        && isBlockingBooking(booking)
-        && doesBookingBlockSubField(booking, subField.key)
-    )
+  return subFields.map((subField) => ({
+    field,
+    subField,
+    slots: (Array.isArray(timeline) ? timeline : []).map((slot) => {
+      const isOutsideOpenHours =
+        openHours
+        && Number.isFinite(slot.startMinutes)
+        && Number.isFinite(slot.endMinutes)
+        && (slot.startMinutes < openHours.startMinutes || slot.endMinutes > openHours.endMinutes)
+      const isPast =
+        Boolean(bookingDate)
+        && bookingDate.getTime() === today.getTime()
+        && Number.isFinite(slot.startMinutes)
+        && slot.startMinutes <= currentMinutes
+      const isSelected =
+        normalizedSelectedSubFieldKey === normalizeSubFieldKey(subField.key)
+        && String(slot.id || "") === String(selectedTimeSlotId || "")
 
-    return {
-      field,
-      subField,
-      slots: timeline.map((slot) => {
-        const isClosed =
-          !openHours
-          || slot.startMinutes < openHours.startMinutes
-          || slot.endMinutes > openHours.endMinutes
-        const isPast =
-          Boolean(bookingDate)
-          && isSameDate(bookingDate, today)
-          && slot.startMinutes <= currentMinutes
-        const isBooked = subFieldBookings.some((booking) =>
-          doesTimeSlotOverlap(slot.timeSlot, booking.timeSlot)
-        )
-        const isSelected =
-          normalizedSelectedSubFieldKey === subField.key
-          && Boolean(selectedRange)
-          && slot.startMinutes >= selectedRange.startMinutes
-          && slot.endMinutes <= selectedRange.endMinutes
-          && !isClosed
-          && !isPast
-          && !isBooked
+      let state = "available"
+      if (isOutsideOpenHours) {
+        state = "closed"
+      } else if (isPast) {
+        state = "past"
+      } else if (isSelected) {
+        state = "selected"
+      }
 
-        let state = "available"
-        if (isClosed) {
-          state = "closed"
-        } else if (isPast) {
-          state = "past"
-        } else if (isBooked) {
-          state = "booked"
-        } else if (isSelected) {
-          state = "selected"
-        }
-
-        return {
-          ...slot,
-          state,
-          disabled: state !== "available" && state !== "selected",
-        }
-      }),
-    }
-  })
+      return {
+        ...slot,
+        state,
+        disabled: state === "closed" || state === "past",
+      }
+    }),
+  }))
 }
 
-export const isSelectedTimeSlotStillAvailable = (slots, selectedTimeSlot) => {
-  const selectedRange = parseTimeSlot(selectedTimeSlot)
-  if (!selectedRange) {
-    return false
-  }
-
-  const selectedSlots = slots.filter(
+export const isSelectedTimeSlotStillAvailable = (slots, selectedTimeSlotId) =>
+  (Array.isArray(slots) ? slots : []).some(
     (slot) =>
-      slot.startMinutes >= selectedRange.startMinutes
-      && slot.endMinutes <= selectedRange.endMinutes
+      String(slot?.id || "") === String(selectedTimeSlotId || "")
+      && (slot.state === "selected" || slot.state === "available")
   )
-  const expectedSlotCount =
-    (selectedRange.endMinutes - selectedRange.startMinutes) / GRID_INTERVAL_MINUTES
 
-  return (
-    selectedSlots.length === expectedSlotCount
-    && selectedSlots.every((slot) => slot.state === "selected")
-  )
-}
+export const applyBookingSlotSelection = (form, subField, slot) => {
+  const normalizedSubField =
+    typeof subField === "object" && subField
+      ? subField
+      : {
+          id: "",
+          key: subField,
+        }
+  const subFieldKey = normalizeSubFieldKey(normalizedSubField.key)
+  const subFieldId = String(normalizedSubField.id || "").trim()
+  const timeSlotId = String(slot?.id || "").trim()
 
-export const applyBookingSlotSelection = (form, subFieldKey, slot) => {
-  const normalizedSubFieldKey = normalizeSubFieldKey(subFieldKey)
-  const currentRange =
-    normalizeSubFieldKey(form.subFieldKey) === normalizedSubFieldKey
-      ? parseTimeSlot(form.timeSlot)
-      : null
-
-  if (!slot || !normalizedSubFieldKey) {
+  if (!slot || !subFieldKey || !timeSlotId) {
     return form
   }
 
-  if (!currentRange) {
+  const isSameSelection =
+    normalizeSubFieldKey(form.subFieldKey) === subFieldKey
+    && String(form.timeSlotId || "") === timeSlotId
+
+  if (isSameSelection) {
     return {
       ...form,
-      subFieldKey: normalizedSubFieldKey,
-      timeSlot: slot.timeSlot,
+      subFieldId: "",
+      subFieldKey: "",
+      timeSlotId: "",
+      timeSlot: "",
     }
-  }
-
-  const isInsideCurrentRange =
-    slot.startMinutes >= currentRange.startMinutes
-    && slot.endMinutes <= currentRange.endMinutes
-  const isAdjacentLeft = slot.endMinutes === currentRange.startMinutes
-  const isAdjacentRight = slot.startMinutes === currentRange.endMinutes
-
-  if (isAdjacentLeft) {
-    return {
-      ...form,
-      subFieldKey: normalizedSubFieldKey,
-      timeSlot: buildTimeSlotLabel(slot.startMinutes, currentRange.endMinutes),
-    }
-  }
-
-  if (isAdjacentRight) {
-    return {
-      ...form,
-      subFieldKey: normalizedSubFieldKey,
-      timeSlot: buildTimeSlotLabel(currentRange.startMinutes, slot.endMinutes),
-    }
-  }
-
-  if (isInsideCurrentRange) {
-    const isSingleSelectedSlot =
-      slot.startMinutes === currentRange.startMinutes
-      && slot.endMinutes === currentRange.endMinutes
-
-    if (isSingleSelectedSlot) {
-      return {
-        ...form,
-        subFieldKey: "",
-        timeSlot: "",
-      }
-    }
-
-    if (slot.startMinutes === currentRange.startMinutes) {
-      return {
-        ...form,
-        subFieldKey: normalizedSubFieldKey,
-        timeSlot: buildTimeSlotLabel(slot.endMinutes, currentRange.endMinutes),
-      }
-    }
-
-    if (slot.endMinutes === currentRange.endMinutes) {
-      return {
-        ...form,
-        subFieldKey: normalizedSubFieldKey,
-        timeSlot: buildTimeSlotLabel(currentRange.startMinutes, slot.startMinutes),
-      }
-    }
-
-    return form
   }
 
   return {
     ...form,
-    subFieldKey: normalizedSubFieldKey,
-    timeSlot: slot.timeSlot,
+    subFieldId,
+    subFieldKey,
+    timeSlotId,
+    timeSlot: String(slot.timeSlot || slot.label || "").trim(),
   }
 }
 
@@ -511,11 +386,12 @@ export const formatBookingDateTime = (value) => new Date(value).toLocaleString("
 export const formatBookingStatus = (value) => {
   switch (String(value || "").trim().toLowerCase()) {
     case "pending":
-      return "Chờ xác nhận"
+      return "Chá» xÃ¡c nháº­n"
     case "confirmed":
-      return "Đã xác nhận"
+      return "ÄÃ£ xÃ¡c nháº­n"
     case "cancelled":
-      return "Đã hủy"
+    case "canceled":
+      return "ÄÃ£ há»§y"
     default:
       return value || ""
   }
@@ -524,13 +400,12 @@ export const formatBookingStatus = (value) => {
 export const formatDepositStatus = (value) => {
   switch (String(value || "").trim().toLowerCase()) {
     case "paid":
-      return "Đã đặt cọc"
+      return "ÄÃ£ thanh toÃ¡n"
     case "pending":
-      return "Đang chờ thanh toán"
-    case "failed":
-      return "Thanh toán thất bại"
-    case "unpaid":
-      return "Chưa đặt cọc"
+      return "Chá» thanh toÃ¡n"
+    case "cancelled":
+    case "canceled":
+      return "ÄÃ£ há»§y"
     default:
       return value || ""
   }
@@ -538,12 +413,10 @@ export const formatDepositStatus = (value) => {
 
 export const formatDepositMethod = (value) => {
   switch (String(value || "").trim().toLowerCase()) {
-    case "static_transfer":
-      return "Chuyển khoản / QR tĩnh"
-    case "vnpay":
-      return "VNPAY"
-    case "momo":
-      return "MoMo"
+    case "cash":
+      return "Tiá»n máº·t"
+    case "qr":
+      return "QR"
     default:
       return value || ""
   }

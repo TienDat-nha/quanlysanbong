@@ -1,6 +1,5 @@
 const TOKEN_STORAGE_KEY = "sanbong_auth_token"
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-const OTP_PATTERN = /^\d{6}$/
 
 export const USER_ROLES = Object.freeze({
   customer: "customer",
@@ -8,8 +7,7 @@ export const USER_ROLES = Object.freeze({
 })
 
 export const REGISTER_ROLE_OPTIONS = Object.freeze([
-  { value: USER_ROLES.customer, label: "Người đặt sân" },
-  { value: USER_ROLES.admin, label: "Admin / Chủ sân" },
+  { value: USER_ROLES.customer, label: "NgÆ°á»i Ä‘áº·t sÃ¢n" },
 ])
 
 export const createLoginForm = () => ({
@@ -20,9 +18,9 @@ export const createLoginForm = () => ({
 export const createRegisterForm = () => ({
   fullName: "",
   email: "",
+  phone: "",
   password: "",
   confirmPassword: "",
-  otp: "",
   role: USER_ROLES.customer,
 })
 
@@ -40,44 +38,46 @@ export const clearStoredAuthToken = () => {
   localStorage.removeItem(TOKEN_STORAGE_KEY)
 }
 
-export const getAuthCheckingMessage = () => "Đang xác thực tài khoản..."
+export const getAuthCheckingMessage = () => "Äang xÃ¡c thá»±c tÃ i khoáº£n..."
 
-export const isAdminUser = (user) =>
-  String(user?.role || "").trim().toLowerCase() === USER_ROLES.admin
+export const isAdminUser = (user) => {
+  const normalizedRole = String(user?.role || "").trim().toLowerCase()
+  return normalizedRole === USER_ROLES.admin || normalizedRole === "admin"
+}
 
 export const getUserRoleLabel = (role) =>
-  isAdminUser({ role }) ? "Quản trị viên sân" : "Người đặt sân"
+  isAdminUser({ role }) ? "Quáº£n trá»‹ viÃªn sÃ¢n" : "NgÆ°á»i Ä‘áº·t sÃ¢n"
 
 export const validateRegisterDetails = (form) => {
   const fullName = String(form.fullName || "").trim()
   const email = String(form.email || "").trim().toLowerCase()
+  const phone = String(form.phone || "").replace(/\D/g, "")
   const password = String(form.password || "")
   const confirmPassword = String(form.confirmPassword || "")
-  const otp = String(form.otp || "").trim()
   const role = String(form.role || "").trim().toLowerCase()
 
-  if (!fullName || !email || !password || !confirmPassword || !otp) {
-    return "Vui lòng nhập đầy đủ thông tin đăng ký và mã OTP."
+  if (!fullName || !email || !phone || !password || !confirmPassword) {
+    return "Vui lÃ²ng nháº­p Ä‘áº§y Ä‘á»§ thÃ´ng tin Ä‘Äƒng kÃ½."
   }
 
   if (!isValidEmail(email)) {
-    return "Email không hợp lệ."
+    return "Email khÃ´ng há»£p lá»‡."
+  }
+
+  if (!/^0\d{9}$/.test(phone)) {
+    return "Sá»‘ Ä‘iá»‡n thoáº¡i khÃ´ng há»£p lá»‡."
   }
 
   if (password.length < 6) {
-    return "Mật khẩu tối thiểu 6 ký tự."
+    return "Máº­t kháº©u tá»‘i thiá»ƒu 6 kÃ½ tá»±."
   }
 
   if (password !== confirmPassword) {
-    return "Xác nhận mật khẩu không khớp."
+    return "XÃ¡c nháº­n máº­t kháº©u khÃ´ng khá»›p."
   }
 
-  if (!OTP_PATTERN.test(otp)) {
-    return "Mã OTP gồm 6 chữ số."
-  }
-
-  if (role !== USER_ROLES.customer && role !== USER_ROLES.admin) {
-    return "Vai trò đăng ký không hợp lệ."
+  if (role !== USER_ROLES.customer) {
+    return "Vai trÃ² Ä‘Äƒng kÃ½ khÃ´ng há»£p lá»‡."
   }
 
   return ""

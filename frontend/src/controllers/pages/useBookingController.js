@@ -3,9 +3,9 @@ import { useLocation, useNavigate, useParams } from "react-router-dom"
 import {
   cancelMyBooking,
   createBooking,
-  getBookingAvailability,
   getFields,
   getMyBookings,
+  getTimeSlots,
 } from "../../models/api"
 import {
   applyBookingSlotSelection,
@@ -34,19 +34,18 @@ export const useBookingController = ({ authToken }) => {
   const minBookingDate = getTodayBookingDate()
 
   const [fields, setFields] = useState([])
-  const [availabilityBookings, setAvailabilityBookings] = useState([])
+  const [timeSlots, setTimeSlots] = useState([])
   const [bookings, setBookings] = useState([])
   const [loadingFields, setLoadingFields] = useState(true)
-  const [loadingAvailability, setLoadingAvailability] = useState(false)
+  const [loadingAvailability, setLoadingAvailability] = useState(true)
   const [loadingBookings, setLoadingBookings] = useState(false)
   const [form, setForm] = useState(() => createBookingForm(preselectedField, minBookingDate))
   const [submitting, setSubmitting] = useState(false)
   const [cancellingBookingId, setCancellingBookingId] = useState("")
   const [feedback, setFeedback] = useState(createFeedbackState)
   const [bookingStep, setBookingStep] = useState("schedule")
-  const [availabilityRefreshKey, setAvailabilityRefreshKey] = useState(0)
 
-  const timeline = useMemo(() => createBookingTimeline(), [])
+  const timeline = useMemo(() => createBookingTimeline(timeSlots), [timeSlots])
   const matchedFieldBySlug = useMemo(
     () => fields.find((field) => String(field.slug || "") === String(fieldSlug || "")) || null,
     [fieldSlug, fields]
@@ -64,24 +63,26 @@ export const useBookingController = ({ authToken }) => {
         return prev
       }
 
-      return {
-        ...prev,
-        fieldId: nextFieldId,
-        subFieldKey: "",
-        timeSlot: "",
-      }
+      return createBookingForm(nextFieldId, prev.date || minBookingDate)
     })
-  }, [fieldSlug, matchedFieldBySlug, preselectedField])
+  }, [fieldSlug, matchedFieldBySlug, preselectedField, minBookingDate])
 
   useEffect(() => {
     let mounted = true
 
-    const loadFields = async () => {
+    const loadCatalog = async () => {
+      setLoadingFields(true)
+      setLoadingAvailability(true)
+
       try {
-        const data = await getFields()
-        if (mounted) {
-          setFields(getFieldList(data))
+        const [fieldsData, timeSlotsData] = await Promise.all([getFields(), getTimeSlots()])
+
+        if (!mounted) {
+          return
         }
+
+        setFields(getFieldList(fieldsData))
+        setTimeSlots(timeSlotsData.timeSlots || [])
       } catch (apiError) {
         if (mounted) {
           setFeedback({ type: "error", text: apiError.message })
@@ -89,53 +90,17 @@ export const useBookingController = ({ authToken }) => {
       } finally {
         if (mounted) {
           setLoadingFields(false)
-        }
-      }
-    }
-
-    loadFields()
-
-    return () => {
-      mounted = false
-    }
-  }, [])
-
-  useEffect(() => {
-    let mounted = true
-
-    const loadAvailability = async () => {
-      if (!form.date || !form.fieldId) {
-        setAvailabilityBookings([])
-        setLoadingAvailability(false)
-        return
-      }
-
-      setLoadingAvailability(true)
-      setAvailabilityBookings([])
-
-      try {
-        const data = await getBookingAvailability(form.date, form.fieldId)
-        if (mounted) {
-          setAvailabilityBookings(data.bookings || [])
-        }
-      } catch (apiError) {
-        if (mounted) {
-          setAvailabilityBookings([])
-          setFeedback({ type: "error", text: apiError.message })
-        }
-      } finally {
-        if (mounted) {
           setLoadingAvailability(false)
         }
       }
     }
 
-    loadAvailability()
+    loadCatalog()
 
     return () => {
       mounted = false
     }
-  }, [availabilityRefreshKey, form.date, form.fieldId])
+  }, [])
 
   useEffect(() => {
     if (!authToken) {
@@ -173,7 +138,7 @@ export const useBookingController = ({ authToken }) => {
   }, [authToken])
 
   const selectedField = useMemo(
-    () => fields.find((field) => Number(field.id) === Number(form.fieldId)) || null,
+    () => fields.find((field) => String(field.id) === String(form.fieldId)) || null,
     [fields, form.fieldId]
   )
 
@@ -182,29 +147,32 @@ export const useBookingController = ({ authToken }) => {
       return null
     }
 
+    const selectedId = String(form.subFieldId || "").trim()
     const selectedKey = normalizeSubFieldKey(form.subFieldKey)
+
     return (
       selectedField.subFields.find(
-        (subField) => normalizeSubFieldKey(subField?.key) === selectedKey
+        (subField) =>
+          String(subField?.id || "") === selectedId
+          || normalizeSubFieldKey(subField?.key) === selectedKey
       ) || null
     )
-  }, [selectedField, form.subFieldKey])
+  }, [selectedField, form.subFieldId, form.subFieldKey])
 
   const scheduleRows = useMemo(
     () =>
       buildBookingScheduleRows({
         field: selectedField,
-        availabilityBookings,
         selectedDate: form.date,
         selectedSubFieldKey: form.subFieldKey,
-        selectedTimeSlot: form.timeSlot,
+        selectedTimeSlotId: form.timeSlotId,
         timeline,
       }),
-    [availabilityBookings, selectedField, form.date, form.subFieldKey, form.timeSlot, timeline]
+    [selectedField, form.date, form.subFieldKey, form.timeSlotId, timeline]
   )
 
   useEffect(() => {
-    if (!form.subFieldKey || !form.timeSlot) {
+    if (!form.subFieldKey || !form.timeSlotId) {
       return
     }
 
@@ -213,16 +181,18 @@ export const useBookingController = ({ authToken }) => {
       (row) => normalizeSubFieldKey(row.subField?.key) === selectedKey
     )
 
-    if (!selectedRow || !isSelectedTimeSlotStillAvailable(selectedRow.slots, form.timeSlot)) {
+    if (!selectedRow || !isSelectedTimeSlotStillAvailable(selectedRow.slots, form.timeSlotId)) {
       setForm((prev) => ({
         ...prev,
+        subFieldId: "",
         subFieldKey: "",
+        timeSlotId: "",
         timeSlot: "",
       }))
     }
-  }, [form.subFieldKey, form.timeSlot, scheduleRows])
+  }, [form.subFieldKey, form.timeSlotId, scheduleRows])
 
-  const hasSelectedSlot = Boolean(selectedField && selectedSubField && form.timeSlot)
+  const hasSelectedSlot = Boolean(selectedField && selectedSubField && form.timeSlot && form.timeSlotId)
 
   useEffect(() => {
     if (!hasSelectedSlot && bookingStep === "confirm") {
@@ -232,21 +202,12 @@ export const useBookingController = ({ authToken }) => {
 
   const handleFieldChange = (field, value) => {
     setForm((prev) => {
-      if (field === "fieldId") {
+      if (field === "fieldId" || field === "date") {
         return {
-          ...prev,
-          fieldId: value,
-          subFieldKey: "",
-          timeSlot: "",
-        }
-      }
-
-      if (field === "date") {
-        return {
-          ...prev,
-          date: value,
-          subFieldKey: "",
-          timeSlot: "",
+          ...createBookingForm(field === "fieldId" ? value : prev.fieldId, field === "date" ? value : prev.date),
+          phone: prev.phone,
+          confirmPhone: prev.confirmPhone,
+          note: prev.note,
         }
       }
 
@@ -265,14 +226,14 @@ export const useBookingController = ({ authToken }) => {
     }
   }
 
-  const handleSlotSelect = (subFieldKey, slot) => {
-    setForm((prev) => applyBookingSlotSelection(prev, subFieldKey, slot))
+  const handleSlotSelect = (subField, slot) => {
+    setForm((prev) => applyBookingSlotSelection(prev, subField, slot))
     setFeedback(createFeedbackState())
   }
 
   const handleContinueToConfirm = () => {
     if (!hasSelectedSlot) {
-      setFeedback({ type: "error", text: "Vui lòng chọn sân con và khung giờ trước." })
+      setFeedback({ type: "error", text: "Vui lÃ²ng chá»n sÃ¢n con vÃ  khung giá» trÆ°á»›c." })
       return
     }
 
@@ -286,10 +247,10 @@ export const useBookingController = ({ authToken }) => {
 
   const handleSubmit = async (event) => {
     event.preventDefault()
-    let redirectedToDeposit = false
+    let redirectedToPayment = false
 
     if (!authToken) {
-      setFeedback({ type: "error", text: "Bạn cần đăng nhập để đặt sân." })
+      setFeedback({ type: "error", text: "Báº¡n cáº§n Ä‘Äƒng nháº­p Ä‘á»ƒ Ä‘áº·t sÃ¢n." })
       return
     }
 
@@ -312,7 +273,7 @@ export const useBookingController = ({ authToken }) => {
       const depositAmount = calculateBookingDepositAmount(totalPrice)
 
       if (createdBooking?.id) {
-        redirectedToDeposit = true
+        redirectedToPayment = true
         navigate(createDepositPaymentRoute(createdBooking.id), {
           replace: true,
           state: {
@@ -325,17 +286,16 @@ export const useBookingController = ({ authToken }) => {
         return
       }
 
-      setFeedback({ type: "success", text: "Đặt sân thành công." })
+      setFeedback({ type: "success", text: "Äáº·t sÃ¢n thÃ nh cÃ´ng." })
       setForm((prev) => createBookingForm(prev.fieldId, prev.date))
       setBookingStep("schedule")
-      setAvailabilityRefreshKey((value) => value + 1)
 
       const bookingData = await getMyBookings(authToken)
       setBookings(bookingData.bookings || [])
     } catch (apiError) {
       setFeedback({ type: "error", text: apiError.message })
     } finally {
-      if (!redirectedToDeposit) {
+      if (!redirectedToPayment) {
         setSubmitting(false)
       }
     }
@@ -346,7 +306,7 @@ export const useBookingController = ({ authToken }) => {
       return
     }
 
-    const shouldCancel = window.confirm(`Hủy đơn đặt sân ${booking.fieldName}?`)
+    const shouldCancel = window.confirm(`Há»§y Ä‘Æ¡n Ä‘áº·t sÃ¢n ${booking.fieldName || booking.id}?`)
     if (!shouldCancel) {
       return
     }
@@ -363,9 +323,8 @@ export const useBookingController = ({ authToken }) => {
       )
       setFeedback({
         type: "success",
-        text: data.message || "Đã hủy đơn đặt của bạn.",
+        text: data.message || "ÄÃ£ há»§y Ä‘Æ¡n Ä‘áº·t cá»§a báº¡n.",
       })
-      setAvailabilityRefreshKey((value) => value + 1)
     } catch (apiError) {
       setFeedback({ type: "error", text: apiError.message })
     } finally {

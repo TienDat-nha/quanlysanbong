@@ -521,7 +521,7 @@ const BookingView = ({
                         key={`${row.subField.key}-${slot.key}`}
                         type="button"
                         className={`bookingSlot bookingSlot--${slot.state}`}
-                        onClick={() => onSlotSelect(row.subField.key, slot)}
+                        onClick={() => onSlotSelect(row.subField, slot)}
                         disabled={slot.disabled}
                         title={getSlotTitle(selectedField.name, row.subField.name, slot)}
                       >

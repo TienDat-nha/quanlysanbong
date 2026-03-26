@@ -27,7 +27,7 @@ const createProviderFeedback = (search) => {
 
   return {
     type: paymentStatus === "success" ? "success" : "error",
-    text: paymentMessage || "Không thể xử lý kết quả thanh toán.",
+    text: paymentMessage || "KhÃ´ng thá»ƒ xá»­ lÃ½ káº¿t quáº£ thanh toÃ¡n.",
   }
 }
 
@@ -97,8 +97,8 @@ export const useDepositPaymentController = ({ authToken }) => {
   )
 
   const depositAmount = useMemo(
-    () => Number(booking?.depositAmount || location.state?.depositAmount || 0),
-    [booking?.depositAmount, location.state?.depositAmount]
+    () => Number(booking?.depositAmount || location.state?.depositAmount || totalPrice || 0),
+    [booking?.depositAmount, location.state?.depositAmount, totalPrice]
   )
 
   const remainingAmount = useMemo(
@@ -141,9 +141,7 @@ export const useDepositPaymentController = ({ authToken }) => {
       setStaticTransfer(data.staticTransfer || null)
       setFeedback({
         type: "success",
-        text:
-          data.message
-          || "Đã gửi yêu cầu xác nhận chuyển khoản. Vui lòng chờ chủ sân kiểm tra giao dịch.",
+        text: data.message || "ÄÃ£ táº¡o yÃªu cáº§u payment theo backend má»›i.",
       })
     } catch (apiError) {
       setFeedback({
@@ -166,17 +164,17 @@ export const useDepositPaymentController = ({ authToken }) => {
 
     try {
       const data = await createVnpayDepositPayment(authToken, bookingId)
-
-      if (!data.paymentUrl) {
-        throw new Error("Không tạo được liên kết VNPAY.")
-      }
-
-      window.location.assign(data.paymentUrl)
+      setFeedback({
+        type: "success",
+        text: data.message || "ÄÃ£ táº¡o payment QR. HÃ£y táº£i láº¡i tráº¡ng thÃ¡i Ä‘á»ƒ láº¥y QR.",
+      })
+      setRefreshKey((value) => value + 1)
     } catch (apiError) {
       setFeedback({
         type: "error",
         text: apiError.message,
       })
+    } finally {
       setActionLoading("")
     }
   }
@@ -191,18 +189,27 @@ export const useDepositPaymentController = ({ authToken }) => {
     setFeedback(null)
 
     try {
-      const data = await createMomoDepositPayment(authToken, bookingId)
-
-      if (!data.paymentUrl) {
-        throw new Error("Không tạo được liên kết MoMo.")
+      if (staticTransfer?.qrImageUrl) {
+        window.open(staticTransfer.qrImageUrl, "_blank", "noopener,noreferrer")
+        setFeedback({
+          type: "success",
+          text: "ÄÃ£ má»Ÿ QR thanh toÃ¡n trong tab má»›i.",
+        })
+        return
       }
 
-      window.location.assign(data.paymentUrl)
+      const data = await createMomoDepositPayment(authToken, bookingId)
+      setFeedback({
+        type: "success",
+        text: data.message || "ÄÃ£ táº¡o QR thanh toÃ¡n. HÃ£y báº¥m láº¡i Ä‘á»ƒ má»Ÿ QR sau khi táº£i láº¡i.",
+      })
+      setRefreshKey((value) => value + 1)
     } catch (apiError) {
       setFeedback({
         type: "error",
         text: apiError.message,
       })
+    } finally {
       setActionLoading("")
     }
   }
