@@ -17,9 +17,16 @@ Ban co the dat trong hosting UI:
 
 ```env
 REACT_APP_API_URL=https://api-be-football.onrender.com
+REACT_APP_FIELD_IDS=
 ```
 
 Neu khong dat, code hien tai van mac dinh goi domain tren.
+
+Luu y:
+
+- Backend nay khong co API danh sach san cong khai.
+- Muon hien thi trang danh sach san, ban can tu dien `REACT_APP_FIELD_IDS` bang cac `field id` backend dang co, ngan cach bang dau phay.
+- Neu khong cau hinh bien nay, frontend se bao ro rang backend khong ho tro danh sach san.
 
 ## Build
 

@@ -47,6 +47,17 @@ const isHtmlLike = (value) => {
   return trimmed.startsWith("<!doctype html") || trimmed.startsWith("<html")
 }
 
+const getRouteErrorFromHtml = (value) => {
+  const normalizedValue = String(value || "").replace(/\s+/g, " ").trim()
+  const match = normalizedValue.match(/Cannot\s+(GET|POST|PUT|DELETE|PATCH)\s+([^<\s]+)/i)
+
+  if (!match) {
+    return ""
+  }
+
+  return `API khong ho tro ${String(match[1] || "").toUpperCase()} ${String(match[2] || "").trim()}.`
+}
+
 const buildApiUnavailableMessage = (requestPath) =>
   `Khong the ket noi den API (${API_BASE_URL}). Vui long kiem tra backend dang chay (${requestPath}).`
 
@@ -89,6 +100,11 @@ const getMessageFromBody = (bodyData, rawBodyText) => {
 
   if (typeof message === "string" && message.trim()) {
     return message.trim()
+  }
+
+  const routeErrorMessage = getRouteErrorFromHtml(rawBodyText)
+  if (routeErrorMessage) {
+    return routeErrorMessage
   }
 
   const normalizedText = String(rawBodyText || "").replace(/\s+/g, " ").trim()
@@ -456,7 +472,9 @@ const request = async (path, options = {}) => {
   }
 
   if (!response.ok) {
-    const errorMessage = getMessageFromBody(data, rawBodyText) || "Yeu cau that bai."
+    const errorMessage =
+      getMessageFromBody(data, rawBodyText)
+      || `Yeu cau that bai (${response.status}) tai ${requestPath}.`
     throw new Error(errorMessage)
   }
 
@@ -729,10 +747,23 @@ export const getFields = async (token = "") => {
     }
   }
 
-  const response = await requestFirstSuccess(
-    ["/field/getAllField", "/field/getAllFields", "/field/getFields"],
-    token ? { headers: createTokenHeaders(token) } : {}
-  ).catch(() => ({}))
+  let response = {}
+  let lastError = null
+
+  try {
+    response = await requestFirstSuccess(
+      ["/field/getAllField", "/field/getAllFields", "/field/getFields"],
+      token ? { headers: createTokenHeaders(token) } : {}
+    )
+  } catch (error) {
+    lastError = error
+  }
+
+  if (lastError) {
+    throw new Error(
+      "Backend nay khong co API danh sach san. Hay cau hinh REACT_APP_FIELD_IDS trong frontend/.env de chi dinh cac id san can hien thi."
+    )
+  }
 
   return {
     fields: getArrayFromResponse(response, ["fields", "items"]).map((item) => normalizeFieldItem(item)).filter(Boolean),
