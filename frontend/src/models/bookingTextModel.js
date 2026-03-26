@@ -5,12 +5,12 @@ export const validateBookingFormVi = (form, now = new Date()) => validateBooking
 export const formatBookingStatusVi = (value) => {
   switch (String(value || "").trim().toLowerCase()) {
     case "pending":
-      return "Chá» xÃ¡c nháº­n"
+      return "Chờ xác nhận"
     case "confirmed":
-      return "ÄÃ£ xÃ¡c nháº­n"
+      return "Đã xác nhận"
     case "cancelled":
     case "canceled":
-      return "ÄÃ£ há»§y"
+      return "Đã hủy"
     default:
       return value || ""
   }
@@ -19,16 +19,16 @@ export const formatBookingStatusVi = (value) => {
 export const formatDepositStatusVi = (value) => {
   switch (String(value || "").trim().toLowerCase()) {
     case "paid":
-      return "ÄÃ£ thanh toÃ¡n"
+      return "Đã thanh toán"
     case "pending":
-      return "Chá» xÃ¡c nháº­n thanh toÃ¡n"
+      return "Chờ xác nhận thanh toán"
     case "failed":
-      return "Thanh toÃ¡n tháº¥t báº¡i"
+      return "Thanh toán thất bại"
     case "cancelled":
     case "canceled":
-      return "ÄÃ£ há»§y"
+      return "Đã hủy"
     case "unpaid":
-      return "ChÆ°a thanh toÃ¡n"
+      return "Chưa thanh toán"
     default:
       return value || ""
   }
@@ -37,16 +37,16 @@ export const formatDepositStatusVi = (value) => {
 export const formatPaymentStatusVi = (paymentStatus, depositStatus = "") => {
   switch (String(paymentStatus || "").trim().toLowerCase()) {
     case "paid":
-      return "ÄÃ£ thanh toÃ¡n"
+      return "Đã thanh toán"
     case "pending":
-      return "Chá» xÃ¡c nháº­n"
+      return "Chờ xác nhận"
     case "failed":
-      return "Thanh toÃ¡n tháº¥t báº¡i"
+      return "Thanh toán thất bại"
     case "cancelled":
     case "canceled":
-      return "ÄÃ£ há»§y"
+      return "Đã hủy"
     case "unpaid":
-      return "ChÆ°a thanh toÃ¡n"
+      return "Chưa thanh toán"
     default:
       return formatDepositStatusVi(depositStatus || paymentStatus)
   }
@@ -55,7 +55,7 @@ export const formatPaymentStatusVi = (paymentStatus, depositStatus = "") => {
 export const formatDepositMethodVi = (value) => {
   switch (String(value || "").trim().toLowerCase()) {
     case "cash":
-      return "Tiá»n máº·t"
+      return "Tiền mặt"
     case "qr":
       return "QR"
     default:

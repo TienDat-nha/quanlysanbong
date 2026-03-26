@@ -53,14 +53,14 @@ export const useRegisterController = () => {
 
       setSuccessMessage(
         String(data?.message || "").trim()
-          || "ÄÄƒng kÃ½ thÃ nh cÃ´ng. Äang chuyá»ƒn sang trang Ä‘Äƒng nháº­p..."
+          || "Đăng ký thành công. Đang chuyển sang trang đăng nhập..."
       )
       redirectTimeoutRef.current = setTimeout(() => {
         navigate(ROUTES.login, {
           replace: true,
           state: {
             registered: true,
-            message: "ÄÄƒng kÃ½ thÃ nh cÃ´ng. Vui lÃ²ng Ä‘Äƒng nháº­p Ä‘á»ƒ tiáº¿p tá»¥c.",
+            message: "Đăng ký thành công. Vui lòng đăng nhập để tiếp tục.",
           },
         })
       }, 1200)

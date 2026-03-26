@@ -4,19 +4,19 @@ import { FiArrowRight, FiCheckCircle, FiMail, FiPhone, FiShield, FiUser } from "
 
 const ROLE_CONTENT = Object.freeze({
   customer: {
-    title: "NgÆ°á»i Ä‘áº·t sÃ¢n",
-    description: "DÃ nh cho ngÆ°á»i cáº§n tÃ¬m sÃ¢n trá»‘ng, Ä‘áº·t lá»‹ch nhanh vÃ  theo dÃµi tráº¡ng thÃ¡i Ä‘Æ¡n.",
-    previewTitle: "TÃ i khoáº£n Ä‘áº·t sÃ¢n nhanh",
+    title: "Người đặt sân",
+    description: "Dành cho người cần tìm sân trống, đặt lịch nhanh và theo dõi trạng thái đơn.",
+    previewTitle: "Tài khoản đặt sân nhanh",
     previewText:
-      "Báº¡n cÃ³ thá»ƒ chá»n sÃ¢n phÃ¹ há»£p, Ä‘áº·t lá»‹ch nhanh vÃ  theo dÃµi thanh toÃ¡n ngay trÃªn má»™t mÃ n hÃ¬nh.",
+      "Bạn có thể chọn sân phù hợp, đặt lịch nhanh và theo dõi thanh toán ngay trên một màn hình.",
     icon: <FiUser />,
   },
   admin: {
-    title: "Admin / Chá»§ sÃ¢n",
-    description: "Vai trÃ² admin Ä‘Æ°á»£c backend phÃ¢n quyá»n riÃªng sau khi tÃ i khoáº£n Ä‘Æ°á»£c táº¡o.",
-    previewTitle: "TÃ i khoáº£n quáº£n lÃ½ sÃ¢n",
+    title: "Admin / Chủ sân",
+    description: "Vai trò admin được backend phân quyền riêng sau khi tài khoản được tạo.",
+    previewTitle: "Tài khoản quản lý sân",
     previewText:
-      "Backend má»›i khÃ´ng má»Ÿ tá»± Ä‘Äƒng kÃ½ admin. Táº¡i form nÃ y báº¡n táº¡o tÃ i khoáº£n ngÆ°á»i dÃ¹ng chuáº©n, sau Ä‘Ã³ admin cÃ³ thá»ƒ Ä‘Æ°á»£c cáº¥p quyá»n riÃªng.",
+      "Backend mới không mở tự đăng ký admin. Tại form này bạn tạo tài khoản người dùng chuẩn, sau đó admin có thể được cấp quyền riêng.",
     icon: <FiShield />,
   },
 })
@@ -39,23 +39,23 @@ const RegisterView = ({
         <div className="registerHero">
           <div className="registerHeroTop">
             <span className="registerEyebrow">SanBong</span>
-            <span className="registerStepBadge">HoÃ n táº¥t trong 3 bÆ°á»›c</span>
+            <span className="registerStepBadge">Hoàn tất trong 3 bước</span>
           </div>
 
-          <h1>ÄÄƒng KÃ½ TÃ i Khoáº£n</h1>
+          <h1>Đăng Ký Tài Khoản</h1>
           <p className="registerHeroText">
-            Táº¡o tÃ i khoáº£n má»›i Ä‘á»ƒ Ä‘áº·t sÃ¢n, theo dÃµi lá»‹ch Ä‘áº·t vÃ  quÃ¡ trÃ¬nh thanh toÃ¡n. Giao diá»‡n
-            Ä‘Æ°á»£c giá»¯ nguyÃªn, nhÆ°ng luá»“ng d? liá»‡u Ä‘Ã£ Ä‘Æ°á»£c Ä‘iá»u chá»‰nh theo backend má»›i.
+            Tạo tài khoản mới để đặt sân, theo dõi lịch đặt và quá trình thanh toán. Giao diện
+            được giữ nguyên, nhưng luồng dữ liệu đã được điều chỉnh theo backend mới.
           </p>
         </div>
 
         <form className="formCard registerCard" onSubmit={onSubmit}>
           <div className="registerSectionTitle">
             <div>
-              <h2>Nháº­p thÃ´ng tin cÆ¡ báº£n</h2>
+              <h2>Nhập thông tin cơ bản</h2>
               <p>
-                Backend hiá»‡n táº¡i dÃ¹ng tÃªn, email, sá»‘ Ä‘iá»‡n thoáº¡i vÃ  máº­t kháº©u. Form giá»¯ nguyÃªn bá»‘
-                cá»¥c cÅ© Ä‘á»ƒ khÃ´ng áº£nh hÆ°á»Ÿng giao diá»‡n.
+                Backend hiện tại dùng tên, email, số điện thoại và mật khẩu. Form giữ nguyên bố
+                cục cũ để không ảnh hưởng giao diện.
               </p>
             </div>
           </div>
@@ -101,21 +101,21 @@ const RegisterView = ({
             <div className="registerPreviewFlow">
               <span>{selectedRoleContent.title}</span>
               <FiArrowRight aria-hidden="true" />
-              <span>Táº¡o tÃ i khoáº£n</span>
+              <span>Tạo tài khoản</span>
               <FiArrowRight aria-hidden="true" />
-              <span>ÄÄƒng nháº­p</span>
+              <span>Đăng nhập</span>
             </div>
           </div>
 
           <div className="registerFieldGrid">
             <div className="registerField">
-              <label htmlFor="register-full-name">Há» vÃ  tÃªn</label>
+              <label htmlFor="register-full-name">Họ và tên</label>
               <input
                 id="register-full-name"
                 type="text"
                 value={form.fullName}
                 onChange={(event) => onFieldChange("fullName", event.target.value)}
-                placeholder="Nguyá»…n VÄƒn A"
+                placeholder="Nguyễn Văn A"
               />
             </div>
 
@@ -131,7 +131,7 @@ const RegisterView = ({
             </div>
 
             <div className="registerField">
-              <label htmlFor="register-phone">Sá»‘ Ä‘iá»‡n thoáº¡i</label>
+              <label htmlFor="register-phone">Số điện thoại</label>
               <input
                 id="register-phone"
                 type="tel"
@@ -142,24 +142,24 @@ const RegisterView = ({
             </div>
 
             <div className="registerField">
-              <label htmlFor="register-password">Máº­t kháº©u</label>
+              <label htmlFor="register-password">Mật khẩu</label>
               <input
                 id="register-password"
                 type="password"
                 value={form.password}
                 onChange={(event) => onFieldChange("password", event.target.value)}
-                placeholder="Tá»‘i thiá»ƒu 6 kÃ½ tá»±"
+                placeholder="Tối thiểu 6 ký tự"
               />
             </div>
 
             <div className="registerField">
-              <label htmlFor="register-confirm-password">XÃ¡c nháº­n máº­t kháº©u</label>
+              <label htmlFor="register-confirm-password">Xác nhận mật khẩu</label>
               <input
                 id="register-confirm-password"
                 type="password"
                 value={form.confirmPassword}
                 onChange={(event) => onFieldChange("confirmPassword", event.target.value)}
-                placeholder="Nháº­p láº¡i máº­t kháº©u"
+                placeholder="Nhập lại mật khẩu"
               />
             </div>
           </div>
@@ -170,18 +170,18 @@ const RegisterView = ({
                 <FiMail />
               </span>
               <div>
-                <h2>ThÃ´ng tin backend má»›i</h2>
-                <p>Luá»“ng Ä‘Äƒng kÃ½ khÃ´ng cÃ²n dÃ¹ng OTP. HÃ£y nháº­p chÃ­nh xÃ¡c email vÃ  sá»‘ Ä‘iá»‡n thoáº¡i.</p>
+                <h2>Thông tin backend mới</h2>
+                <p>Luồng đăng ký không còn dùng OTP. Hãy nhập chính xác email và số điện thoại.</p>
               </div>
             </div>
 
             <div className="registerPreviewFlow">
               <span>
-                <FiPhone aria-hidden="true" /> Sá»‘ Ä‘iá»‡n thoáº¡i Ä‘Æ°á»£c dÃ¹ng cho booking
+                <FiPhone aria-hidden="true" /> Số điện thoại được dùng cho booking
               </span>
               <FiArrowRight aria-hidden="true" />
               <span>
-                <FiCheckCircle aria-hidden="true" /> ÄÄƒng nháº­p ngay sau khi táº¡o
+                <FiCheckCircle aria-hidden="true" /> Đăng nhập ngay sau khi tạo
               </span>
             </div>
           </div>
@@ -194,12 +194,12 @@ const RegisterView = ({
           )}
 
           <button className="btn registerSubmitBtn" type="submit" disabled={submitting}>
-            {submitting ? "Äang táº¡o tÃ i khoáº£n..." : "ÄÄƒng KÃ½"}
+            {submitting ? "Đang tạo tài khoản..." : "Đăng Ký"}
           </button>
         </form>
 
         <p className="helperText registerFooterText">
-          ÄÃ£ cÃ³ tÃ i khoáº£n? <Link to={loginPath}>ÄÄƒng nháº­p</Link>
+          Đã có tài khoản? <Link to={loginPath}>Đăng nhập</Link>
         </p>
       </div>
     </section>

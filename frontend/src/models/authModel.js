@@ -7,7 +7,7 @@ export const USER_ROLES = Object.freeze({
 })
 
 export const REGISTER_ROLE_OPTIONS = Object.freeze([
-  { value: USER_ROLES.customer, label: "NgÆ°á»i Ä‘áº·t sÃ¢n" },
+  { value: USER_ROLES.customer, label: "Người đặt sân" },
 ])
 
 export const createLoginForm = () => ({
@@ -38,7 +38,7 @@ export const clearStoredAuthToken = () => {
   localStorage.removeItem(TOKEN_STORAGE_KEY)
 }
 
-export const getAuthCheckingMessage = () => "Äang xÃ¡c thá»±c tÃ i khoáº£n..."
+export const getAuthCheckingMessage = () => "Đang xác thực tài khoản..."
 
 export const isAdminUser = (user) => {
   const normalizedRole = String(user?.role || "").trim().toLowerCase()
@@ -46,7 +46,7 @@ export const isAdminUser = (user) => {
 }
 
 export const getUserRoleLabel = (role) =>
-  isAdminUser({ role }) ? "Quáº£n trá»‹ viÃªn sÃ¢n" : "NgÆ°á»i Ä‘áº·t sÃ¢n"
+  isAdminUser({ role }) ? "Quản trị viên sân" : "Người đặt sân"
 
 export const validateRegisterDetails = (form) => {
   const fullName = String(form.fullName || "").trim()
@@ -57,27 +57,27 @@ export const validateRegisterDetails = (form) => {
   const role = String(form.role || "").trim().toLowerCase()
 
   if (!fullName || !email || !phone || !password || !confirmPassword) {
-    return "Vui lÃ²ng nháº­p Ä‘áº§y Ä‘á»§ thÃ´ng tin Ä‘Äƒng kÃ½."
+    return "Vui lòng nhập đầy đủ thông tin đăng ký."
   }
 
   if (!isValidEmail(email)) {
-    return "Email khÃ´ng há»£p lá»‡."
+    return "Email không hợp lệ."
   }
 
   if (!/^0\d{9}$/.test(phone)) {
-    return "Sá»‘ Ä‘iá»‡n thoáº¡i khÃ´ng há»£p lá»‡."
+    return "Số điện thoại không hợp lệ."
   }
 
   if (password.length < 6) {
-    return "Máº­t kháº©u tá»‘i thiá»ƒu 6 kÃ½ tá»±."
+    return "Mật khẩu tối thiểu 6 ký tự."
   }
 
   if (password !== confirmPassword) {
-    return "XÃ¡c nháº­n máº­t kháº©u khÃ´ng khá»›p."
+    return "Xác nhận mật khẩu không khớp."
   }
 
   if (role !== USER_ROLES.customer) {
-    return "Vai trÃ² Ä‘Äƒng kÃ½ khÃ´ng há»£p lá»‡."
+    return "Vai trò đăng ký không hợp lệ."
   }
 
   return ""

@@ -233,7 +233,7 @@ export const useBookingController = ({ authToken }) => {
 
   const handleContinueToConfirm = () => {
     if (!hasSelectedSlot) {
-      setFeedback({ type: "error", text: "Vui lÃ²ng chá»n sÃ¢n con vÃ  khung giá» trÆ°á»›c." })
+      setFeedback({ type: "error", text: "Vui lòng chọn sân con và khung giờ trước." })
       return
     }
 
@@ -250,7 +250,7 @@ export const useBookingController = ({ authToken }) => {
     let redirectedToPayment = false
 
     if (!authToken) {
-      setFeedback({ type: "error", text: "Báº¡n cáº§n Ä‘Äƒng nháº­p Ä‘á»ƒ Ä‘áº·t sÃ¢n." })
+      setFeedback({ type: "error", text: "Bạn cần đăng nhập để đặt sân." })
       return
     }
 
@@ -286,7 +286,7 @@ export const useBookingController = ({ authToken }) => {
         return
       }
 
-      setFeedback({ type: "success", text: "Äáº·t sÃ¢n thÃ nh cÃ´ng." })
+      setFeedback({ type: "success", text: "Đặt sân thành công." })
       setForm((prev) => createBookingForm(prev.fieldId, prev.date))
       setBookingStep("schedule")
 
@@ -306,7 +306,7 @@ export const useBookingController = ({ authToken }) => {
       return
     }
 
-    const shouldCancel = window.confirm(`Há»§y Ä‘Æ¡n Ä‘áº·t sÃ¢n ${booking.fieldName || booking.id}?`)
+    const shouldCancel = window.confirm(`Hủy đơn đặt sân ${booking.fieldName || booking.id}?`)
     if (!shouldCancel) {
       return
     }
@@ -323,7 +323,7 @@ export const useBookingController = ({ authToken }) => {
       )
       setFeedback({
         type: "success",
-        text: data.message || "ÄÃ£ há»§y Ä‘Æ¡n Ä‘áº·t cá»§a báº¡n.",
+        text: data.message || "Đã hủy đơn đặt của bạn.",
       })
     } catch (apiError) {
       setFeedback({ type: "error", text: apiError.message })

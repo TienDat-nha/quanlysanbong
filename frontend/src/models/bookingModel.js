@@ -34,7 +34,7 @@ const normalizeSubFields = (field) => {
       }
 
       if (subField && typeof subField === "object") {
-        const fallbackName = `SÃ¢n ${index + 1}`
+        const fallbackName = `Sân ${index + 1}`
         const name = String(subField.name || fallbackName).trim()
         const key = normalizeSubFieldKey(subField.key || subField.id || name)
 
@@ -227,37 +227,37 @@ export const validateBookingForm = (form, now = new Date()) => {
   const confirmPhone = String(form.confirmPhone || "").trim()
 
   if (!fieldId || !subFieldId || !date || !timeSlotId || !timeSlot || !phone || !confirmPhone) {
-    return "Vui lÃ²ng chá»n sÃ¢n, khung giá» vÃ  nháº­p Ä‘áº§y Ä‘á»§ thÃ´ng tin."
+    return "Vui lòng chọn sân, khung giờ và nhập đầy đủ thông tin."
   }
 
   if (!isValidPhoneNumber(phone)) {
-    return "Sá»‘ Ä‘iá»‡n thoáº¡i khÃ´ng há»£p lá»‡."
+    return "Số điện thoại không hợp lệ."
   }
 
   if (normalizePhoneNumber(phone) !== normalizePhoneNumber(confirmPhone)) {
-    return "Sá»‘ Ä‘iá»‡n thoáº¡i xÃ¡c nháº­n khÃ´ng khá»›p."
+    return "Số điện thoại xác nhận không khớp."
   }
 
   const bookingDate = parseBookingDate(date)
   if (!bookingDate) {
-    return "NgÃ y Ä‘áº·t khÃ´ng há»£p lá»‡."
+    return "Ngày đặt không hợp lệ."
   }
 
   const parsedTimeSlot = parseTimeSlot(timeSlot)
   if (!parsedTimeSlot) {
-    return "Khung giá» pháº£i theo Ä‘á»‹nh dáº¡ng HH:mm - HH:mm."
+    return "Khung giờ phải theo định dạng HH:mm - HH:mm."
   }
 
   const today = new Date(now)
   today.setHours(0, 0, 0, 0)
 
   if (bookingDate.getTime() < today.getTime()) {
-    return "KhÃ´ng thá»ƒ Ä‘áº·t lá»‹ch trong ngÃ y Ä‘Ã£ qua."
+    return "Không thể đặt lịch trong ngày đã qua."
   }
 
   const currentMinutes = now.getHours() * 60 + now.getMinutes()
   if (bookingDate.getTime() === today.getTime() && parsedTimeSlot.startMinutes <= currentMinutes) {
-    return "Khung giá» Ä‘áº·t sÃ¢n pháº£i á»Ÿ tÆ°Æ¡ng lai."
+    return "Khung giờ đặt sân phải ở tương lai."
   }
 
   return ""
@@ -386,12 +386,12 @@ export const formatBookingDateTime = (value) => new Date(value).toLocaleString("
 export const formatBookingStatus = (value) => {
   switch (String(value || "").trim().toLowerCase()) {
     case "pending":
-      return "Chá» xÃ¡c nháº­n"
+      return "Chờ xác nhận"
     case "confirmed":
-      return "ÄÃ£ xÃ¡c nháº­n"
+      return "Đã xác nhận"
     case "cancelled":
     case "canceled":
-      return "ÄÃ£ há»§y"
+      return "Đã hủy"
     default:
       return value || ""
   }
@@ -400,12 +400,12 @@ export const formatBookingStatus = (value) => {
 export const formatDepositStatus = (value) => {
   switch (String(value || "").trim().toLowerCase()) {
     case "paid":
-      return "ÄÃ£ thanh toÃ¡n"
+      return "Đã thanh toán"
     case "pending":
-      return "Chá» thanh toÃ¡n"
+      return "Chờ thanh toán"
     case "cancelled":
     case "canceled":
-      return "ÄÃ£ há»§y"
+      return "Đã hủy"
     default:
       return value || ""
   }
@@ -414,7 +414,7 @@ export const formatDepositStatus = (value) => {
 export const formatDepositMethod = (value) => {
   switch (String(value || "").trim().toLowerCase()) {
     case "cash":
-      return "Tiá»n máº·t"
+      return "Tiền mặt"
     case "qr":
       return "QR"
     default:

@@ -27,7 +27,7 @@ const createProviderFeedback = (search) => {
 
   return {
     type: paymentStatus === "success" ? "success" : "error",
-    text: paymentMessage || "KhÃ´ng thá»ƒ xá»­ lÃ½ káº¿t quáº£ thanh toÃ¡n.",
+    text: paymentMessage || "Không thể xử lý kết quả thanh toán.",
   }
 }
 
@@ -141,7 +141,7 @@ export const useDepositPaymentController = ({ authToken }) => {
       setStaticTransfer(data.staticTransfer || null)
       setFeedback({
         type: "success",
-        text: data.message || "ÄÃ£ táº¡o yÃªu cáº§u payment theo backend má»›i.",
+        text: data.message || "Đã tạo yêu cầu payment theo backend mới.",
       })
     } catch (apiError) {
       setFeedback({
@@ -166,7 +166,7 @@ export const useDepositPaymentController = ({ authToken }) => {
       const data = await createVnpayDepositPayment(authToken, bookingId)
       setFeedback({
         type: "success",
-        text: data.message || "ÄÃ£ táº¡o payment QR. HÃ£y táº£i láº¡i tráº¡ng thÃ¡i Ä‘á»ƒ láº¥y QR.",
+        text: data.message || "Đã tạo payment QR. Hãy tải lại trạng thái để lấy QR.",
       })
       setRefreshKey((value) => value + 1)
     } catch (apiError) {
@@ -193,7 +193,7 @@ export const useDepositPaymentController = ({ authToken }) => {
         window.open(staticTransfer.qrImageUrl, "_blank", "noopener,noreferrer")
         setFeedback({
           type: "success",
-          text: "ÄÃ£ má»Ÿ QR thanh toÃ¡n trong tab má»›i.",
+          text: "Đã mở QR thanh toán trong tab mới.",
         })
         return
       }
@@ -201,7 +201,7 @@ export const useDepositPaymentController = ({ authToken }) => {
       const data = await createMomoDepositPayment(authToken, bookingId)
       setFeedback({
         type: "success",
-        text: data.message || "ÄÃ£ táº¡o QR thanh toÃ¡n. HÃ£y báº¥m láº¡i Ä‘á»ƒ má»Ÿ QR sau khi táº£i láº¡i.",
+        text: data.message || "Đã tạo QR thanh toán. Hãy bấm lại để mở QR sau khi tải lại.",
       })
       setRefreshKey((value) => value + 1)
     } catch (apiError) {

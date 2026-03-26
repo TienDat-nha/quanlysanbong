@@ -68,7 +68,7 @@ const normalizeSubFields = (value, field = null) => {
 
       if (subField && typeof subField === "object") {
         const id = String(subField.id || subField._id || subField.subFieldId || "").trim()
-        const name = String(subField.name || `SÃ¢n ${index + 1}`).trim()
+        const name = String(subField.name || `Sân ${index + 1}`).trim()
         const key = buildFallbackSlug(subField.key || id || name, `san-${index + 1}`)
         return name
           ? {
