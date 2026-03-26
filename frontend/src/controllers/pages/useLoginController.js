@@ -32,7 +32,7 @@ export const useLoginController = ({ onLoginSuccess }) => {
       const data = await loginUser(form)
       onLoginSuccess?.(data.token, data.user)
       navigate(
-        location.state?.from || (isAdminUser(data.user) ? ROUTES.adminFields : ROUTES.booking),
+        location.state?.from || (isAdminUser(data.user) ? ROUTES.adminUsers : ROUTES.booking),
         { replace: true }
       )
     } catch (apiError) {

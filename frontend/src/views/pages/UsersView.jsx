@@ -1,4 +1,17 @@
 import React from "react"
+import { Link } from "react-router-dom"
+import {
+  getApiRoleValue,
+  getManagedUserRoleLabel,
+  getManagedUserStatusLabel,
+} from "../../models/userModel"
+
+const createSummaryCards = (summary) => [
+  { key: "total", label: "Tổng tài khoản", value: summary.total, tone: "primary" },
+  { key: "users", label: "Người dùng", value: summary.customers, tone: "neutral" },
+  { key: "owners", label: "Chủ sân", value: summary.owners, tone: "warning" },
+  { key: "locked", label: "Đang khóa", value: summary.locked, tone: "success" },
+]
 
 const UsersView = ({
   users,
@@ -8,43 +21,98 @@ const UsersView = ({
   formValues,
   submitting,
   deletingUserId,
+  statusActionUserId,
+  statusActionMode,
   isEditing,
   canManageUsers,
+  isAuthenticated,
+  currentUser,
+  roleOptions,
+  summary,
+  loginPath,
   onInputChange,
   onSubmit,
   onEditUser,
   onCancelEdit,
   onDeleteUser,
+  onToggleUserStatus,
+  onRefresh,
 }) => {
+  if (!isAuthenticated) {
+    return (
+      <section className="page section usersPage">
+        <div className="container pageHeader usersPageHeader">
+          <div>
+            <p className="usersEyebrow">Khu quản trị</p>
+            <h1>Quản Lý Người Dùng Và Chủ Sân</h1>
+            <p>
+              Vui lòng <Link to={loginPath}>đăng nhập</Link> bằng tài khoản admin do DB cấp để quản
+              lý tài khoản.
+            </p>
+          </div>
+        </div>
+      </section>
+    )
+  }
+
+  if (!canManageUsers) {
+    return (
+      <section className="page section usersPage">
+        <div className="container pageHeader usersPageHeader">
+          <div>
+            <p className="usersEyebrow">Khu quản trị</p>
+            <h1>Quản Lý Người Dùng Và Chủ Sân</h1>
+            <p>Tài khoản {currentUser?.email} không có quyền truy cập khu quản trị tài khoản.</p>
+          </div>
+        </div>
+      </section>
+    )
+  }
+
   return (
     <section className="page section usersPage">
       <div className="container pageHeader usersPageHeader">
         <div>
-          <p className="usersEyebrow">Render Backend</p>
-          <h1>Danh sách người dùng</h1>
-          <p>Frontend này đang lấy dữ liệu trực tiếp từ API backend.</p>
+          <p className="usersEyebrow">Khu quản trị tài khoản</p>
+          <h1>Quản Lý Người Dùng Và Chủ Sân</h1>
+          <p>
+            Tài khoản admin cấp từ DB có thể tạo user/chủ sân, xóa tài khoản và khóa hoặc mở khóa
+            bằng chính backend hiện tại.
+          </p>
         </div>
 
         <div className="usersHighlight">
-          <span>Tổng người dùng</span>
-          <strong>{users.length}</strong>
+          <span>Admin đang đăng nhập</span>
+          <strong>{currentUser?.email || "ADMIN"}</strong>
         </div>
+      </div>
+
+      <div className="container adminDashboardStats">
+        {createSummaryCards(summary).map((card) => (
+          <article className={`adminStatCard adminStatCard--${card.tone}`} key={card.key}>
+            <span>{card.label}</span>
+            <strong>{card.value}</strong>
+          </article>
+        ))}
       </div>
 
       <div className="container usersPageLayout">
         <aside className="usersSidebar">
           <form className="formCard usersForm" onSubmit={onSubmit}>
             <div className="usersPanelHeader">
-              <h2>{isEditing ? "Cập nhật người dùng" : "Thêm người dùng mới"}</h2>
+              <h2>{isEditing ? "Cập nhật tài khoản" : "Tạo tài khoản mới"}</h2>
+              <span>{isEditing ? "Chế độ sửa" : "Admin tạo trực tiếp"}</span>
             </div>
 
-            <p>
-              {canManageUsers
-                ? "Tài khoản ADMIN có thể tạo, sửa và xóa người dùng trên backend."
-                : "Danh sách người dùng là công khai. Đăng nhập bằng tài khoản ADMIN để quản lý."}
+            <p className="usersFormHint">
+              Trang đăng ký ngoài giao diện chính chỉ tạo user. Màn này dùng cho admin tạo người
+              dùng hoặc chủ sân.
+            </p>
+            <p className="usersFormHint">
+              Lưu ý: backend hiện gom quyền quản trị và chủ sân vào cùng nhóm `ADMIN`.
             </p>
 
-            <label htmlFor="user-name">Tên người dùng</label>
+            <label htmlFor="user-name">Tên tài khoản</label>
             <input
               id="user-name"
               name="name"
@@ -52,7 +120,7 @@ const UsersView = ({
               placeholder="Nguyễn Văn A"
               value={formValues.name}
               onChange={onInputChange}
-              disabled={!canManageUsers || submitting}
+              disabled={submitting}
             />
 
             <label htmlFor="user-email">Email</label>
@@ -63,7 +131,7 @@ const UsersView = ({
               placeholder="email@domain.com"
               value={formValues.email}
               onChange={onInputChange}
-              disabled={!canManageUsers || submitting}
+              disabled={submitting}
             />
 
             <label htmlFor="user-phone">Số điện thoại</label>
@@ -74,7 +142,7 @@ const UsersView = ({
               placeholder="09xxxxxxxx"
               value={formValues.phone}
               onChange={onInputChange}
-              disabled={!canManageUsers || submitting}
+              disabled={submitting}
             />
 
             <label htmlFor="user-password">Mật khẩu</label>
@@ -85,24 +153,27 @@ const UsersView = ({
               placeholder={isEditing ? "Bỏ trống nếu không đổi" : "Nhập mật khẩu"}
               value={formValues.password}
               onChange={onInputChange}
-              disabled={!canManageUsers || submitting}
+              disabled={submitting}
             />
 
-            <label htmlFor="user-role">Vai trò</label>
+            <label htmlFor="user-role">Loại tài khoản</label>
             <select
               id="user-role"
               name="role"
               value={formValues.role}
               onChange={onInputChange}
-              disabled={!canManageUsers || submitting}
+              disabled={submitting}
             >
-              <option value="USER">USER</option>
-              <option value="ADMIN">ADMIN</option>
+              {roleOptions.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
             </select>
 
             <div className="usersActionsRow">
-              <button className="btn" type="submit" disabled={!canManageUsers || submitting}>
-                {submitting ? "Đang lưu..." : isEditing ? "Cập nhật người dùng" : "Thêm người dùng"}
+              <button className="btn" type="submit" disabled={submitting}>
+                {submitting ? "Đang lưu..." : isEditing ? "Cập nhật tài khoản" : "Tạo tài khoản"}
               </button>
 
               {isEditing && (
@@ -125,63 +196,105 @@ const UsersView = ({
 
           {loading ? (
             <article className="usersPanel">
-              <p>Đang tải danh sách người dùng...</p>
+              <p>Đang tải danh sách tài khoản...</p>
             </article>
           ) : (
             <article className="usersPanel">
               <div className="usersPanelHeader">
                 <h2>Danh sách hiện tại</h2>
-                <span>{users.length} bản ghi</span>
+                <div className="usersActionsRow">
+                  <span>{users.length} bản ghi</span>
+                  <button className="outlineBtnInline" type="button" onClick={onRefresh}>
+                    Tải lại
+                  </button>
+                </div>
               </div>
 
               {users.length === 0 ? (
-                <p className="usersEmptyState">Chưa có người dùng nào trong danh sách.</p>
+                <p className="usersEmptyState">Chưa có tài khoản nào trong danh sách.</p>
               ) : (
                 <div className="usersTableWrap">
                   <table className="usersTable">
                     <thead>
                       <tr>
-                        <th>ID</th>
                         <th>Tên</th>
                         <th>Email</th>
                         <th>Số điện thoại</th>
-                        <th>Vai trò</th>
-                        {canManageUsers && <th>Thao tác</th>}
+                        <th>Loại</th>
+                        <th>Trạng thái</th>
+                        <th>Thao tác</th>
                       </tr>
                     </thead>
 
                     <tbody>
-                      {users.map((user) => (
-                        <tr key={user.id}>
-                          <td>{user.id}</td>
-                          <td>{user.name}</td>
-                          <td>{user.email || "-"}</td>
-                          <td>{user.phone || "-"}</td>
-                          <td>{user.role}</td>
-                          {canManageUsers && (
+                      {users.map((user) => {
+                        const isOwner = getApiRoleValue(user.role) === "ADMIN"
+                        const isSelf =
+                          String(user.id || "").trim() === String(currentUser?.id || currentUser?._id || "").trim()
+                          || String(user.email || "").trim().toLowerCase()
+                            === String(currentUser?.email || "").trim().toLowerCase()
+                        const isDeleting = deletingUserId === user.id
+                        const isStatusLoading = statusActionUserId === user.id
+
+                        return (
+                          <tr key={user.id}>
+                            <td>
+                              <div className="usersInlineMeta">
+                                <strong>{user.name}</strong>
+                                {isSelf && <span className="usersSelfBadge">Tài khoản hiện tại</span>}
+                              </div>
+                            </td>
+                            <td>{user.email || "-"}</td>
+                            <td>{user.phone || "-"}</td>
+                            <td>
+                              <span className={`usersRoleBadge ${isOwner ? "isOwner" : "isUser"}`}>
+                                {getManagedUserRoleLabel(user.role)}
+                              </span>
+                            </td>
+                            <td>
+                              <span
+                                className={`usersStatusBadge ${user.isLocked ? "isLocked" : "isActive"}`}
+                              >
+                                {getManagedUserStatusLabel(user)}
+                              </span>
+                            </td>
                             <td>
                               <div className="usersRowActions">
                                 <button
                                   className="outlineBtnInline"
                                   type="button"
                                   onClick={() => onEditUser(user)}
-                                  disabled={submitting || deletingUserId === user.id}
+                                  disabled={submitting || isDeleting || isStatusLoading}
                                 >
                                   Sửa
+                                </button>
+                                <button
+                                  className="outlineBtnInline"
+                                  type="button"
+                                  onClick={() => onToggleUserStatus(user)}
+                                  disabled={submitting || isDeleting || isStatusLoading || isSelf}
+                                >
+                                  {isStatusLoading
+                                    ? statusActionMode === "unlock"
+                                      ? "Đang mở..."
+                                      : "Đang khóa..."
+                                    : user.isLocked
+                                      ? "Mở khóa"
+                                      : "Khóa"}
                                 </button>
                                 <button
                                   className="outlineBtnInline usersDeleteBtn"
                                   type="button"
                                   onClick={() => onDeleteUser(user)}
-                                  disabled={submitting || deletingUserId === user.id}
+                                  disabled={submitting || isDeleting || isStatusLoading || isSelf}
                                 >
-                                  {deletingUserId === user.id ? "Đang xóa..." : "Xóa"}
+                                  {isDeleting ? "Đang xóa..." : "Xóa"}
                                 </button>
                               </div>
                             </td>
-                          )}
-                        </tr>
-                      ))}
+                          </tr>
+                        )
+                      })}
                     </tbody>
                   </table>
                 </div>

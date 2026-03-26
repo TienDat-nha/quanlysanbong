@@ -6,10 +6,6 @@ export const USER_ROLES = Object.freeze({
   admin: "admin",
 })
 
-export const REGISTER_ROLE_OPTIONS = Object.freeze([
-  { value: USER_ROLES.customer, label: "Người đặt sân" },
-])
-
 export const createLoginForm = () => ({
   email: "",
   password: "",
@@ -21,7 +17,6 @@ export const createRegisterForm = () => ({
   phone: "",
   password: "",
   confirmPassword: "",
-  role: USER_ROLES.customer,
 })
 
 export const isValidEmail = (value) => EMAIL_PATTERN.test(String(value || "").trim().toLowerCase())
@@ -54,7 +49,6 @@ export const validateRegisterDetails = (form) => {
   const phone = String(form.phone || "").replace(/\D/g, "")
   const password = String(form.password || "")
   const confirmPassword = String(form.confirmPassword || "")
-  const role = String(form.role || "").trim().toLowerCase()
 
   if (!fullName || !email || !phone || !password || !confirmPassword) {
     return "Vui lòng nhập đầy đủ thông tin đăng ký."
@@ -74,10 +68,6 @@ export const validateRegisterDetails = (form) => {
 
   if (password !== confirmPassword) {
     return "Xác nhận mật khẩu không khớp."
-  }
-
-  if (role !== USER_ROLES.customer) {
-    return "Vai trò đăng ký không hợp lệ."
   }
 
   return ""

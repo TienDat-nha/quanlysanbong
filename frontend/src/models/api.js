@@ -135,10 +135,10 @@ const normalizeRole = (value) => {
   }
 
   if (normalized === "CLIENT" || normalized === "CUSTOMER" || normalized === "USER") {
-    return "CLIENT"
+    return "USER"
   }
 
-  return normalized || "CLIENT"
+  return normalized || "USER"
 }
 
 const normalizeAuthUser = (user) => {
@@ -672,17 +672,52 @@ export const getPublicUsers = async () => {
   }
 }
 
+const buildAdminUserPayload = (payload = {}, { defaultRole = "", includePassword = false } = {}) => {
+  const nextPayload = {
+    name: String(payload?.name || payload?.fullName || "").trim(),
+    email: String(payload?.email || "").trim().toLowerCase(),
+    phone: String(payload?.phone || "").trim(),
+  }
+
+  const password = String(payload?.password || "")
+  if ((includePassword || password.trim()) && password) {
+    nextPayload.password = password
+  }
+
+  const role = String(payload?.role || defaultRole || "").trim().toUpperCase()
+  if (role) {
+    nextPayload.role = role
+  }
+
+  if (payload?.isDeleted !== undefined) {
+    nextPayload.isDeleted = Boolean(payload.isDeleted)
+  }
+
+  if (payload?.isActive !== undefined) {
+    nextPayload.isActive = Boolean(payload.isActive)
+  }
+
+  if (payload?.locked !== undefined) {
+    nextPayload.locked = Boolean(payload.locked)
+  }
+
+  if (payload?.isLocked !== undefined) {
+    nextPayload.isLocked = Boolean(payload.isLocked)
+  }
+
+  const status = String(payload?.status || "").trim().toUpperCase()
+  if (status) {
+    nextPayload.status = status
+  }
+
+  return nextPayload
+}
+
 export const createPublicUser = async (token, payload) => {
   const response = await request("/user/createUser", {
     method: "POST",
     headers: createTokenHeaders(token),
-    body: JSON.stringify({
-      name: String(payload?.name || payload?.fullName || "").trim(),
-      email: String(payload?.email || "").trim().toLowerCase(),
-      phone: String(payload?.phone || "").trim(),
-      password: String(payload?.password || ""),
-      role: String(payload?.role || "CLIENT").trim().toUpperCase(),
-    }),
+    body: JSON.stringify(buildAdminUserPayload(payload, { defaultRole: "USER", includePassword: true })),
   })
 
   return {
@@ -699,11 +734,7 @@ export const updatePublicUser = async (token, userId, payload) => {
     headers: createTokenHeaders(token),
     body: JSON.stringify({
       userId: String(userId || "").trim(),
-      name: String(payload?.name || payload?.fullName || "").trim(),
-      email: String(payload?.email || "").trim().toLowerCase(),
-      phone: String(payload?.phone || "").trim(),
-      password: String(payload?.password || ""),
-      role: String(payload?.role || "").trim().toUpperCase() || undefined,
+      ...buildAdminUserPayload(payload),
     }),
   })
 

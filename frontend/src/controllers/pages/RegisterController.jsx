@@ -9,22 +9,20 @@ const RegisterController = () => {
     error,
     successMessage,
     loginPath,
-    roleOptions,
     handleFieldChange,
     handleSubmit,
   } = useRegisterController()
 
   return (
-      <RegisterView
-        form={form}
-        submitting={submitting}
-        error={error}
-        successMessage={successMessage}
-        loginPath={loginPath}
-        roleOptions={roleOptions}
-        onFieldChange={handleFieldChange}
-        onSubmit={handleSubmit}
-      />
+    <RegisterView
+      form={form}
+      submitting={submitting}
+      error={error}
+      successMessage={successMessage}
+      loginPath={loginPath}
+      onFieldChange={handleFieldChange}
+      onSubmit={handleSubmit}
+    />
   )
 }
 

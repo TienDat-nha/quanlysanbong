@@ -15,7 +15,11 @@ const GUEST_ACTIONS = Object.freeze([
 
 export const createNavbarModel = (currentUser) => {
   const navItems = isAdminUser(currentUser)
-    ? [...BASE_NAV_ITEMS, { key: "adminFields", to: ROUTES.adminFields, label: "Dashboard admin" }]
+    ? [
+        ...BASE_NAV_ITEMS,
+        { key: "adminUsers", to: ROUTES.adminUsers, label: "Quản trị tài khoản" },
+        { key: "adminFields", to: ROUTES.adminFields, label: "Quản lý sân" },
+      ]
     : [...BASE_NAV_ITEMS]
 
   return {

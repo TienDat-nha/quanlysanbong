@@ -523,6 +523,60 @@ button {
   gap: 0.65rem;
 }
 
+.usersFormHint {
+  color: var(--textColor);
+  margin: 0;
+}
+
+.usersInlineMeta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.usersSelfBadge,
+.usersRoleBadge,
+.usersStatusBadge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2rem;
+  padding: 0.35rem 0.75rem;
+  border-radius: 999px;
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.usersSelfBadge {
+  background: rgba(9, 96, 124, 0.08);
+  border: 1px solid rgba(9, 96, 124, 0.18);
+  color: var(--blackColor);
+}
+
+.usersRoleBadge.isUser {
+  background: rgba(45, 164, 91, 0.12);
+  border: 1px solid rgba(18, 95, 44, 0.18);
+  color: #205f3d;
+}
+
+.usersRoleBadge.isOwner {
+  background: rgba(223, 177, 43, 0.18);
+  border: 1px solid rgba(172, 119, 16, 0.2);
+  color: #7b5c0a;
+}
+
+.usersStatusBadge.isActive {
+  background: rgba(8, 126, 53, 0.12);
+  border: 1px solid rgba(18, 95, 44, 0.2);
+  color: #1f7744;
+}
+
+.usersStatusBadge.isLocked {
+  background: rgba(170, 39, 57, 0.12);
+  border: 1px solid rgba(170, 39, 57, 0.2);
+  color: #8f1f33;
+}
+
 .usersEndpointList {
   display: grid;
   gap: 0.6rem;

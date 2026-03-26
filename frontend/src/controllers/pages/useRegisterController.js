@@ -1,10 +1,6 @@
 import { useEffect, useRef, useState } from "react"
 import { useNavigate } from "react-router-dom"
-import {
-  createRegisterForm,
-  REGISTER_ROLE_OPTIONS,
-  validateRegisterDetails,
-} from "../../models/authModel"
+import { createRegisterForm, validateRegisterDetails } from "../../models/authModel"
 import { registerUser } from "../../models/api"
 import { ROUTES } from "../../models/routeModel"
 
@@ -77,7 +73,6 @@ export const useRegisterController = () => {
     error,
     successMessage,
     loginPath: ROUTES.login,
-    roleOptions: REGISTER_ROLE_OPTIONS,
     handleFieldChange,
     handleSubmit,
   }

@@ -16,6 +16,7 @@ import FieldsController from "./pages/FieldsController"
 import HomeController from "./pages/HomeController"
 import LoginController from "./pages/LoginController"
 import RegisterController from "./pages/RegisterController"
+import UsersController from "./pages/UsersController"
 
 const AppController = () => {
   const { authToken, currentUser, checkingAuth, handleLoginSuccess, handleLogout } =
@@ -53,6 +54,10 @@ const AppController = () => {
         <Route
           path={ROUTES.adminFields}
           element={<AdminFieldsController authToken={authToken} currentUser={currentUser} />}
+        />
+        <Route
+          path={ROUTES.adminUsers}
+          element={<UsersController authToken={authToken} currentUser={currentUser} />}
         />
         <Route path="*" element={<Navigate to={ROUTES.home} replace />} />
       </Routes>

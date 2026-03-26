@@ -14,7 +14,10 @@ const LoginView = ({
     <section className="page section authPage">
       <div className="container narrowContainer">
         <h1>Đăng Nhập</h1>
-        <p>Đăng nhập để đặt sân, theo dõi lịch sử đặt chỗ và quản lý sân của bạn.</p>
+        <p>
+          Đăng nhập chung cho người dùng đặt sân, chủ sân và tài khoản admin được cấp sẵn trong hệ
+          thống.
+        </p>
 
         <form className="formCard" onSubmit={onSubmit}>
           {infoMessage && <p className="message success">{infoMessage}</p>}
@@ -45,7 +48,7 @@ const LoginView = ({
         </form>
 
         <p className="helperText">
-          Chưa có tài khoản? <Link to={registerPath}>Đăng ký ngay</Link>
+          Chưa có tài khoản người dùng? <Link to={registerPath}>Đăng ký ngay</Link>
         </p>
       </div>
     </section>
