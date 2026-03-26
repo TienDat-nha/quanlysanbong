@@ -121,21 +121,21 @@ const RegisterView = ({
                 <FiShield />
               </span>
               <div>
-                <h2>Chủ sân và admin</h2>
+                <h2>Xác nhận OTP và phân quyền</h2>
                 <p>
-                  Tài khoản chủ sân và admin được tạo từ khu quản trị. Trang này không mở tự đăng
-                  ký cho các nhóm quyền đó.
+                  OTP email chưa khả dụng trên backend hiện tại. Tài khoản chủ sân và admin cũng
+                  không tự đăng ký ở màn này mà được tạo từ khu quản trị.
                 </p>
               </div>
             </div>
 
             <div className="registerPreviewFlow">
               <span>
-                <FiMail aria-hidden="true" /> Email dùng để đăng nhập
+                <FiMail aria-hidden="true" /> Chưa có API gửi / xác nhận OTP từ backend
               </span>
               <FiArrowRight aria-hidden="true" />
               <span>
-                <FiPhone aria-hidden="true" /> Số điện thoại dùng cho booking
+                <FiPhone aria-hidden="true" /> Số điện thoại vẫn dùng cho booking
               </span>
               <FiArrowRight aria-hidden="true" />
               <span>

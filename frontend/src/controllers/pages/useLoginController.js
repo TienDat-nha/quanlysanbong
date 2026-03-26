@@ -1,6 +1,10 @@
 import { useState } from "react"
 import { useLocation, useNavigate } from "react-router-dom"
-import { createLoginForm, isAdminUser } from "../../models/authModel"
+import {
+  createLoginForm,
+  isOwnerAccount,
+  matchesLoginAccountType,
+} from "../../models/authModel"
 import { loginUser } from "../../models/api"
 import { ROUTES } from "../../models/routeModel"
 
@@ -30,9 +34,19 @@ export const useLoginController = ({ onLoginSuccess }) => {
 
     try {
       const data = await loginUser(form)
+
+      if (!matchesLoginAccountType(data.user, form.accountType)) {
+        setError(
+          isOwnerAccount(data.user)
+            ? "Tài khoản này thuộc nhóm chủ sân / quản trị. Hãy chọn đúng loại đăng nhập."
+            : "Tài khoản này là người dùng đặt sân. Hãy chọn đăng nhập người dùng."
+        )
+        return
+      }
+
       onLoginSuccess?.(data.token, data.user)
       navigate(
-        location.state?.from || (isAdminUser(data.user) ? ROUTES.adminUsers : ROUTES.booking),
+        location.state?.from || (isOwnerAccount(data.user) ? ROUTES.adminFields : ROUTES.booking),
         { replace: true }
       )
     } catch (apiError) {

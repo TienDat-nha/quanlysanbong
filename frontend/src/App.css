@@ -1657,6 +1657,14 @@ button {
   gap: 0.9rem;
 }
 
+.loginRoleGrid {
+  margin-bottom: 0.15rem;
+}
+
+.loginRoleCard {
+  min-height: 118px;
+}
+
 .roleCard {
   position: relative;
   display: grid;

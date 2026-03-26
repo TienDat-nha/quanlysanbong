@@ -6,9 +6,15 @@ export const USER_ROLES = Object.freeze({
   admin: "admin",
 })
 
+export const LOGIN_ACCOUNT_TYPES = Object.freeze({
+  customer: "customer",
+  owner: "owner",
+})
+
 export const createLoginForm = () => ({
   email: "",
   password: "",
+  accountType: LOGIN_ACCOUNT_TYPES.customer,
 })
 
 export const createRegisterForm = () => ({
@@ -35,13 +41,22 @@ export const clearStoredAuthToken = () => {
 
 export const getAuthCheckingMessage = () => "Đang xác thực tài khoản..."
 
-export const isAdminUser = (user) => {
+export const isOwnerAccount = (user) => {
   const normalizedRole = String(user?.role || "").trim().toLowerCase()
-  return normalizedRole === USER_ROLES.admin || normalizedRole === "admin"
+  return ["admin", "owner", "field_owner", "field-owner"].includes(normalizedRole)
+}
+
+export const isAdminUser = (user) => isOwnerAccount(user)
+
+export const matchesLoginAccountType = (user, accountType) => {
+  const normalizedType = String(accountType || LOGIN_ACCOUNT_TYPES.customer).trim().toLowerCase()
+  return normalizedType === LOGIN_ACCOUNT_TYPES.owner
+    ? isOwnerAccount(user)
+    : !isOwnerAccount(user)
 }
 
 export const getUserRoleLabel = (role) =>
-  isAdminUser({ role }) ? "Quản trị viên sân" : "Người đặt sân"
+  isOwnerAccount({ role }) ? "Chủ sân / quản trị" : "Người đặt sân"
 
 export const validateRegisterDetails = (form) => {
   const fullName = String(form.fullName || "").trim()
