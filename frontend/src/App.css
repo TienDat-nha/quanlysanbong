@@ -528,6 +528,42 @@ button {
   margin: 0;
 }
 
+.usersOtpCard {
+  display: grid;
+  gap: 0.85rem;
+  padding: 1rem;
+  border-radius: 1rem;
+  border: 1px solid rgba(9, 96, 124, 0.14);
+  background: linear-gradient(180deg, rgba(9, 96, 124, 0.05), rgba(45, 164, 91, 0.04));
+}
+
+.usersOtpHeader {
+  align-items: flex-start;
+}
+
+.usersOtpMeta {
+  background: rgba(255, 255, 255, 0.72);
+}
+
+.usersOtpStats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  color: var(--blackColor);
+  font-size: 0.88rem;
+  font-weight: 600;
+}
+
+.usersOtpActions {
+  align-items: center;
+}
+
+.usersOtpInput {
+  max-width: 220px;
+  letter-spacing: 0.28em;
+  font-weight: 700;
+}
+
 .usersInlineMeta {
   display: flex;
   flex-wrap: wrap;
@@ -1849,6 +1885,34 @@ button {
   max-width: none;
 }
 
+.registerOtpMeta {
+  gap: 0.5rem;
+}
+
+.registerOtpMeta p strong {
+  color: var(--blackColor);
+}
+
+.registerOtpStats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.7rem;
+  margin-top: 0.1rem;
+}
+
+.registerOtpStat {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  min-height: 2rem;
+  padding: 0.35rem 0.7rem;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.72);
+  border: 1px solid rgba(18, 95, 44, 0.14);
+  font-size: 0.85rem;
+  color: var(--blackColor);
+}
+
 .registerOtpHero {
   display: grid;
   grid-template-columns: auto 1fr;
@@ -1868,6 +1932,11 @@ button {
   background:
     linear-gradient(135deg, rgba(8, 126, 53, 0.08), rgba(223, 177, 43, 0.12));
   border-color: rgba(18, 95, 44, 0.16);
+}
+
+.registerOtpActions .outlineBtnInline,
+.registerOtpActions .registerOtpBtn {
+  min-height: 3rem;
 }
 
 .registerStatusStack {

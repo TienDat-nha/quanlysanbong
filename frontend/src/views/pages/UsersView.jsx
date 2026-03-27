@@ -23,6 +23,13 @@ const UsersView = ({
   deletingUserId,
   statusActionUserId,
   statusActionMode,
+  otpEnabled,
+  otpSetupMessage,
+  otpState,
+  otpSummary,
+  canResendOtp,
+  otpExpired,
+  otpActionMode,
   isEditing,
   canManageUsers,
   isAuthenticated,
@@ -31,6 +38,9 @@ const UsersView = ({
   summary,
   loginPath,
   onInputChange,
+  onOtpInputChange,
+  onRequestOtp,
+  onVerifyOtp,
   onSubmit,
   onEditUser,
   onCancelEdit,
@@ -38,6 +48,21 @@ const UsersView = ({
   onToggleUserStatus,
   onRefresh,
 }) => {
+  const otpFeedbackClass =
+    otpState.feedback?.type === "error"
+      ? "message error"
+      : otpState.feedback?.type === "warning"
+        ? "message warning"
+        : "message success"
+
+  const otpStatusLabel = otpState.verified
+    ? "Đã xác nhận"
+    : otpState.codeHash
+      ? otpExpired
+        ? "Đã hết hạn"
+        : "Đang chờ xác nhận"
+      : "Chưa gửi mã"
+
   if (!isAuthenticated) {
     return (
       <section className="page section usersPage">
@@ -101,7 +126,7 @@ const UsersView = ({
           <form className="formCard usersForm" onSubmit={onSubmit}>
             <div className="usersPanelHeader">
               <h2>{isEditing ? "Cập nhật tài khoản" : "Tạo tài khoản mới"}</h2>
-              <span>{isEditing ? "Chế độ sửa" : "Admin tạo trực tiếp"}</span>
+              <span>{isEditing ? "Chế độ sửa" : "Admin có OTP email"}</span>
             </div>
 
             <p className="usersFormHint">
@@ -171,9 +196,94 @@ const UsersView = ({
               ))}
             </select>
 
+            {!isEditing && (
+              <section className="usersOtpCard">
+                <div className="usersPanelHeader usersOtpHeader">
+                  <h2>Xác thực OTP email</h2>
+                  <span>Bắt buộc khi tạo mới</span>
+                </div>
+
+                <p className="usersFormHint">
+                  Admin chỉ có thể tạo tài khoản sau khi người nhận cung cấp đúng mã OTP đã gửi về
+                  email.
+                </p>
+
+                {!otpEnabled && <p className="message warning">{otpSetupMessage}</p>}
+
+                <div className="otpSummary usersOtpMeta">
+                  <p>
+                    <strong>Email nhận mã:</strong>{" "}
+                    {otpState.targetEmail || formValues.email || "Chưa nhập email"}
+                  </p>
+                  <p>
+                    <strong>Trạng thái:</strong> {otpStatusLabel}
+                  </p>
+                  <div className="usersOtpStats">
+                    <span>Hết hạn sau: {otpSummary.countdownLabel}</span>
+                    <span>Gửi lại sau: {otpSummary.resendLabel}</span>
+                  </div>
+                </div>
+
+                <label htmlFor="user-otp">Mã OTP</label>
+                <input
+                  id="user-otp"
+                  className="usersOtpInput"
+                  type="text"
+                  inputMode="numeric"
+                  value={otpState.input}
+                  onChange={(event) => onOtpInputChange(event.target.value)}
+                  placeholder="Nhập 6 số OTP"
+                  maxLength={6}
+                  disabled={submitting || otpActionMode === "send" || !otpEnabled}
+                />
+
+                <div className="usersActionsRow usersOtpActions">
+                  <button
+                    className="btn"
+                    type="button"
+                    onClick={onRequestOtp}
+                    disabled={submitting || otpActionMode === "verify" || !canResendOtp || !otpEnabled}
+                  >
+                    {otpActionMode === "send"
+                      ? "Đang gửi..."
+                      : otpState.codeHash
+                        ? "Gửi lại OTP"
+                        : "Gửi OTP"}
+                  </button>
+
+                  <button
+                    className="outlineBtnInline"
+                    type="button"
+                    onClick={onVerifyOtp}
+                    disabled={submitting || otpActionMode === "send" || !otpState.codeHash || !otpEnabled}
+                  >
+                    {otpActionMode === "verify"
+                      ? "Đang xác nhận..."
+                      : otpState.verified
+                        ? "Đã xác nhận"
+                        : "Xác nhận OTP"}
+                  </button>
+                </div>
+
+                {otpState.feedback?.text && (
+                  <p className={otpFeedbackClass}>{otpState.feedback.text}</p>
+                )}
+              </section>
+            )}
+
             <div className="usersActionsRow">
-              <button className="btn" type="submit" disabled={submitting}>
-                {submitting ? "Đang lưu..." : isEditing ? "Cập nhật tài khoản" : "Tạo tài khoản"}
+              <button
+                className="btn"
+                type="submit"
+                disabled={submitting || (!isEditing && !otpSummary.canSubmit)}
+              >
+                {submitting
+                  ? "Đang lưu..."
+                  : isEditing
+                    ? "Cập nhật tài khoản"
+                    : otpSummary.canSubmit
+                      ? "Tạo tài khoản"
+                      : "Xác nhận OTP để tiếp tục"}
               </button>
 
               {isEditing && (
@@ -230,7 +340,8 @@ const UsersView = ({
                       {users.map((user) => {
                         const isOwner = getApiRoleValue(user.role) === "ADMIN"
                         const isSelf =
-                          String(user.id || "").trim() === String(currentUser?.id || currentUser?._id || "").trim()
+                          String(user.id || "").trim()
+                            === String(currentUser?.id || currentUser?._id || "").trim()
                           || String(user.email || "").trim().toLowerCase()
                             === String(currentUser?.email || "").trim().toLowerCase()
                         const isDeleting = deletingUserId === user.id
@@ -252,9 +363,7 @@ const UsersView = ({
                               </span>
                             </td>
                             <td>
-                              <span
-                                className={`usersStatusBadge ${user.isLocked ? "isLocked" : "isActive"}`}
-                              >
+                              <span className={`usersStatusBadge ${user.isLocked ? "isLocked" : "isActive"}`}>
                                 {getManagedUserStatusLabel(user)}
                               </span>
                             </td>

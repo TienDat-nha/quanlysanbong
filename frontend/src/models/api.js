@@ -41,6 +41,19 @@ const CONFIGURED_FIELD_IDS = String(process.env.REACT_APP_FIELD_IDS || "")
   .split(",")
   .map((value) => String(value || "").trim())
   .filter(Boolean)
+const EMAILJS_SEND_ENDPOINT = "https://api.emailjs.com/api/v1.0/email/send"
+const EMAILJS_SERVICE_ID = String(process.env.REACT_APP_EMAILJS_SERVICE_ID || "").trim()
+const EMAILJS_TEMPLATE_ID = String(process.env.REACT_APP_EMAILJS_TEMPLATE_ID || "").trim()
+const EMAILJS_PUBLIC_KEY = String(process.env.REACT_APP_EMAILJS_PUBLIC_KEY || "").trim()
+const REGISTER_PATHS = ["/user/register", "/register"]
+const LOGIN_PATHS = ["/user/login", "/login"]
+const GET_ME_PATHS = ["/user/getMe", "/getMe"]
+
+const isManagedUserOtpConfigured = () =>
+  Boolean(EMAILJS_SERVICE_ID && EMAILJS_TEMPLATE_ID && EMAILJS_PUBLIC_KEY)
+
+const getManagedUserOtpConfigMessage = () =>
+  "Tai lieu BE hien tai chua co API OTP email. Hay cau hinh REACT_APP_EMAILJS_SERVICE_ID, REACT_APP_EMAILJS_TEMPLATE_ID va REACT_APP_EMAILJS_PUBLIC_KEY vao frontend/.env de gui OTP truoc khi goi API tao user."
 
 const isHtmlLike = (value) => {
   const trimmed = String(value || "").trim().toLowerCase()
@@ -601,8 +614,79 @@ export const requestRegisterOtp = async () => ({
   message: "Backend hien tai khong su dung OTP trong quy trinh dang ky.",
 })
 
+export const canSendManagedUserOtp = () => isManagedUserOtpConfigured()
+
+export const getManagedUserOtpSetupMessage = () => getManagedUserOtpConfigMessage()
+
+export const requestManagedUserOtp = async (payload = {}) => {
+  if (!isManagedUserOtpConfigured()) {
+    throw new Error(getManagedUserOtpConfigMessage())
+  }
+
+  const email = String(payload?.email || "").trim().toLowerCase()
+  const otpCode = String(payload?.otpCode || "").trim()
+
+  if (!email) {
+    throw new Error("Vui long nhap email truoc khi gui OTP.")
+  }
+
+  if (!otpCode) {
+    throw new Error("Khong tao duoc ma OTP de gui email.")
+  }
+
+  let response
+  try {
+    response = await fetch(EMAILJS_SEND_ENDPOINT, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        service_id: EMAILJS_SERVICE_ID,
+        template_id: EMAILJS_TEMPLATE_ID,
+        user_id: EMAILJS_PUBLIC_KEY,
+        template_params: {
+          to_email: email,
+          user_email: email,
+          email,
+          otp_code: otpCode,
+          otp: otpCode,
+          passcode: otpCode,
+          user_name: String(payload?.name || "").trim() || "Khach hang",
+          name: String(payload?.name || "").trim() || "Khach hang",
+          account_role: String(payload?.roleLabel || "").trim() || "Nguoi dung",
+          role: String(payload?.roleLabel || "").trim() || "Nguoi dung",
+          admin_email: String(payload?.adminEmail || "").trim().toLowerCase(),
+          expires_in_minutes: Number(payload?.expiresInMinutes || 5),
+          expires_minutes: Number(payload?.expiresInMinutes || 5),
+          site_name: "SanBong",
+          app_name: "SanBong",
+        },
+      }),
+    })
+  } catch (_error) {
+    throw new Error("Khong the ket noi den dich vu gui OTP email.")
+  }
+
+  let rawBodyText = ""
+  try {
+    rawBodyText = await response.text()
+  } catch (_error) {
+    rawBodyText = ""
+  }
+
+  if (!response.ok) {
+    const message = String(rawBodyText || "").trim()
+    throw new Error(message || "Dich vu gui email tu choi yeu cau gui OTP.")
+  }
+
+  return {
+    message: "Da gui ma OTP ve email nguoi nhan.",
+  }
+}
+
 export const registerUser = async (payload) => {
-  const response = await request("/user/register", {
+  const response = await requestFirstSuccess(REGISTER_PATHS, {
     method: "POST",
     body: JSON.stringify({
       name: String(payload?.fullName || payload?.name || "").trim(),
@@ -623,7 +707,7 @@ export const registerUser = async (payload) => {
 }
 
 export const loginUser = async (payload) => {
-  const response = await request("/user/login", {
+  const response = await requestFirstSuccess(LOGIN_PATHS, {
     method: "POST",
     body: JSON.stringify({
       username: String(payload?.email || payload?.username || "").trim().toLowerCase(),
@@ -650,7 +734,7 @@ export const loginUser = async (payload) => {
 }
 
 export const getMe = async (token) => {
-  const response = await request("/user/getMe", {
+  const response = await requestFirstSuccess(GET_ME_PATHS, {
     headers: createTokenHeaders(token),
   })
 
@@ -753,6 +837,54 @@ export const deletePublicUser = async (token, userId) =>
     body: JSON.stringify({
       userId: String(userId || "").trim(),
     }),
+  })
+
+export const requestOwnerRole = async (token) =>
+  requestFirstSuccess(["/requestOwner", "/user/requestOwner"], {
+    method: "POST",
+    headers: createTokenHeaders(token),
+    body: JSON.stringify({}),
+  })
+
+export const getOwnerRequests = async (token) => {
+  const response = await requestFirstSuccess(["/getOwnerRequests", "/user/getOwnerRequests"], {
+    headers: createTokenHeaders(token),
+  })
+
+  return {
+    requests: getArrayFromResponse(response, ["requests", "users"]).map((item) => normalizeAuthUser(item)).filter(Boolean),
+    message: String(response?.message || "").trim(),
+  }
+}
+
+export const approveOwnerRequest = async (token, userId) =>
+  requestFirstSuccess([
+    `/approveOwner/${encodeURIComponent(String(userId || "").trim())}`,
+    `/user/approveOwner/${encodeURIComponent(String(userId || "").trim())}`,
+  ], {
+    method: "POST",
+    headers: createTokenHeaders(token),
+    body: JSON.stringify({}),
+  })
+
+export const rejectOwnerRequest = async (token, userId) =>
+  requestFirstSuccess([
+    `/rejectOwner/${encodeURIComponent(String(userId || "").trim())}`,
+    `/user/rejectOwner/${encodeURIComponent(String(userId || "").trim())}`,
+  ], {
+    method: "POST",
+    headers: createTokenHeaders(token),
+    body: JSON.stringify({}),
+  })
+
+export const downgradeOwnerRole = async (token, userId) =>
+  requestFirstSuccess([
+    `/downgradeOwner/${encodeURIComponent(String(userId || "").trim())}`,
+    `/user/downgradeOwner/${encodeURIComponent(String(userId || "").trim())}`,
+  ], {
+    method: "POST",
+    headers: createTokenHeaders(token),
+    body: JSON.stringify({}),
   })
 
 export const getTimeSlots = async () => {
@@ -912,6 +1044,28 @@ export const deleteAdminField = async (token, fieldId) =>
   request(`/field/deleteField/${encodeURIComponent(fieldId)}`, {
     method: "POST",
     headers: createTokenHeaders(token),
+  })
+
+export const approveAdminField = async (token, fieldId) =>
+  requestFirstSuccess([
+    `/approveField/${encodeURIComponent(String(fieldId || "").trim())}`,
+    `/field/approveField/${encodeURIComponent(String(fieldId || "").trim())}`,
+  ], {
+    method: "POST",
+    headers: createTokenHeaders(token),
+    body: JSON.stringify({}),
+  })
+
+export const rejectAdminField = async (token, fieldId, reason = "") =>
+  requestFirstSuccess([
+    `/rejectField/${encodeURIComponent(String(fieldId || "").trim())}`,
+    `/field/rejectField/${encodeURIComponent(String(fieldId || "").trim())}`,
+  ], {
+    method: "POST",
+    headers: createTokenHeaders(token),
+    body: JSON.stringify({
+      reason: String(reason || "").trim(),
+    }),
   })
 
 export const createBooking = async (token, payload) => {
