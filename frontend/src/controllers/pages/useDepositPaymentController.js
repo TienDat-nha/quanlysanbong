@@ -166,7 +166,7 @@ export const useDepositPaymentController = ({ authToken }) => {
       const data = await createVnpayDepositPayment(authToken, bookingId)
       setFeedback({
         type: "success",
-        text: data.message || "Đã tạo payment QR. Hãy tải lại trạng thái để lấy QR.",
+        text: data.message || "Đã tạo payment QR.",
       })
       setRefreshKey((value) => value + 1)
     } catch (apiError) {
@@ -201,7 +201,7 @@ export const useDepositPaymentController = ({ authToken }) => {
       const data = await createMomoDepositPayment(authToken, bookingId)
       setFeedback({
         type: "success",
-        text: data.message || "Đã tạo QR thanh toán. Hãy bấm lại để mở QR sau khi tải lại.",
+        text: data.message || "Đã tạo QR thanh toán.",
       })
       setRefreshKey((value) => value + 1)
     } catch (apiError) {

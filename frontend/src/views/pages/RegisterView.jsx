@@ -1,16 +1,30 @@
 import React from "react"
 import { Link } from "react-router-dom"
-import { FiArrowRight, FiCheckCircle, FiMail, FiPhone, FiShield, FiUser } from "react-icons/fi"
+import { FiArrowRight, FiCheckCircle, FiMail } from "react-icons/fi"
 
 const RegisterView = ({
   form,
   submitting,
   error,
   successMessage,
-  onFieldChange,
-  onSubmit,
   loginPath,
+  otpState,
+  otpSummary,
+  canResendOtp,
+  otpExpired,
+  onFieldChange,
+  onOtpInputChange,
+  onRequestOtp,
+  onVerifyOtp,
+  onSubmit,
 }) => {
+  const otpFeedbackClass =
+    otpState.feedback?.type === "error"
+      ? "message error"
+      : otpState.feedback?.type === "warning"
+        ? "message warning"
+        : "message success"
+
   return (
     <section className="page section authPage registerPage">
       <div className="container narrowContainer registerContainer">
@@ -21,40 +35,12 @@ const RegisterView = ({
           </div>
 
           <h1>Đăng Ký Tài Khoản Người Dùng</h1>
-          <p className="registerHeroText">
-            Trang đăng ký chính chỉ dùng để tạo tài khoản người dùng đặt sân. Tài khoản chủ sân và
-            admin được cấp từ khu vực quản trị.
-          </p>
         </div>
 
         <form className="formCard registerCard" onSubmit={onSubmit}>
           <div className="registerSectionTitle">
             <div>
               <h2>Nhập thông tin cơ bản</h2>
-              <p>
-                Sau khi tạo xong, bạn có thể đăng nhập để đặt sân, theo dõi lịch đặt và thanh toán
-                trên cùng một tài khoản.
-              </p>
-            </div>
-          </div>
-
-          <div className="registerPreview">
-            <div className="registerPreviewHeader">
-              <span className="registerPreviewIcon" aria-hidden="true">
-                <FiUser />
-              </span>
-              <div>
-                <strong>Tài khoản người dùng</strong>
-                <p>Dùng để đăng nhập, đặt sân, theo dõi lịch đặt và thanh toán.</p>
-              </div>
-            </div>
-
-            <div className="registerPreviewFlow">
-              <span>Đăng ký</span>
-              <FiArrowRight aria-hidden="true" />
-              <span>Đăng nhập</span>
-              <FiArrowRight aria-hidden="true" />
-              <span>Đặt sân</span>
             </div>
           </div>
 
@@ -118,30 +104,75 @@ const RegisterView = ({
           <div className="formCard registerOtpCard registerOtpSummary">
             <div className="registerOtpHero">
               <span className="registerPreviewIcon" aria-hidden="true">
-                <FiShield />
+                <FiMail />
               </span>
               <div>
-                <h2>Xác nhận OTP và phân quyền</h2>
-                <p>
-                  OTP email chưa khả dụng trên backend hiện tại. Tài khoản chủ sân và admin cũng
-                  không tự đăng ký ở màn này mà được tạo từ khu quản trị.
-                </p>
+                <h2>Xác nhận OTP email</h2>
               </div>
             </div>
 
-            <div className="registerPreviewFlow">
-              <span>
-                <FiMail aria-hidden="true" /> Chưa có API gửi / xác nhận OTP từ backend
-              </span>
-              <FiArrowRight aria-hidden="true" />
-              <span>
-                <FiPhone aria-hidden="true" /> Số điện thoại vẫn dùng cho booking
-              </span>
-              <FiArrowRight aria-hidden="true" />
-              <span>
-                <FiCheckCircle aria-hidden="true" /> Chủ sân và admin tạo trong khu quản trị
-              </span>
+            <div className="otpSummary registerOtpMeta">
+              <p>
+                <strong>Email nhận mã:</strong> {otpState.targetEmail || "Chưa gửi OTP"}
+              </p>
+              <p>
+                <strong>Trạng thái:</strong>{" "}
+                {otpState.verified
+                  ? "Đã xác nhận"
+                  : otpState.code
+                    ? otpExpired
+                      ? "Đã hết hạn"
+                      : "Đang chờ xác nhận"
+                    : "Chưa gửi mã"}
+              </p>
+              <p>
+                <strong>Mã OTP demo FE:</strong> {otpState.code || "------"}
+              </p>
+              <div className="registerOtpStats">
+                <span className="registerOtpStat">
+                  <FiCheckCircle aria-hidden="true" /> Hết hạn sau: {otpSummary.countdownLabel}
+                </span>
+                <span className="registerOtpStat">
+                  <FiArrowRight aria-hidden="true" /> Gửi lại sau: {otpSummary.resendLabel}
+                </span>
+              </div>
             </div>
+
+            <div className="registerField otpRow">
+              <label htmlFor="register-otp">Mã OTP</label>
+              <input
+                id="register-otp"
+                type="text"
+                inputMode="numeric"
+                value={otpState.input}
+                onChange={(event) => onOtpInputChange(event.target.value)}
+                placeholder="Nhập 6 số OTP"
+                maxLength={6}
+              />
+            </div>
+
+            <div className="otpActionRow registerOtpActions">
+              <button
+                className="registerOtpBtn"
+                type="button"
+                onClick={onRequestOtp}
+                disabled={submitting || !canResendOtp}
+              >
+                {otpState.code ? "Gửi lại OTP" : "Gửi OTP"}
+              </button>
+              <button
+                className="outlineBtnInline"
+                type="button"
+                onClick={onVerifyOtp}
+                disabled={submitting || !otpState.code}
+              >
+                Xác nhận OTP
+              </button>
+            </div>
+
+            {otpState.feedback?.text && (
+              <p className={otpFeedbackClass}>{otpState.feedback.text}</p>
+            )}
           </div>
 
           <div className="registerStatusStack">
@@ -149,8 +180,12 @@ const RegisterView = ({
             {successMessage && <p className="message success">{successMessage}</p>}
           </div>
 
-          <button className="btn registerSubmitBtn" type="submit" disabled={submitting}>
-            {submitting ? "Đang tạo tài khoản..." : "Đăng Ký"}
+          <button className="btn registerSubmitBtn" type="submit" disabled={submitting || !otpSummary.canSubmit}>
+            {submitting
+              ? "Đang tạo tài khoản..."
+              : otpSummary.canSubmit
+                ? "Đăng Ký"
+                : "Xác nhận OTP để tiếp tục"}
           </button>
         </form>
 

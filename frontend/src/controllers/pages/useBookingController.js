@@ -236,7 +236,7 @@ export const useBookingController = ({ authToken, currentUser }) => {
         setTimeSlots(timeSlotsData.timeSlots || [])
         setCatalogMessage(
           nextFields.length === 0 && isOwnerPortal
-            ? "Chua co san nao gan voi tai khoan chu san nay. Hay tao san trong Quan ly san truoc."
+            ? "Chưa có sân nào gắn với tài khoản chủ sân này."
             : String(fieldsData?.message || "").trim()
         )
       } catch (apiError) {
@@ -400,7 +400,7 @@ export const useBookingController = ({ authToken, currentUser }) => {
 
   const handleContinueToConfirm = () => {
     if (!hasSelectedSlot) {
-      setFeedback({ type: "error", text: "Vui long chon san con va khung gio truoc." })
+      setFeedback({ type: "error", text: "Vui lòng chọn sân con và khung giờ trước." })
       return
     }
 
@@ -417,7 +417,7 @@ export const useBookingController = ({ authToken, currentUser }) => {
     let redirectedToPayment = false
 
     if (!authToken) {
-      setFeedback({ type: "error", text: "Ban can dang nhap de dat san." })
+      setFeedback({ type: "error", text: "Bạn cần đăng nhập để đặt sân." })
       return
     }
 
@@ -460,7 +460,7 @@ export const useBookingController = ({ authToken, currentUser }) => {
               status: createdBooking.status || "PENDING",
             }
           : null
-        let ownerSuccessMessage = "Da tao don dat thu cong va danh dau lich san."
+        let ownerSuccessMessage = "Đã tạo đơn đặt thủ công và đánh dấu lịch sân."
 
         if (createdBooking?.id) {
           try {
@@ -470,7 +470,7 @@ export const useBookingController = ({ authToken, currentUser }) => {
               status: "CONFIRMED",
             }
           } catch (confirmError) {
-            ownerSuccessMessage = `Da tao don dat thu cong. Don chua duoc backend xac nhan tu dong: ${confirmError.message}`
+            ownerSuccessMessage = `Đã tạo đơn đặt thủ công. Đơn chưa được backend xác nhận tự động: ${confirmError.message}`
           }
         }
 
@@ -484,7 +484,7 @@ export const useBookingController = ({ authToken, currentUser }) => {
 
         setFeedback({ type: "success", text: ownerSuccessMessage })
       } else {
-        setFeedback({ type: "success", text: "Dat san thanh cong." })
+        setFeedback({ type: "success", text: "Đặt sân thành công." })
       }
 
       setForm((prev) => createBookingForm(prev.fieldId, prev.date))
@@ -522,7 +522,7 @@ export const useBookingController = ({ authToken, currentUser }) => {
       return
     }
 
-    const shouldCancel = window.confirm(`Huy don dat san ${booking.fieldName || booking.id}?`)
+    const shouldCancel = window.confirm(`Hủy đơn đặt sân ${booking.fieldName || booking.id}?`)
     if (!shouldCancel) {
       return
     }
@@ -547,7 +547,7 @@ export const useBookingController = ({ authToken, currentUser }) => {
       })
       setFeedback({
         type: "success",
-        text: data.message || "Da huy don dat cua ban.",
+        text: data.message || "Đã hủy đơn đặt của bạn.",
       })
     } catch (apiError) {
       setFeedback({ type: "error", text: apiError.message })

@@ -3,19 +3,14 @@ import { Link } from "react-router-dom"
 import {
   FiArrowRight,
   FiCalendar,
-  FiCheckCircle,
   FiEdit3,
   FiExternalLink,
-  FiFileText,
-  FiFolderPlus,
   FiGrid,
   FiImage,
   FiLayers,
   FiLink2,
   FiMapPin,
-  FiShield,
   FiTool,
-  FiUsers,
 } from "react-icons/fi"
 import {
   formatBookingDateLabel,
@@ -29,10 +24,10 @@ import { formatPrice, getFieldTypeSummary } from "../../models/fieldModel"
 import { FIELD_TYPE_OPTIONS } from "../../models/fieldTypeModel"
 
 const OWNER_DASHBOARD_CARDS = (stats) => [
-  { key: "fields", label: "Tong san", value: stats.totalFields, tone: "primary" },
-  { key: "bookings", label: "Tong luot dat", value: stats.totalBookings, tone: "neutral" },
-  { key: "pending", label: "Cho xac nhan", value: stats.pendingBookings, tone: "warning" },
-  { key: "confirmed", label: "Da xac nhan", value: stats.confirmedBookings, tone: "success" },
+  { key: "fields", label: "Tổng sân", value: stats.totalFields, tone: "primary" },
+  { key: "bookings", label: "Tổng lượt đặt", value: stats.totalBookings, tone: "neutral" },
+  { key: "pending", label: "Chờ xác nhận", value: stats.pendingBookings, tone: "warning" },
+  { key: "confirmed", label: "Đã xác nhận", value: stats.confirmedBookings, tone: "success" },
   {
     key: "revenue",
     label: "Doanh thu",
@@ -41,64 +36,31 @@ const OWNER_DASHBOARD_CARDS = (stats) => [
   },
 ]
 
-const OWNER_HIGHLIGHT_STEPS = [
-  {
-    key: "request",
-    title: "Gui san",
-    text: "Hoan thien ho so san, san con va hinh anh truoc khi gui admin duyet.",
-    icon: FiFolderPlus,
-  },
-  {
-    key: "approval",
-    title: "Cho duyet",
-    text: "Admin co the duyet, khoa hoac yeu cau cap nhat lai thong tin.",
-    icon: FiShield,
-  },
-  {
-    key: "manual",
-    title: "Dat tay tai san",
-    text: "Nhan khach truc tiep va khoa lich ngay trong bang dat san thu cong.",
-    icon: FiCalendar,
-  },
-]
-
 const createOwnerQuickActions = ({
   manualBookingPath,
   fieldListSectionPath,
   manageFieldsSectionPath,
-  ownerBookingsSectionPath,
 }) => [
   {
     key: "manual",
-    title: "Dat san thu cong",
-    text: "Tao don ngay tren san cua ban cho khach dat truc tiep.",
+    title: "Đặt sân thủ công",
     path: manualBookingPath,
     icon: FiCalendar,
     tone: "primary",
   },
   {
     key: "fields",
-    title: "Kho san cua ban",
-    text: "Xem nhanh tat ca san dang cho duyet, da duyet hoac dang bi khoa.",
+    title: "Kho sân của bạn",
     path: fieldListSectionPath,
     icon: FiGrid,
     tone: "neutral",
   },
   {
     key: "manage",
-    title: "Gui va cap nhat san",
-    text: "Them thong tin, san con, hinh anh va mo ta trong mot form ro rang hon.",
+    title: "Gửi và cập nhật sân",
     path: manageFieldsSectionPath,
     icon: FiEdit3,
     tone: "warning",
-  },
-  {
-    key: "bookings",
-    title: "Don dat cua khach",
-    text: "Theo doi don dang cho xac nhan, coc va thanh toan.",
-    path: ownerBookingsSectionPath,
-    icon: FiUsers,
-    tone: "success",
   },
 ]
 
@@ -127,14 +89,14 @@ const getFieldStatusLabel = (field) => {
   const moderationState = getFieldModerationState(field)
 
   if (moderationState === "PENDING") {
-    return "Cho admin duyet"
+    return "Chờ admin duyệt"
   }
 
   if (moderationState === "LOCKED") {
-    return "Da khoa / tu choi"
+    return "Đã khóa / từ chối"
   }
 
-  return "Da duyet"
+  return "Đã duyệt"
 }
 
 const getFieldStatusTone = (field) => {
@@ -149,22 +111,6 @@ const getFieldStatusTone = (field) => {
   }
 
   return "success"
-}
-
-const getFieldStatusDescription = (field, isOwnerPortal) => {
-  const moderationState = getFieldModerationState(field)
-
-  if (moderationState === "PENDING") {
-    return isOwnerPortal
-      ? "San dang cho admin kiem tra truoc khi mo link cong khai."
-      : "Can admin duyet truoc khi cho phep dat cong khai."
-  }
-
-  if (moderationState === "LOCKED") {
-    return "San dang tam dung hien thi hoac da bi tu choi boi admin."
-  }
-
-  return "San da san sang cho dat cong khai va dat tay tai san."
 }
 
 const canShareFieldPublicly = (field) => getFieldModerationState(field) === "APPROVED"
@@ -187,9 +133,8 @@ const QuickActionGrid = ({ actions }) => (
             <ActionIcon />
           </span>
           <strong>{action.title}</strong>
-          <p>{action.text}</p>
           <span className="ownerQuickActionLink">
-            Mo muc nay <FiArrowRight aria-hidden="true" />
+            Mở mục này <FiArrowRight aria-hidden="true" />
           </span>
         </Link>
       )
@@ -222,26 +167,21 @@ const FieldFormPanel = ({
       <div className="ownerSectionHeading">
         <div className="ownerSectionTitle">
           <p className="ownerSectionEyebrow">
-            {isAdminPortal ? "Quan ly ho so san" : "Khong gian gui san"}
+            {isAdminPortal ? "Quản lý hồ sơ sân" : "Không gian gửi sân"}
           </p>
           <h2>
             {isEditingField
-              ? "Cap nhat san"
+              ? "Cập nhật sân"
               : isOwnerPortal
-                ? "Gui yeu cau tao san"
-                : "Tao san moi"}
+                ? "Gửi yêu cầu tạo sân"
+                : "Tạo sân mới"}
           </h2>
-          <p>
-            {isAdminPortal
-              ? "Admin co the tao nhanh, cap nhat, khoa va quan ly san trong cung mot bieu mau."
-              : "Form nay duoc tach theo tung nhom de chu san nhap thong tin gon va de canh hon."}
-          </p>
         </div>
 
         <div className="ownerSectionMeta">
-          {isEditingField && <span className="ownerSectionBadge">Dang chinh sua</span>}
+          {isEditingField && <span className="ownerSectionBadge">Đang chỉnh sửa</span>}
           {!isEditingField && isOwnerPortal && (
-            <span className="ownerSectionBadge ownerSectionBadge--warning">Cho admin duyet</span>
+            <span className="ownerSectionBadge ownerSectionBadge--warning">Chờ admin duyệt</span>
           )}
         </div>
       </div>
@@ -249,50 +189,49 @@ const FieldFormPanel = ({
       <section className="ownerFormSection">
         <div className="ownerFormSectionHeader">
           <div>
-            <h3>Thong tin co ban</h3>
-            <p>Ten san, dia chi, khu vuc va khung gia de admin / khach nhan dien nhanh.</p>
+            <h3>Thông tin cơ bản</h3>
           </div>
           <span className="ownerFormSectionChip">
-            <FiMapPin aria-hidden="true" /> Co ban
+            <FiMapPin aria-hidden="true" /> Cơ bản
           </span>
         </div>
 
         <div className="ownerFormGrid">
           <label className="ownerFormField" htmlFor="admin-field-name">
-            <span>Ten san</span>
+            <span>Tên sân</span>
             <input
               id="admin-field-name"
               type="text"
               value={form.name}
               onChange={(event) => handleFieldChange("name", event.target.value)}
-              placeholder="San Bong Riverside"
+              placeholder="Sân Bóng Riverside"
             />
           </label>
 
           <label className="ownerFormField ownerFormField--wide" htmlFor="admin-field-address">
-            <span>Dia chi</span>
+            <span>Địa chỉ</span>
             <input
               id="admin-field-address"
               type="text"
               value={form.address}
               onChange={(event) => handleFieldChange("address", event.target.value)}
-              placeholder="123 Nguyen Hue, Quan 1"
+              placeholder="123 Nguyễn Huệ, Quận 1"
             />
           </label>
 
           <label className="ownerFormField" htmlFor="admin-field-district">
-            <span>Khu vuc</span>
+            <span>Khu vực</span>
             <input
               id="admin-field-district"
               type="text"
               value={form.district}
               onChange={(event) => handleFieldChange("district", event.target.value)}
-              placeholder="Quan 1"
+              placeholder="Quận 1"
             />
           </label>
 
           <label className="ownerFormField" htmlFor="admin-field-type">
-            <span>Loai san mac dinh</span>
+            <span>Loại sân mặc định</span>
             <select
               id="admin-field-type"
               value={form.type}
@@ -307,7 +246,7 @@ const FieldFormPanel = ({
           </label>
 
           <label className="ownerFormField" htmlFor="admin-field-open-hours">
-            <span>Gio mo cua</span>
+            <span>Giờ mở cửa</span>
             <input
               id="admin-field-open-hours"
               type="text"
@@ -318,7 +257,7 @@ const FieldFormPanel = ({
           </label>
 
           <label className="ownerFormField" htmlFor="admin-field-price">
-            <span>Gia mac dinh theo gio</span>
+            <span>Giá mặc định theo giờ</span>
             <input
               id="admin-field-price"
               type="number"
@@ -335,18 +274,17 @@ const FieldFormPanel = ({
       <section className="ownerFormSection">
         <div className="ownerFormSectionHeader">
           <div>
-            <h3>Anh va mo ta</h3>
-            <p>Bo phan upload duoc doi thanh khu xem truoc de chu san de canh noi dung hon.</p>
+            <h3>Ảnh và mô tả</h3>
           </div>
           <span className="ownerFormSectionChip">
-            <FiImage aria-hidden="true" /> Trinh bay
+            <FiImage aria-hidden="true" /> Trình bày
           </span>
         </div>
 
         <div className="ownerUploadGrid">
           <div className="ownerUploadBox">
             <label className="ownerFormField" htmlFor="admin-field-cover">
-              <span>Anh dai dien</span>
+              <span>Ảnh đại diện</span>
               <input
                 id="admin-field-cover"
                 type="file"
@@ -358,38 +296,37 @@ const FieldFormPanel = ({
                 }}
               />
             </label>
-            <p className="helperText ownerInlineHelper">Ho tro JPG, PNG, WEBP, GIF. Toi da 8MB.</p>
-            {uploadingCover && <p className="helperText ownerInlineHelper">Dang tai anh dai dien...</p>}
+            {uploadingCover && <p className="helperText ownerInlineHelper">Đang tải ảnh đại diện...</p>}
             {form.coverImage ? (
               <div className="adminUploadPreviewCard ownerUploadPreviewCard">
                 <img
                   src={form.coverImage}
-                  alt="Anh dai dien san"
+                  alt="Ảnh đại diện sân"
                   className="adminUploadPreviewImage"
                 />
                 <div className="adminUploadPreviewMeta">
-                  <span>Anh dai dien da tai len</span>
+                  <span>Ảnh đại diện đã tải lên</span>
                   <button
                     type="button"
                     className="outlineBtnInline adminDangerBtn"
                     onClick={handleRemoveCoverImage}
                     disabled={uploadingCover}
                   >
-                    Xoa anh
+                    Xóa ảnh
                   </button>
                 </div>
               </div>
             ) : (
               <div className="ownerUploadPlaceholder">
                 <FiImage aria-hidden="true" />
-                <span>Chua co anh dai dien</span>
+                <span>Chưa có ảnh đại diện</span>
               </div>
             )}
           </div>
 
           <div className="ownerUploadBox">
             <label className="ownerFormField" htmlFor="admin-field-images">
-              <span>Thu vien anh</span>
+              <span>Thư viện ảnh</span>
               <input
                 id="admin-field-images"
                 type="file"
@@ -401,28 +338,25 @@ const FieldFormPanel = ({
                 }}
               />
             </label>
-            <p className="helperText ownerInlineHelper">
-              Ban co the chon nhieu anh cung luc cho gallery.
-            </p>
-            {uploadingGallery && <p className="helperText ownerInlineHelper">Dang tai anh thu vien...</p>}
+            {uploadingGallery && <p className="helperText ownerInlineHelper">Đang tải ảnh thư viện...</p>}
             {form.galleryImages.length > 0 ? (
               <div className="adminUploadPreviewGrid ownerGalleryGrid">
                 {form.galleryImages.map((imageUrl, index) => (
                   <article className="adminUploadPreviewCard ownerUploadPreviewCard" key={`${imageUrl}-${index}`}>
                     <img
                       src={imageUrl}
-                      alt={`Anh thu vien san ${index + 1}`}
+                      alt={`Ảnh thư viện sân ${index + 1}`}
                       className="adminUploadPreviewImage"
                     />
                     <div className="adminUploadPreviewMeta">
-                      <span>Anh thu vien {index + 1}</span>
+                      <span>Ảnh thư viện {index + 1}</span>
                       <button
                         type="button"
                         className="outlineBtnInline adminDangerBtn"
                         onClick={() => handleRemoveGalleryImage(imageUrl)}
                         disabled={uploadingGallery}
                       >
-                        Xoa anh
+                        Xóa ảnh
                       </button>
                     </div>
                   </article>
@@ -431,20 +365,20 @@ const FieldFormPanel = ({
             ) : (
               <div className="ownerUploadPlaceholder ownerUploadPlaceholder--soft">
                 <FiLayers aria-hidden="true" />
-                <span>Gallery se hien o day sau khi tai anh.</span>
+                <span>Chưa có thư viện ảnh</span>
               </div>
             )}
           </div>
         </div>
 
         <label className="ownerFormField ownerFormField--wide" htmlFor="admin-field-article">
-          <span>Mo ta san</span>
+          <span>Mô tả sân</span>
           <textarea
             id="admin-field-article"
             rows={4}
             value={form.article}
             onChange={(event) => handleFieldChange("article", event.target.value)}
-            placeholder="Mo ta ngan ve san bong cua ban"
+            placeholder="Mô tả ngắn về sân bóng của bạn"
           />
         </label>
       </section>
@@ -452,16 +386,15 @@ const FieldFormPanel = ({
       <section className="ownerFormSection">
         <div className="ownerFormSectionHeader">
           <div>
-            <h3>Cau hinh san con</h3>
-            <p>Moi san con co ten, loai san va gia rieng de thao tac dat tay khong bi nham.</p>
+            <h3>Cấu hình sân con</h3>
           </div>
 
           <div className="ownerFormSectionActions">
             <span className="ownerFormSectionChip">
-              <FiTool aria-hidden="true" /> {(form.subFields || []).length} san con
+              <FiTool aria-hidden="true" /> {(form.subFields || []).length} sân con
             </span>
             <button type="button" className="outlineBtnInline" onClick={handleAddSubField}>
-              Them san con
+              Thêm sân con
             </button>
           </div>
         </div>
@@ -471,8 +404,7 @@ const FieldFormPanel = ({
             <article className="ownerSubFieldCard" key={subField.id}>
               <div className="ownerSubFieldHeader">
                 <div>
-                  <strong>San con {index + 1}</strong>
-                  <p>Dat ten ro rang de nhan dien nhanh trong dat san thu cong.</p>
+                  <strong>Sân con {index + 1}</strong>
                 </div>
                 <button
                   type="button"
@@ -480,13 +412,13 @@ const FieldFormPanel = ({
                   onClick={() => handleRemoveSubField(subField.id)}
                   disabled={(form.subFields || []).length === 1}
                 >
-                  Xoa
+                  Xóa
                 </button>
               </div>
 
               <div className="ownerFormGrid ownerFormGrid--subfield">
                 <label className="ownerFormField ownerFormField--wide" htmlFor={`admin-subfield-name-${subField.id}`}>
-                  <span>Ten san con</span>
+                  <span>Tên sân con</span>
                   <input
                     id={`admin-subfield-name-${subField.id}`}
                     type="text"
@@ -494,12 +426,12 @@ const FieldFormPanel = ({
                     onChange={(event) =>
                       handleSubFieldChange(subField.id, "name", event.target.value)
                     }
-                    placeholder={`San ${index + 1}`}
+                    placeholder={`Sân ${index + 1}`}
                   />
                 </label>
 
                 <label className="ownerFormField" htmlFor={`admin-subfield-type-${subField.id}`}>
-                  <span>Loai san</span>
+                  <span>Loại sân</span>
                   <select
                     id={`admin-subfield-type-${subField.id}`}
                     value={subField.type}
@@ -516,7 +448,7 @@ const FieldFormPanel = ({
                 </label>
 
                 <label className="ownerFormField" htmlFor={`admin-subfield-price-${subField.id}`}>
-                  <span>Gia theo gio</span>
+                  <span>Giá theo giờ</span>
                   <input
                     id={`admin-subfield-price-${subField.id}`}
                     type="number"
@@ -543,15 +475,15 @@ const FieldFormPanel = ({
         >
           {submitting
             ? isEditingField
-              ? "Dang cap nhat..."
+              ? "Đang cập nhật..."
               : isOwnerPortal
-                ? "Dang gui yeu cau..."
-                : "Dang tao san..."
+                ? "Đang gửi yêu cầu..."
+                : "Đang tạo sân..."
             : isEditingField
-              ? "Luu cap nhat"
+              ? "Lưu cập nhật"
               : isOwnerPortal
-                ? "Gui yeu cau tao san"
-                : "Tao san moi"}
+                ? "Gửi yêu cầu tạo sân"
+                : "Tạo sân mới"}
         </button>
 
         {isEditingField && (
@@ -561,7 +493,7 @@ const FieldFormPanel = ({
             onClick={handleCancelFieldEdit}
             disabled={submitting}
           >
-            Huy chinh sua
+            Hủy chỉnh sửa
           </button>
         )}
       </div>
@@ -590,33 +522,28 @@ const FieldListSection = ({
     <div className="ownerSectionHeading">
       <div className="ownerSectionTitle">
         <p className="ownerSectionEyebrow">
-          {isAdminPortal ? "Danh sach can duyet" : "Kho san dang quan ly"}
+          {isAdminPortal ? "Danh sách cần duyệt" : "Kho sân đang quản lý"}
         </p>
-        <h2>{isAdminPortal ? "Quan ly cac san gui len" : "Danh sach san cua ban"}</h2>
-        <p>
-          {isAdminPortal
-            ? "Admin co the duyet, khoa, sua hoac xoa tung san tu danh sach nay."
-            : "Moi the san cho biet ro trang thai duyet, link cong khai va loi di nhanh sang dat san thu cong."}
-        </p>
+        <h2>{isAdminPortal ? "Quản lý các sân gửi lên" : "Danh sách sân của bạn"}</h2>
       </div>
 
       <div className="ownerSectionMeta">
-        <span className="ownerSectionBadge">{fields.length} san</span>
+        <span className="ownerSectionBadge">{fields.length} sân</span>
         {isOwnerPortal && (
           <Link className="outlineBtnLink" to={fieldsPath}>
-            Xem giao dien cong khai
+            Xem giao diện công khai
           </Link>
         )}
       </div>
     </div>
 
     {loading ? (
-      <p>Dang tai danh sach san...</p>
+      <p>Đang tải danh sách sân...</p>
     ) : fields.length === 0 ? (
       <p className="usersEmptyState">
         {isAdminPortal
-          ? "Chua co san nao duoc gui len de quan ly."
-          : "Ban chua tao san nao. Sau khi gui san, trang thai va link cong khai se hien o day."}
+          ? "Chưa có sân nào được gửi lên để quản lý."
+          : "Bạn chưa tạo sân nào."}
       </p>
     ) : (
       <div className="ownerFieldList">
@@ -629,10 +556,10 @@ const FieldListSection = ({
           const canOpenPublicLink = canShareFieldPublicly(field)
           const fieldStatusActionLabel =
             moderationState === "APPROVED"
-              ? "Khoa san"
+              ? "Khóa sân"
               : moderationState === "LOCKED"
-                ? "Mo khoa"
-                : "Duyet san"
+                ? "Mở khóa"
+                : "Duyệt sân"
 
           return (
             <article className="ownerFieldCard" key={field.id}>
@@ -642,7 +569,7 @@ const FieldListSection = ({
                 ) : (
                   <div className="ownerFieldMediaFallback">
                     <FiMapPin aria-hidden="true" />
-                    <span>{field.district || "San bong"}</span>
+                    <span>{field.district || "Sân bóng"}</span>
                   </div>
                 )}
               </div>
@@ -658,25 +585,21 @@ const FieldListSection = ({
                   </span>
                 </div>
 
-                <p className="ownerFieldStatusText">
-                  {getFieldStatusDescription(field, isOwnerPortal)}
-                </p>
-
                 <div className="ownerFieldMetrics">
                   <article className="ownerFieldMetric">
-                    <span>Gia / gio</span>
+                    <span>Giá / giờ</span>
                     <strong>{formatPrice(field.pricePerHour)} VND</strong>
                   </article>
                   <article className="ownerFieldMetric">
-                    <span>Gio mo cua</span>
+                    <span>Giờ mở cửa</span>
                     <strong>{field.openHours || "--"}</strong>
                   </article>
                   <article className="ownerFieldMetric">
-                    <span>Loai san</span>
+                    <span>Loại sân</span>
                     <strong>{getFieldTypeSummary(field) || field.type || "--"}</strong>
                   </article>
                   <article className="ownerFieldMetric">
-                    <span>San con</span>
+                    <span>Sân con</span>
                     <strong>{(field.subFields || []).length}</strong>
                   </article>
                 </div>
@@ -686,7 +609,7 @@ const FieldListSection = ({
                     <FiLink2 aria-hidden="true" /> /dat-san/{field.slug}
                   </span>
                   <span className="ownerFieldChip">
-                    <FiMapPin aria-hidden="true" /> {field.district || "Dang cap nhat khu vuc"}
+                    <FiMapPin aria-hidden="true" /> {field.district || "Đang cập nhật khu vực"}
                   </span>
                 </div>
 
@@ -698,7 +621,7 @@ const FieldListSection = ({
                     >
                       {item.name}
                       {item.type ? ` | ${item.type}` : ""}
-                      {item.pricePerHour ? ` | ${formatPrice(item.pricePerHour)} VND/gio` : ""}
+                      {item.pricePerHour ? ` | ${formatPrice(item.pricePerHour)} VND/giờ` : ""}
                     </span>
                   ))}
                 </div>
@@ -706,21 +629,16 @@ const FieldListSection = ({
                 {canOpenPublicLink ? (
                   <div className="ownerFieldLinkBox">
                     <label className="adminFieldLinkLabel" htmlFor={`booking-url-${field.id}`}>
-                      Link dat san cong khai
+                      Link đặt sân công khai
                     </label>
                     <input id={`booking-url-${field.id}`} type="text" readOnly value={publicBookingUrl} />
                   </div>
-                ) : (
-                  <div className="ownerFieldNoteBox">
-                    <FiShield aria-hidden="true" />
-                    <span>Link cong khai se mo sau khi admin duyet xong ho so san.</span>
-                  </div>
-                )}
+                ) : null}
 
                 <div className="fieldActions ownerFieldActions">
                   {isOwnerPortal && (
                     <Link className="btn smallBtn" to={buildManualBookingFieldPath(manualBookingPath, field.id)}>
-                      Dat tay tren san nay
+                      Đặt tay trên sân này
                     </Link>
                   )}
 
@@ -731,7 +649,7 @@ const FieldListSection = ({
                       target="_blank"
                       rel="noreferrer"
                     >
-                      Mo link cong khai <FiExternalLink aria-hidden="true" />
+                      Mở link công khai <FiExternalLink aria-hidden="true" />
                     </a>
                   )}
 
@@ -744,8 +662,8 @@ const FieldListSection = ({
                     >
                       {isFieldStatusProcessing
                         ? fieldStatusActionMode === "approve"
-                          ? "Dang duyet..."
-                          : "Dang khoa..."
+                          ? "Đang duyệt..."
+                          : "Đang khóa..."
                         : fieldStatusActionLabel}
                     </button>
                   )}
@@ -756,7 +674,7 @@ const FieldListSection = ({
                     onClick={() => handleEditField(field)}
                     disabled={isDeleting || isFieldStatusProcessing}
                   >
-                    Sua san
+                    Sửa sân
                   </button>
 
                   <button
@@ -765,7 +683,7 @@ const FieldListSection = ({
                     onClick={() => handleDeleteField(field)}
                     disabled={isDeleting || isFieldStatusProcessing}
                   >
-                    {isDeleting ? "Dang xoa..." : "Xoa san"}
+                    {isDeleting ? "Đang xóa..." : "Xóa sân"}
                   </button>
                 </div>
               </div>
@@ -792,23 +710,22 @@ const ManagedBookingsSection = ({
   <section className="ownerSectionCard ownerSectionCard--bookings" id={ownerBookingsSectionId}>
     <div className="ownerSectionHeading">
       <div className="ownerSectionTitle">
-        <p className="ownerSectionEyebrow">Don dat cua khach</p>
-        <h2>Quan ly don dat cua khach</h2>
-        <p>Theo doi tien do xac nhan san, coc va thanh toan trong mot danh sach ro rang hon.</p>
+        <p className="ownerSectionEyebrow">Đơn đặt của khách</p>
+        <h2>Quản lý đơn đặt của khách</h2>
       </div>
 
       <div className="ownerSectionMeta">
-        <span className="ownerSectionBadge">{managedBookings.length} don</span>
+        <span className="ownerSectionBadge">{managedBookings.length} đơn</span>
         <Link className="outlineBtnLink" to={manualBookingPath}>
-          Tao don moi
+          Tạo đơn mới
         </Link>
       </div>
     </div>
 
     {loading ? (
-      <p>Dang tai danh sach don dat cua khach...</p>
+      <p>Đang tải danh sách đơn đặt của khách...</p>
     ) : managedBookings.length === 0 ? (
-      <p className="usersEmptyState">Chua co don dat nao trong danh sach quan ly cua chu san.</p>
+      <p className="usersEmptyState">Chưa có đơn đặt nào trong danh sách quản lý của chủ sân.</p>
     ) : (
       <div className="ownerBookingList">
         {managedBookings.map((booking) => {
@@ -837,7 +754,7 @@ const ManagedBookingsSection = ({
                 <div>
                   <h3>{booking.fieldName}</h3>
                   <p>
-                    {booking.subFieldName || "San tong"}
+                    {booking.subFieldName || "Sân tổng"}
                     {booking.subFieldType ? ` | ${booking.subFieldType}` : ""}
                     {" | "}
                     {formatBookingDateLabel(booking.date)} | {booking.timeSlot}
@@ -856,34 +773,34 @@ const ManagedBookingsSection = ({
 
               <div className="ownerBookingMetaGrid">
                 <article className="ownerBookingMetaItem">
-                  <span>Khach</span>
-                  <strong>{booking.customer?.fullName || "Khach hang"}</strong>
+                  <span>Khách</span>
+                  <strong>{booking.customer?.fullName || "Khách hàng"}</strong>
                 </article>
                 <article className="ownerBookingMetaItem">
-                  <span>Lien he</span>
+                  <span>Liên hệ</span>
                   <strong>{booking.customer?.phone || booking.customer?.email || "--"}</strong>
                 </article>
                 <article className="ownerBookingMetaItem">
-                  <span>Tong tien</span>
+                  <span>Tổng tiền</span>
                   <strong>{formatPrice(booking.totalPrice)} VND</strong>
                 </article>
                 <article className="ownerBookingMetaItem">
-                  <span>Dat coc</span>
+                  <span>Đặt cọc</span>
                   <strong>{formatPrice(booking.depositAmount)} VND</strong>
                 </article>
                 <article className="ownerBookingMetaItem">
-                  <span>Con lai</span>
+                  <span>Còn lại</span>
                   <strong>{formatPrice(booking.remainingAmount)} VND</strong>
                 </article>
                 <article className="ownerBookingMetaItem">
-                  <span>Tao luc</span>
+                  <span>Tạo lúc</span>
                   <strong>{formatBookingDateTime(booking.createdAt)}</strong>
                 </article>
               </div>
 
               {booking.note && (
                 <p className="adminBookingNote">
-                  <strong>Ghi chu:</strong> {booking.note}
+                  <strong>Ghi chú:</strong> {booking.note}
                 </p>
               )}
 
@@ -896,7 +813,7 @@ const ManagedBookingsSection = ({
                       disabled={isProcessing}
                       onClick={() => handleConfirmBooking(booking.id)}
                     >
-                      {isConfirmingBooking ? "Dang xac nhan..." : "Xac nhan dat san"}
+                      {isConfirmingBooking ? "Đang xác nhận..." : "Xác nhận đặt sân"}
                     </button>
                   )}
 
@@ -908,8 +825,8 @@ const ManagedBookingsSection = ({
                       onClick={() => handleConfirmDeposit(booking.id)}
                     >
                       {isConfirmingDeposit
-                        ? "Dang xac nhan coc..."
-                        : "Xac nhan dat coc thanh cong"}
+                        ? "Đang xác nhận cọc..."
+                        : "Xác nhận đặt cọc thành công"}
                     </button>
                   )}
 
@@ -921,8 +838,8 @@ const ManagedBookingsSection = ({
                       onClick={() => handleConfirmPayment(booking.id)}
                     >
                       {isConfirmingPayment
-                        ? "Dang xac nhan thanh toan..."
-                        : "Xac nhan thanh toan thanh cong"}
+                        ? "Đang xác nhận thanh toán..."
+                        : "Xác nhận thanh toán thành công"}
                     </button>
                   )}
 
@@ -933,7 +850,7 @@ const ManagedBookingsSection = ({
                       disabled={isProcessing}
                       onClick={() => handleCancelBooking(booking.id)}
                     >
-                      {isCancelling ? "Dang huy..." : "Huy don dat"}
+                      {isCancelling ? "Đang hủy..." : "Hủy đơn đặt"}
                     </button>
                   )}
                 </div>
@@ -1003,10 +920,10 @@ const AdminFieldsView = ({
     return (
       <section className="page section">
         <div className="container pageHeader">
-          <h1>Khu quan ly san</h1>
+          <h1>Khu quản lý sân</h1>
           <p>
-            Vui long <Link to={loginPath}>dang nhap</Link> bang tai khoan Admin hoac Chu san de quan
-            ly san.
+            Vui lòng <Link to={loginPath}>đăng nhập</Link> bằng tài khoản Admin hoặc Chủ sân để quản
+            lý sân.
           </p>
         </div>
       </section>
@@ -1017,8 +934,8 @@ const AdminFieldsView = ({
     return (
       <section className="page section">
         <div className="container pageHeader">
-          <h1>Khu quan ly san</h1>
-          <p>Tai khoan {currentUser?.email} khong co quyen truy cap khu vuc quan ly san.</p>
+          <h1>Khu quản lý sân</h1>
+          <p>Tài khoản {currentUser?.email} không có quyền truy cập khu vực quản lý sân.</p>
         </div>
       </section>
     )
@@ -1028,7 +945,6 @@ const AdminFieldsView = ({
     manualBookingPath,
     fieldListSectionPath,
     manageFieldsSectionPath,
-    ownerBookingsSectionPath,
   })
 
   if (isOwnerPortal) {
@@ -1036,59 +952,26 @@ const AdminFieldsView = ({
       <section className="page section adminDashboardPage ownerDashboardPage">
         <div className="container ownerHeroCard">
           <div className="ownerHeroCopy">
-            <p className="ownerHeroEyebrow">Khong gian chu san</p>
-            <h1>Quan ly san theo mot luong ro rang hon</h1>
-            <p className="ownerHeroLead">
-              Giao dien nay duoc tach lai de Chu san co the gui san, theo doi trang thai duyet,
-              dat san thu cong va xu ly don khach ma khong bi cac khoi trong vo nghia.
-            </p>
+            <p className="ownerHeroEyebrow">Không gian chủ sân</p>
+            <h1>Quản lý sân</h1>
 
             <div className="ownerHeroActions">
               <Link className="btn" to={manageFieldsSectionPath}>
-                Gui / cap nhat san
+                Gửi / cập nhật sân
               </Link>
               <Link className="outlineBtnLink" to={manualBookingPath}>
-                Dat san thu cong
+                Đặt sân thủ công
               </Link>
               <Link className="outlineBtnLink" to={fieldsPath}>
-                Xem giao dien cong khai
+                Danh sách sân
               </Link>
-            </div>
-
-            <div className="ownerHeroStepGrid">
-              {OWNER_HIGHLIGHT_STEPS.map((item) => {
-                const ItemIcon = item.icon
-
-                return (
-                  <article className="ownerHeroStepCard" key={item.key}>
-                    <span className="ownerHeroStepIcon" aria-hidden="true">
-                      <ItemIcon />
-                    </span>
-                    <strong>{item.title}</strong>
-                    <p>{item.text}</p>
-                  </article>
-                )
-              })}
             </div>
           </div>
 
           <aside className="ownerHeroAside">
             <div className="ownerAccountCard">
-              <span>Tai khoan chu san</span>
+              <span>Tài khoản chủ sân</span>
               <strong>{currentUser?.email}</strong>
-              <p>Toan bo san do ban gui se duoc admin phe duyet truoc khi mo cong khai.</p>
-            </div>
-
-            <div className="ownerHeroTipCard">
-              <div className="ownerHeroTipHeader">
-                <FiCheckCircle aria-hidden="true" />
-                <strong>Nhung gi nen lam tiep theo</strong>
-              </div>
-              <ul className="ownerHeroTipList">
-                <li>Bo sung anh dai dien va mo ta ngan de san de duoc duyet hon.</li>
-                <li>Tach ro san con va gia de thao tac dat tay khong bi nham.</li>
-                <li>Kiem tra don dat ben duoi sau moi lan nhan khach tai san.</li>
-              </ul>
             </div>
           </aside>
         </div>
@@ -1175,15 +1058,11 @@ const AdminFieldsView = ({
     <section className="page section adminDashboardPage">
       <div className="container adminDashboardHero">
         <div>
-          <p className="usersEyebrow">Khu quan ly danh cho Admin</p>
-          <h1>Quan ly san bong</h1>
-          <p>
-            Admin chi co quan ly tai khoan va quan ly san. Moi san do Chu san tao se di qua buoc
-            cho duyet, khoa hoac chinh sua tai day.
-          </p>
+          <p className="usersEyebrow">Khu quản lý dành cho Admin</p>
+          <h1>Quản lý sân bóng</h1>
         </div>
         <div className="adminDashboardOwner">
-          <span>Tai khoan admin</span>
+          <span>Tài khoản admin</span>
           <strong>{currentUser?.email}</strong>
         </div>
       </div>
@@ -1207,36 +1086,19 @@ const AdminFieldsView = ({
       <div className="container adminDashboardGrid">
         <section className="usersPanel adminDashboardPanel">
           <div className="usersPanelHeader">
-            <h2>Nhom chuc nang Admin</h2>
-            <span>2 muc chinh</span>
+            <h2>Nhóm chức năng Admin</h2>
+            <span>2 mục chính</span>
           </div>
-
-          <p className="helperText">
-            Admin dung khu nay de duyet san, chinh sua, khoa hoac xoa san. Quan ly tai khoan tach
-            rieng o khu quan tri tai khoan.
-          </p>
 
           <div className="fieldActions">
             <Link className="btn smallBtn" to={adminUsersPath}>
-              Quan ly tai khoan
+              Quản lý tài khoản
             </Link>
             <Link className="outlineBtnLink" to={manageFieldsSectionPath}>
-              Quan ly san
+              Quản lý sân
             </Link>
           </div>
 
-          <div className="ownerAdminMiniGrid">
-            <article className="ownerAdminMiniCard">
-              <FiShield aria-hidden="true" />
-              <strong>Duyet san moi</strong>
-              <p>Kiem tra thong tin Chu san gui len truoc khi mo cong khai.</p>
-            </article>
-            <article className="ownerAdminMiniCard">
-              <FiFileText aria-hidden="true" />
-              <strong>Cap nhat du lieu</strong>
-              <p>Sua ten san, san con, gia va mo ta ngay trong cung mot form.</p>
-            </article>
-          </div>
         </section>
 
         <FieldFormPanel

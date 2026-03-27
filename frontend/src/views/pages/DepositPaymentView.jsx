@@ -1,12 +1,6 @@
 import React from "react"
 import { Link } from "react-router-dom"
 
-const PAYMENT_NOTES = [
-  "Backend mới dùng payment chung cho booking, không còn flow đặt cọc / callback VNPAY-MoMo riêng như trước.",
-  "Bạn có thể tạo payment, tải lại trạng thái và mở QR nếu backend trả về QR.",
-  "Nếu không có QR, vui lòng theo dõi trạng thái payment trong danh sách booking của bạn.",
-]
-
 const formatPaidAt = (value) => {
   if (!value) {
     return ""
@@ -33,7 +27,7 @@ const PaymentMethodCard = ({
     <div className="depositMethodCardHeader">
       <div>
         <h3>{title}</h3>
-        <p>{description}</p>
+        {description ? <p>{description}</p> : null}
       </div>
       {!enabled && disabledMessage && <span className="depositMethodBadge">{disabledMessage}</span>}
     </div>
@@ -95,7 +89,7 @@ const DepositPaymentView = ({
   const depositStatusLabel = formatDepositStatus(booking?.depositStatus || booking?.paymentStatus)
   const successMessage = isFullyPaid
     ? "Payment cho booking này đã được xác nhận thành công."
-    : "Yêu cầu payment đã được tạo. Hãy tiếp tục theo dõi trạng thái hoặc mở QR nếu backend đã trả về."
+    : "Yêu cầu payment đã được tạo."
 
   if (loading) {
     return (
@@ -149,7 +143,6 @@ const DepositPaymentView = ({
     <section className="page section">
       <div className="container pageHeader">
         <h1>Thanh toán booking</h1>
-        <p>Booking đã được tạo. Bạn có thể theo dõi payment và thực hiện các thao tác mới tại đây.</p>
       </div>
 
       <div className="container depositPage">
@@ -233,14 +226,6 @@ const DepositPaymentView = ({
             </div>
           </div>
 
-          <section className="depositNoteBox">
-            <strong>Lưu ý</strong>
-            <ul>
-              {PAYMENT_NOTES.map((note) => (
-                <li key={note}>{note}</li>
-              ))}
-            </ul>
-          </section>
         </section>
 
         {paymentConfirmed ? (
@@ -261,7 +246,6 @@ const DepositPaymentView = ({
               <div className="depositMethodHeader">
                 <div>
                   <h2>Tạo payment cơ bản</h2>
-                  <p>Hành động này gửi yêu cầu payment chung theo backend mới cho booking hiện tại.</p>
                 </div>
               </div>
 
@@ -292,9 +276,7 @@ const DepositPaymentView = ({
                       className="depositQrImage"
                     />
                   ) : (
-                    <div className="depositQrPlaceholder">
-                      Backend chưa trả QR. Hãy tạo payment trước rồi tải lại trạng thái.
-                    </div>
+                    <div className="depositQrPlaceholder">Backend chưa trả QR.</div>
                   )}
                 </div>
               </div>
@@ -321,7 +303,6 @@ const DepositPaymentView = ({
               <div className="depositMethodGrid">
                 <PaymentMethodCard
                   title="Tạo QR"
-                  description="Tạo payment QR theo backend mới. Sau đó hãy tải lại trạng thái hoặc mở QR."
                   enabled={Boolean(paymentMethods?.vnpay?.enabled)}
                   disabledMessage={paymentMethods?.vnpay?.message}
                   loading={actionLoading === "vnpay"}
@@ -332,7 +313,6 @@ const DepositPaymentView = ({
 
                 <PaymentMethodCard
                   title="Mở QR"
-                  description="Mở QR nếu backend đã trả về QR cho payment hiện tại."
                   enabled={Boolean(paymentMethods?.momo?.enabled) || Boolean(staticTransfer?.qrImageUrl)}
                   disabledMessage={paymentMethods?.momo?.message}
                   loading={actionLoading === "momo"}

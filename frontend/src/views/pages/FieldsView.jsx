@@ -1,6 +1,6 @@
 import React from "react"
 import { Link } from "react-router-dom"
-import { FiInfo, FiMapPin, FiNavigation, FiRotateCcw, FiSearch } from "react-icons/fi"
+import { FiMapPin, FiNavigation, FiRotateCcw, FiSearch } from "react-icons/fi"
 import { getFieldTypeSummary } from "../../models/fieldModel"
 
 const FieldsView = ({
@@ -24,10 +24,6 @@ const FieldsView = ({
         <div>
           <p className="usersEyebrow">Danh sách sân</p>
           <h1>Tìm sân bóng phù hợp</h1>
-          <p>
-            Người dùng có thể tìm sân theo tên, phường và thành phố trước khi mở lịch đặt
-            sân.
-          </p>
         </div>
         <div className="usersHighlight">
           <span>Kết quả hiển thị</span>
@@ -41,17 +37,12 @@ const FieldsView = ({
             <div className="fieldSearchHeading">
               <span className="fieldSearchBadge">Lọc nhanh</span>
               <h2>Tìm kiếm nhanh</h2>
-              <p className="helperText">
-                Nhập tên sân hoặc khu vực để lọc danh sách. Hệ thống hỗ trợ tìm kiếm không
-                dấu.
-              </p>
             </div>
 
             <div className="fieldSearchMeta">
               <span className="fieldSearchCount">
                 {resultCount}/{totalFields} sân
               </span>
-              <p className="fieldSearchHint">Gõ tên sân, phường hoặc thành phố để lọc tức thì.</p>
             </div>
           </div>
 
@@ -120,13 +111,6 @@ const FieldsView = ({
           </datalist>
 
           <div className="fieldSearchFooter">
-            <p className="helperText fieldSearchTip">
-              <FiInfo aria-hidden="true" />
-              <span>
-                Có thể nhập một phần tên hoặc địa chỉ, ví dụ `Phong`, `Phường 7`,
-                `Hồ Chí Minh`.
-              </span>
-            </p>
             {hasActiveFilters && (
               <button
                 type="button"
@@ -146,7 +130,7 @@ const FieldsView = ({
         {!loading && !error && fields.length === 0 && (
           <p className="usersEmptyState fieldSearchEmpty">
             {hasActiveFilters
-              ? "Không tìm thấy sân phù hợp với bộ lọc hiện tại. Hãy thử đổi tên sân, phường hoặc thành phố."
+              ? "Không tìm thấy sân phù hợp với bộ lọc hiện tại."
               : "Chưa có sân nào để hiển thị."}
           </p>
         )}

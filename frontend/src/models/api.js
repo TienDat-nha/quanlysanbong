@@ -54,7 +54,7 @@ const isManagedUserOtpConfigured = () =>
   Boolean(EMAILJS_SERVICE_ID && EMAILJS_TEMPLATE_ID && EMAILJS_PUBLIC_KEY)
 
 const getManagedUserOtpConfigMessage = () =>
-  "Tai lieu BE hien tai chua co API OTP email. Hay cau hinh REACT_APP_EMAILJS_SERVICE_ID, REACT_APP_EMAILJS_TEMPLATE_ID va REACT_APP_EMAILJS_PUBLIC_KEY vao frontend/.env de gui OTP truoc khi goi API tao user."
+  "Tài liệu BE hiện tại chưa có API OTP email."
 
 const buildUniqueStringList = (values = []) => {
   const uniqueValues = new Set()
@@ -130,7 +130,7 @@ const getRouteErrorFromHtml = (value) => {
 }
 
 const buildApiUnavailableMessage = (requestPath) =>
-  `Khong the ket noi den API (${API_BASE_URL}). Vui long kiem tra backend dang chay (${requestPath}).`
+  `Không thể kết nối đến API (${API_BASE_URL}). Vui lòng kiểm tra backend đang chạy (${requestPath}).`
 
 const getNestedValue = (source, path) =>
   String(path || "")
@@ -625,7 +625,7 @@ const buildBookingPaymentShape = (booking, payment) => {
     },
     staticTransfer: {
       amount,
-      bankName: "Thanh toan tien mat / tuy backend xac nhan",
+      bankName: "Thanh toán tiền mặt / tùy backend xác nhận",
       accountNumber: normalizedPayment?.id || normalizedBooking?.paymentId || "",
       accountName: normalizedPayment?.method || "CASH",
       transferNote: mergedBooking?.id || "",
@@ -685,11 +685,11 @@ export const requestManagedUserOtp = async (payload = {}) => {
   const otpCode = String(payload?.otpCode || "").trim()
 
   if (!email) {
-    throw new Error("Vui long nhap email truoc khi gui OTP.")
+    throw new Error("Vui lòng nhập email trước khi gửi OTP.")
   }
 
   if (!otpCode) {
-    throw new Error("Khong tao duoc ma OTP de gui email.")
+    throw new Error("Không tạo được mã OTP để gửi email.")
   }
 
   let response
@@ -712,8 +712,8 @@ export const requestManagedUserOtp = async (payload = {}) => {
           passcode: otpCode,
           user_name: String(payload?.name || "").trim() || "Khach hang",
           name: String(payload?.name || "").trim() || "Khach hang",
-          account_role: String(payload?.roleLabel || "").trim() || "Nguoi dung",
-          role: String(payload?.roleLabel || "").trim() || "Nguoi dung",
+          account_role: String(payload?.roleLabel || "").trim() || "Người dùng",
+          role: String(payload?.roleLabel || "").trim() || "Người dùng",
           admin_email: String(payload?.adminEmail || "").trim().toLowerCase(),
           expires_in_minutes: Number(payload?.expiresInMinutes || 5),
           expires_minutes: Number(payload?.expiresInMinutes || 5),
@@ -723,7 +723,7 @@ export const requestManagedUserOtp = async (payload = {}) => {
       }),
     })
   } catch (_error) {
-    throw new Error("Khong the ket noi den dich vu gui OTP email.")
+    throw new Error("Không thể kết nối đến dịch vụ gửi OTP email.")
   }
 
   let rawBodyText = ""
@@ -739,7 +739,7 @@ export const requestManagedUserOtp = async (payload = {}) => {
   }
 
   return {
-    message: "Da gui ma OTP ve email nguoi nhan.",
+    message: "Đã gửi mã OTP về email người nhận.",
   }
 }
 
@@ -1059,7 +1059,7 @@ export const getAdminContacts = async () => ({
 })
 
 export const deleteAdminContact = async () => {
-  throw new Error("Backend hien tai khong cung cap API xoa lien he.")
+  throw new Error("Backend hiện tại không cung cấp API xóa liên hệ.")
 }
 
 export const confirmAdminBooking = async (token, bookingId) =>
@@ -1095,7 +1095,7 @@ export const confirmAdminBookingPayment = async (token, bookingId) =>
   })
 
 export const uploadAdminImage = async () => {
-  throw new Error("Backend hien tai khong co API upload anh. Vui long dung URL anh san co.")
+  throw new Error("Backend hiện tại không có API upload ảnh. Vui lòng dùng URL ảnh sẵn có.")
 }
 
 export const createAdminField = async (token, payload) => {
@@ -1327,7 +1327,7 @@ export const confirmStaticDeposit = async (token, bookingId) => {
 
   return {
     ...info,
-    message: response.message || "Da tao yeu cau thanh toan.",
+    message: response.message || "Đã tạo yêu cầu thanh toán.",
   }
 }
 

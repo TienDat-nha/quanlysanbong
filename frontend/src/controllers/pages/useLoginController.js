@@ -41,8 +41,8 @@ export const useLoginController = ({ onLoginSuccess }) => {
       if (!matchesLoginAccountType(data.user, requestedAccountType)) {
         setError(
           isStaffAccount(data.user)
-            ? "Tài khoản này thuộc nhóm quản lý sân. Hãy chọn đúng đăng nhập Chủ sân hoặc Admin."
-            : "Tài khoản này là người dùng đặt sân. Hãy chọn đăng nhập Người dùng."
+            ? "Tài khoản này thuộc nhóm quản lý sân."
+            : "Tài khoản này là người dùng đặt sân."
         )
         return
       }

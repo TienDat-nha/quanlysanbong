@@ -34,11 +34,6 @@ const OWNER_NAV_ITEMS = Object.freeze([
     to: createAdminFieldsSectionRoute(STAFF_DASHBOARD_SECTIONS.manageFields),
     label: "Quản lý sân",
   },
-  {
-    key: "ownerBookings",
-    to: createAdminFieldsSectionRoute(STAFF_DASHBOARD_SECTIONS.ownerBookings),
-    label: "Đơn đặt của khách",
-  },
 ])
 
 export const createNavbarModel = (currentUser) => {

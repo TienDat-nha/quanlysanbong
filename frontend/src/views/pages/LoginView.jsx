@@ -7,21 +7,18 @@ const LOGIN_OPTIONS = Object.freeze([
   {
     value: LOGIN_ACCOUNT_TYPES.customer,
     title: "Người dùng",
-    description: "Dành cho tài khoản đặt sân và theo dõi lịch đặt.",
     icon: <FiUser />,
     iconClassName: "roleCardIcon",
   },
   {
     value: LOGIN_ACCOUNT_TYPES.owner,
     title: "Chủ sân",
-    description: "Dành cho tài khoản quản lý sân, đặt sân thủ công và theo dõi đơn của khách.",
     icon: <FiMapPin />,
     iconClassName: "roleCardIcon",
   },
   {
     value: LOGIN_ACCOUNT_TYPES.admin,
     title: "Admin",
-    description: "Dành cho tài khoản quản trị tài khoản và khu vực quản lý sân trong admin.",
     icon: <FiShield />,
     iconClassName: "roleCardIcon roleCardIconAdmin",
   },
@@ -38,16 +35,11 @@ const LoginView = ({
 }) => {
   const selectedOption =
     LOGIN_OPTIONS.find((option) => option.value === form.accountType) || LOGIN_OPTIONS[0]
-  const isCustomerMode = form.accountType === LOGIN_ACCOUNT_TYPES.customer
 
   return (
     <section className="page section authPage">
       <div className="container narrowContainer">
         <h1>{`Đăng Nhập ${selectedOption.title}`}</h1>
-        <p>
-          Chọn đúng loại tài khoản trước khi đăng nhập. Backend hiện gộp Chủ sân và Admin chung
-          một nhóm quyền, nên frontend sẽ dựa vào lựa chọn đăng nhập để mở đúng khu vực làm việc.
-        </p>
 
         <form className="formCard" onSubmit={onSubmit}>
           {infoMessage && <p className="message success">{infoMessage}</p>}
@@ -55,13 +47,6 @@ const LoginView = ({
           <div className="registerSectionTitle">
             <div>
               <h2>Loại đăng nhập</h2>
-              <p>
-                {isCustomerMode
-                  ? "Dùng cho tài khoản người dùng đặt sân được đăng ký ở giao diện chính."
-                  : selectedOption.value === LOGIN_ACCOUNT_TYPES.owner
-                    ? "Dùng cho tài khoản Chủ sân cần đặt sân thủ công, quản lý sân và đơn của khách."
-                    : "Dùng cho tài khoản Admin quản lý tài khoản, quản lý sân và danh sách sân."}
-              </p>
             </div>
           </div>
 
@@ -86,7 +71,6 @@ const LoginView = ({
                   </span>
                   <span className="roleCardContent">
                     <strong>{option.title}</strong>
-                    <small>{option.description}</small>
                   </span>
                   <span className="roleCardCheck" aria-hidden="true" />
                 </label>

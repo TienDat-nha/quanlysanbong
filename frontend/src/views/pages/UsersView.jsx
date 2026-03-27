@@ -129,14 +129,6 @@ const UsersView = ({
               <span>{isEditing ? "Chế độ sửa" : "Admin có OTP email"}</span>
             </div>
 
-            <p className="usersFormHint">
-              Trang đăng ký ngoài giao diện chính chỉ tạo user. Màn này dùng cho admin tạo người
-              dùng hoặc chủ sân.
-            </p>
-            <p className="usersFormHint">
-              Lưu ý: backend hiện gom quyền quản trị và chủ sân vào cùng nhóm `ADMIN`.
-            </p>
-
             <label htmlFor="user-name">Tên tài khoản</label>
             <input
               id="user-name"
