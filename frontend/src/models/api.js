@@ -1011,37 +1011,30 @@ const buildBookingPaymentShape = (booking, payment) => {
   }
 }
 
+const isDataImageUrl = (value) => /^data:image\//i.test(String(value || "").trim())
+
 const buildFieldMutationPayload = (payload = {}) => {
-  const subFields = (Array.isArray(payload.subFields) ? payload.subFields : [])
-    .map((item) => normalizeSubFieldItem(item))
+  const coverImage = String(payload.coverImage || payload.image || "").trim()
+  const images = (
+    Array.isArray(payload.images)
+      ? payload.images
+      : Array.isArray(payload.galleryImages)
+        ? payload.galleryImages
+        : []
+  )
+    .map((item) => String(item || "").trim())
     .filter(Boolean)
+    .filter((item) => !isDataImageUrl(item))
 
   return {
     name: String(payload.name || "").trim(),
     address: String(payload.address || "").trim(),
     district: String(payload.district || "").trim(),
-    city: String(payload.city || "").trim(),
-    ward: String(payload.ward || "").trim(),
-    type: String(payload.type || "").trim(),
-    openHours: String(payload.openHours || "").trim(),
-    pricePerHour: Math.round(Number(payload.pricePerHour || 0)),
-    description: String(payload.article || payload.description || "").trim(),
     article: String(payload.article || payload.description || "").trim(),
-    image: String(payload.coverImage || payload.image || "").trim(),
-    coverImage: String(payload.coverImage || payload.image || "").trim(),
-    images: (Array.isArray(payload.images) ? payload.images : Array.isArray(payload.galleryImages) ? payload.galleryImages : [])
-      .map((item) => String(item || "").trim())
-      .filter(Boolean),
-    latitude: payload.latitude ?? null,
-    longitude: payload.longitude ?? null,
-    rating: Number(payload.rating || 0),
-    subFields: subFields.map((item) => ({
-      id: item.id,
-      name: item.name,
-      type: item.type,
-      pricePerHour: item.pricePerHour,
-      openHours: item.openHours,
-    })),
+    image: !isDataImageUrl(coverImage) ? coverImage : "",
+    coverImage: !isDataImageUrl(coverImage) ? coverImage : "",
+    images,
+    managedByAdmin: Boolean(payload.managedByAdmin),
   }
 }
 

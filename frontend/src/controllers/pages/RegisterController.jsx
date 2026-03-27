@@ -9,7 +9,14 @@ const RegisterController = () => {
     error,
     successMessage,
     loginPath,
+    otpState,
+    otpSummary,
+    canResendOtp,
+    otpExpired,
     handleFieldChange,
+    handleOtpInputChange,
+    handleRequestOtp,
+    handleVerifyOtp,
     handleSubmit,
   } = useRegisterController()
 
@@ -20,7 +27,14 @@ const RegisterController = () => {
       error={error}
       successMessage={successMessage}
       loginPath={loginPath}
+      otpState={otpState}
+      otpSummary={otpSummary}
+      canResendOtp={canResendOtp}
+      otpExpired={otpExpired}
       onFieldChange={handleFieldChange}
+      onOtpInputChange={handleOtpInputChange}
+      onRequestOtp={handleRequestOtp}
+      onVerifyOtp={handleVerifyOtp}
       onSubmit={handleSubmit}
     />
   )
