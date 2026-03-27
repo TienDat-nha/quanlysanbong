@@ -13,12 +13,18 @@ const createSummaryCards = (summary) => [
   { key: "locked", label: "Đang khóa", value: summary.locked, tone: "success" },
 ]
 
+const controlClass = (error, baseClass = "") =>
+  `${baseClass}${error ? `${baseClass ? " " : ""}ownerFormControl--error` : ""}`.trim()
+
+const ErrorText = ({ text }) => (text ? <p className="ownerFieldError">{text}</p> : null)
+
 const UsersView = ({
   users,
   loading,
   error,
   successMessage,
   formValues,
+  formErrors,
   submitting,
   deletingUserId,
   statusActionUserId,
@@ -132,6 +138,7 @@ const UsersView = ({
             <label htmlFor="user-name">Tên tài khoản</label>
             <input
               id="user-name"
+              className={controlClass(formErrors?.name)}
               name="name"
               type="text"
               placeholder="Nguyễn Văn A"
@@ -139,10 +146,12 @@ const UsersView = ({
               onChange={onInputChange}
               disabled={submitting}
             />
+            <ErrorText text={formErrors?.name} />
 
             <label htmlFor="user-email">Email</label>
             <input
               id="user-email"
+              className={controlClass(formErrors?.email)}
               name="email"
               type="email"
               placeholder="email@domain.com"
@@ -150,10 +159,12 @@ const UsersView = ({
               onChange={onInputChange}
               disabled={submitting}
             />
+            <ErrorText text={formErrors?.email} />
 
             <label htmlFor="user-phone">Số điện thoại</label>
             <input
               id="user-phone"
+              className={controlClass(formErrors?.phone)}
               name="phone"
               type="text"
               placeholder="09xxxxxxxx"
@@ -161,10 +172,12 @@ const UsersView = ({
               onChange={onInputChange}
               disabled={submitting}
             />
+            <ErrorText text={formErrors?.phone} />
 
             <label htmlFor="user-password">Mật khẩu</label>
             <input
               id="user-password"
+              className={controlClass(formErrors?.password)}
               name="password"
               type="password"
               placeholder={isEditing ? "Bỏ trống nếu không đổi" : "Nhập mật khẩu"}
@@ -172,10 +185,12 @@ const UsersView = ({
               onChange={onInputChange}
               disabled={submitting}
             />
+            <ErrorText text={formErrors?.password} />
 
             <label htmlFor="user-role">Loại tài khoản</label>
             <select
               id="user-role"
+              className={controlClass(formErrors?.role)}
               name="role"
               value={formValues.role}
               onChange={onInputChange}
@@ -187,6 +202,7 @@ const UsersView = ({
                 </option>
               ))}
             </select>
+            <ErrorText text={formErrors?.role} />
 
             {!isEditing && (
               <section className="usersOtpCard">
@@ -219,7 +235,7 @@ const UsersView = ({
                 <label htmlFor="user-otp">Mã OTP</label>
                 <input
                   id="user-otp"
-                  className="usersOtpInput"
+                  className={controlClass(formErrors?.otpInput, "usersOtpInput")}
                   type="text"
                   inputMode="numeric"
                   value={otpState.input}
@@ -228,6 +244,7 @@ const UsersView = ({
                   maxLength={6}
                   disabled={submitting || otpActionMode === "send" || !otpEnabled}
                 />
+                <ErrorText text={formErrors?.otpInput} />
 
                 <div className="usersActionsRow usersOtpActions">
                   <button

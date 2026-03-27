@@ -2,11 +2,17 @@ import React from "react"
 import { Link } from "react-router-dom"
 import { FiArrowRight, FiCheckCircle, FiMail } from "react-icons/fi"
 
+const controlClass = (error, baseClass = "") =>
+  `${baseClass}${error ? `${baseClass ? " " : ""}ownerFormControl--error` : ""}`.trim()
+
+const ErrorText = ({ text }) => (text ? <p className="ownerFieldError">{text}</p> : null)
+
 const RegisterView = ({
   form,
   submitting,
   error,
   successMessage,
+  formErrors,
   loginPath,
   otpState,
   otpSummary,
@@ -49,55 +55,65 @@ const RegisterView = ({
               <label htmlFor="register-full-name">Họ và tên</label>
               <input
                 id="register-full-name"
+                className={controlClass(formErrors?.fullName)}
                 type="text"
                 value={form.fullName}
                 onChange={(event) => onFieldChange("fullName", event.target.value)}
                 placeholder="Nguyễn Văn A"
               />
+              <ErrorText text={formErrors?.fullName} />
             </div>
 
             <div className="registerField">
               <label htmlFor="register-email">Email</label>
               <input
                 id="register-email"
+                className={controlClass(formErrors?.email)}
                 type="email"
                 value={form.email}
                 onChange={(event) => onFieldChange("email", event.target.value)}
                 placeholder="email@domain.com"
               />
+              <ErrorText text={formErrors?.email} />
             </div>
 
             <div className="registerField">
               <label htmlFor="register-phone">Số điện thoại</label>
               <input
                 id="register-phone"
+                className={controlClass(formErrors?.phone)}
                 type="tel"
                 value={form.phone}
                 onChange={(event) => onFieldChange("phone", event.target.value)}
                 placeholder="09xxxxxxxx"
               />
+              <ErrorText text={formErrors?.phone} />
             </div>
 
             <div className="registerField">
               <label htmlFor="register-password">Mật khẩu</label>
               <input
                 id="register-password"
+                className={controlClass(formErrors?.password)}
                 type="password"
                 value={form.password}
                 onChange={(event) => onFieldChange("password", event.target.value)}
                 placeholder="Tối thiểu 6 ký tự"
               />
+              <ErrorText text={formErrors?.password} />
             </div>
 
             <div className="registerField">
               <label htmlFor="register-confirm-password">Xác nhận mật khẩu</label>
               <input
                 id="register-confirm-password"
+                className={controlClass(formErrors?.confirmPassword)}
                 type="password"
                 value={form.confirmPassword}
                 onChange={(event) => onFieldChange("confirmPassword", event.target.value)}
                 placeholder="Nhập lại mật khẩu"
               />
+              <ErrorText text={formErrors?.confirmPassword} />
             </div>
           </div>
 
@@ -142,6 +158,7 @@ const RegisterView = ({
               <label htmlFor="register-otp">Mã OTP</label>
               <input
                 id="register-otp"
+                className={controlClass(formErrors?.otpInput)}
                 type="text"
                 inputMode="numeric"
                 value={otpState.input}
@@ -149,6 +166,7 @@ const RegisterView = ({
                 placeholder="Nhập 6 số OTP"
                 maxLength={6}
               />
+              <ErrorText text={formErrors?.otpInput} />
             </div>
 
             <div className="otpActionRow registerOtpActions">

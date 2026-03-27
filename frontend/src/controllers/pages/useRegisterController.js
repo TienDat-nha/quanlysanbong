@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react"
 import { useNavigate } from "react-router-dom"
-import { createRegisterForm, validateRegisterDetails } from "../../models/authModel"
+import { createRegisterForm, isValidEmail } from "../../models/authModel"
 import { registerUser } from "../../models/api"
 import { ROUTES } from "../../models/routeModel"
 
@@ -27,12 +27,70 @@ const formatOtpCountdown = (value) => {
   return `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`
 }
 
+const createRegisterFormErrors = () => ({
+  fullName: "",
+  email: "",
+  phone: "",
+  password: "",
+  confirmPassword: "",
+  otpInput: "",
+})
+
+const getFirstRegisterFormError = (fieldErrors = {}) =>
+  Object.values(fieldErrors).find((value) => String(value || "").trim()) || ""
+
+const validateRegisterFormWithFields = (form) => {
+  const nextFormErrors = createRegisterFormErrors()
+  const fullName = String(form.fullName || "").trim()
+  const email = String(form.email || "").trim().toLowerCase()
+  const phone = String(form.phone || "").replace(/\D/g, "")
+  const password = String(form.password || "")
+  const confirmPassword = String(form.confirmPassword || "")
+
+  if (!fullName) {
+    nextFormErrors.fullName = "Vui lòng nhập họ và tên."
+  }
+
+  if (!email) {
+    nextFormErrors.email = "Vui lòng nhập email."
+  } else if (!isValidEmail(email)) {
+    nextFormErrors.email = "Email không hợp lệ."
+  }
+
+  if (!String(form.phone || "").trim()) {
+    nextFormErrors.phone = "Vui lòng nhập số điện thoại."
+  } else if (!/^0\d{9}$/.test(phone)) {
+    nextFormErrors.phone = "Số điện thoại phải gồm 10 số và bắt đầu bằng số 0."
+  }
+
+  if (!password) {
+    nextFormErrors.password = "Vui lòng nhập mật khẩu."
+  } else if (password.length < 6) {
+    nextFormErrors.password = "Mật khẩu tối thiểu 6 ký tự."
+  }
+
+  if (!confirmPassword) {
+    nextFormErrors.confirmPassword = "Vui lòng nhập lại mật khẩu."
+  } else if (password && password !== confirmPassword) {
+    nextFormErrors.confirmPassword = "Xác nhận mật khẩu không khớp."
+  }
+
+  const firstError = getFirstRegisterFormError(nextFormErrors)
+
+  return {
+    isValid: !firstError,
+    message: firstError,
+    fieldErrors: nextFormErrors,
+  }
+}
+
 export const useRegisterController = () => {
   const navigate = useNavigate()
   const [form, setForm] = useState(createRegisterForm)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState("")
   const [successMessage, setSuccessMessage] = useState("")
+  const [formErrors, setFormErrors] = useState(createRegisterFormErrors)
   const [otpState, setOtpState] = useState(createInitialOtpState)
   const [now, setNow] = useState(Date.now())
   const redirectTimeoutRef = useRef(null)
@@ -63,6 +121,15 @@ export const useRegisterController = () => {
   }
 
   const handleFieldChange = (field, value) => {
+    setError("")
+    setSuccessMessage("")
+    setFormErrors((currentErrors) => ({
+      ...currentErrors,
+      [field]: "",
+      ...(field === "password" ? { confirmPassword: "" } : {}),
+      ...(field === "email" ? { otpInput: "" } : {}),
+    }))
+
     setForm((prev) => {
       const nextValue = value
       const nextForm = {
@@ -86,10 +153,15 @@ export const useRegisterController = () => {
   }
 
   const handleOtpInputChange = (value) => {
+    setError("")
     setOtpState((prev) => ({
       ...prev,
       input: String(value || "").replace(/\D/g, "").slice(0, 6),
       feedback: prev.feedback?.type === "error" ? null : prev.feedback,
+    }))
+    setFormErrors((currentErrors) => ({
+      ...currentErrors,
+      otpInput: "",
     }))
   }
 
@@ -139,9 +211,11 @@ export const useRegisterController = () => {
     setError("")
     setSuccessMessage("")
 
-    const validationError = validateRegisterDetails(form)
-    if (validationError) {
-      setError(validationError)
+    const validationResult = validateRegisterFormWithFields(form)
+    setFormErrors(validationResult.fieldErrors)
+
+    if (!validationResult.isValid) {
+      setError(validationResult.message)
       return
     }
 
@@ -166,8 +240,16 @@ export const useRegisterController = () => {
   const handleVerifyOtp = () => {
     setError("")
     setSuccessMessage("")
+    setFormErrors((currentErrors) => ({
+      ...currentErrors,
+      otpInput: "",
+    }))
 
     if (!otpState.code) {
+      setFormErrors((currentErrors) => ({
+        ...currentErrors,
+        otpInput: "Hãy gửi mã OTP trước khi xác nhận.",
+      }))
       setOtpState((prev) => ({
         ...prev,
         feedback: {
@@ -179,6 +261,10 @@ export const useRegisterController = () => {
     }
 
     if (otpExpired) {
+      setFormErrors((currentErrors) => ({
+        ...currentErrors,
+        otpInput: "Mã OTP đã hết hạn. Hãy gửi lại mã mới.",
+      }))
       setOtpState((prev) => ({
         ...prev,
         verified: false,
@@ -191,6 +277,10 @@ export const useRegisterController = () => {
     }
 
     if (String(otpState.input || "").trim().length !== 6) {
+      setFormErrors((currentErrors) => ({
+        ...currentErrors,
+        otpInput: "Vui lòng nhập đủ 6 số OTP.",
+      }))
       setOtpState((prev) => ({
         ...prev,
         verified: false,
@@ -203,6 +293,10 @@ export const useRegisterController = () => {
     }
 
     if (String(otpState.input || "").trim() !== String(otpState.code || "").trim()) {
+      setFormErrors((currentErrors) => ({
+        ...currentErrors,
+        otpInput: "Mã OTP không đúng. Vui lòng kiểm tra lại.",
+      }))
       setOtpState((prev) => ({
         ...prev,
         verified: false,
@@ -222,6 +316,10 @@ export const useRegisterController = () => {
         text: "OTP đã được xác nhận. Bạn có thể đăng ký tài khoản.",
       },
     }))
+    setFormErrors((currentErrors) => ({
+      ...currentErrors,
+      otpInput: "",
+    }))
   }
 
   const handleSubmit = async (event) => {
@@ -229,9 +327,21 @@ export const useRegisterController = () => {
     setError("")
     setSuccessMessage("")
 
-    const validationError = validateRegisterDetails(form)
-    if (validationError) {
-      setError(validationError)
+    const validationResult = validateRegisterFormWithFields(form)
+    setFormErrors(validationResult.fieldErrors)
+
+    if (!validationResult.isValid) {
+      setError(validationResult.message)
+      return
+    }
+
+    if (!otpState.verified) {
+      const otpErrorMessage = "Vui lòng xác nhận OTP trước khi đăng ký."
+      setFormErrors((currentErrors) => ({
+        ...currentErrors,
+        otpInput: otpErrorMessage,
+      }))
+      setError(otpErrorMessage)
       return
     }
 
@@ -274,6 +384,7 @@ export const useRegisterController = () => {
     submitting,
     error,
     successMessage,
+    formErrors,
     loginPath: ROUTES.login,
     otpState,
     otpSummary,

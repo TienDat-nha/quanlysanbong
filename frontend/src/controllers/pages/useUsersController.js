@@ -25,6 +25,18 @@ const INITIAL_FORM_VALUES = Object.freeze({
   role: "USER",
 })
 
+const createManagedUserFormErrors = () => ({
+  name: "",
+  email: "",
+  phone: "",
+  password: "",
+  role: "",
+  otpInput: "",
+})
+
+const getFirstManagedUserFormError = (fieldErrors = {}) =>
+  Object.values(fieldErrors).find((value) => String(value || "").trim()) || ""
+
 const ROLE_OPTIONS = Object.freeze([
   { value: "USER", label: "Người dùng" },
   { value: "ADMIN", label: "Chủ sân" },
@@ -98,6 +110,7 @@ export const useUsersController = ({ authToken, currentUser }) => {
   const [successMessage, setSuccessMessage] = useState("")
   const [editingUserId, setEditingUserId] = useState(null)
   const [formValues, setFormValues] = useState(INITIAL_FORM_VALUES)
+  const [formErrors, setFormErrors] = useState(createManagedUserFormErrors)
   const [submitting, setSubmitting] = useState(false)
   const [deletingUserId, setDeletingUserId] = useState(null)
   const [statusActionUserId, setStatusActionUserId] = useState("")
@@ -227,6 +240,7 @@ export const useUsersController = ({ authToken, currentUser }) => {
 
   const resetForm = () => {
     setFormValues(INITIAL_FORM_VALUES)
+    setFormErrors(createManagedUserFormErrors())
     setEditingUserId(null)
     resetOtpState()
   }
@@ -256,6 +270,14 @@ export const useUsersController = ({ authToken, currentUser }) => {
       [name]: value,
     }))
 
+    setError("")
+    setSuccessMessage("")
+    setFormErrors((currentErrors) => ({
+      ...currentErrors,
+      [name]: "",
+      ...(name === "email" ? { otpInput: "" } : {}),
+    }))
+
     if (emailChanged && otpState.codeHash) {
       resetOtpState({
         type: "warning",
@@ -265,10 +287,15 @@ export const useUsersController = ({ authToken, currentUser }) => {
   }
 
   const handleOtpInputChange = (value) => {
+    setError("")
     setOtpState((prev) => ({
       ...prev,
       input: String(value || "").replace(/\D/g, "").slice(0, 6),
       feedback: prev.feedback?.type === "error" ? null : prev.feedback,
+    }))
+    setFormErrors((currentErrors) => ({
+      ...currentErrors,
+      otpInput: "",
     }))
   }
 
@@ -304,6 +331,7 @@ export const useUsersController = ({ authToken, currentUser }) => {
     return ""
   }
 
+  // eslint-disable-next-line no-unused-vars
   const validateOtpRequest = () => {
     if (editingUserId) {
       return "OTP chỉ áp dụng khi tạo tài khoản mới."
@@ -316,13 +344,86 @@ export const useUsersController = ({ authToken, currentUser }) => {
     return validateAdminForm()
   }
 
+  const validateAdminFormWithFields = () => {
+    const nextFormErrors = createManagedUserFormErrors()
+    const normalizedName = String(formValues.name || "").trim()
+    const normalizedEmail = String(formValues.email || "").trim()
+    const normalizedPhone = String(formValues.phone || "").replace(/\D/g, "")
+    const normalizedPassword = String(formValues.password || "")
+    const normalizedRole = String(formValues.role || "").trim().toUpperCase()
+
+    if (!canManageUsers) {
+      return {
+        isValid: false,
+        message: "Chỉ tài khoản admin mới được tạo, sửa hoặc xóa tài khoản.",
+        fieldErrors: nextFormErrors,
+      }
+    }
+
+    if (!normalizedName) {
+      nextFormErrors.name = "Vui lòng nhập tên tài khoản."
+    }
+
+    if (!normalizedEmail) {
+      nextFormErrors.email = "Vui lòng nhập email."
+    } else if (!isValidEmail(formValues.email)) {
+      nextFormErrors.email = "Email không hợp lệ."
+    }
+
+    if (!String(formValues.phone || "").trim()) {
+      nextFormErrors.phone = "Vui lòng nhập số điện thoại."
+    } else if (!/^0\d{9}$/.test(normalizedPhone)) {
+      nextFormErrors.phone = "Số điện thoại phải gồm 10 số và bắt đầu bằng số 0."
+    }
+
+    if (!editingUserId && !normalizedPassword.trim()) {
+      nextFormErrors.password = "Vui lòng nhập mật khẩu cho tài khoản mới."
+    } else if (normalizedPassword.trim() && normalizedPassword.length < 6) {
+      nextFormErrors.password = "Mật khẩu tối thiểu 6 ký tự."
+    }
+
+    if (!["USER", "ADMIN"].includes(normalizedRole)) {
+      nextFormErrors.role = "Vai trò tài khoản không hợp lệ."
+    }
+
+    const firstError = getFirstManagedUserFormError(nextFormErrors)
+
+    return {
+      isValid: !firstError,
+      message: firstError,
+      fieldErrors: nextFormErrors,
+    }
+  }
+
+  const validateOtpRequestWithFields = () => {
+    if (editingUserId) {
+      return {
+        isValid: false,
+        message: "OTP chỉ áp dụng khi tạo tài khoản mới.",
+        fieldErrors: createManagedUserFormErrors(),
+      }
+    }
+
+    if (!otpEnabled) {
+      return {
+        isValid: false,
+        message: otpSetupMessage,
+        fieldErrors: createManagedUserFormErrors(),
+      }
+    }
+
+    return validateAdminFormWithFields()
+  }
+
   const handleRequestOtp = async () => {
     setError("")
     setSuccessMessage("")
 
-    const validationError = validateOtpRequest()
-    if (validationError) {
-      setError(validationError)
+    const validationResult = validateOtpRequestWithFields()
+    setFormErrors(validationResult.fieldErrors)
+
+    if (!validationResult.isValid) {
+      setError(validationResult.message)
       return
     }
 
@@ -373,8 +474,16 @@ export const useUsersController = ({ authToken, currentUser }) => {
   const handleVerifyOtp = async () => {
     setError("")
     setSuccessMessage("")
+    setFormErrors((currentErrors) => ({
+      ...currentErrors,
+      otpInput: "",
+    }))
 
     if (!otpState.codeHash) {
+      setFormErrors((currentErrors) => ({
+        ...currentErrors,
+        otpInput: "Hãy gửi mã OTP trước khi xác nhận.",
+      }))
       setOtpState((prev) => ({
         ...prev,
         feedback: {
@@ -386,6 +495,10 @@ export const useUsersController = ({ authToken, currentUser }) => {
     }
 
     if (otpExpired) {
+      setFormErrors((currentErrors) => ({
+        ...currentErrors,
+        otpInput: "Mã OTP đã hết hạn. Hãy gửi lại mã mới.",
+      }))
       setOtpState((prev) => ({
         ...prev,
         verified: false,
@@ -398,6 +511,10 @@ export const useUsersController = ({ authToken, currentUser }) => {
     }
 
     if (String(otpState.input || "").trim().length !== 6) {
+      setFormErrors((currentErrors) => ({
+        ...currentErrors,
+        otpInput: "Vui lòng nhập đủ 6 số OTP.",
+      }))
       setOtpState((prev) => ({
         ...prev,
         verified: false,
@@ -415,6 +532,10 @@ export const useUsersController = ({ authToken, currentUser }) => {
       const inputHash = await hashOtpCode(otpState.input)
 
       if (inputHash !== String(otpState.codeHash || "").trim()) {
+        setFormErrors((currentErrors) => ({
+          ...currentErrors,
+          otpInput: "Mã OTP không đúng. Vui lòng kiểm tra lại.",
+        }))
         setOtpState((prev) => ({
           ...prev,
           verified: false,
@@ -434,7 +555,15 @@ export const useUsersController = ({ authToken, currentUser }) => {
           text: "OTP đã được xác nhận. Admin có thể tạo tài khoản.",
         },
       }))
+      setFormErrors((currentErrors) => ({
+        ...currentErrors,
+        otpInput: "",
+      }))
     } catch (_error) {
+      setFormErrors((currentErrors) => ({
+        ...currentErrors,
+        otpInput: "Không thể xác nhận OTP lúc này. Vui lòng thử lại.",
+      }))
       setOtpState((prev) => ({
         ...prev,
         verified: false,
@@ -454,9 +583,22 @@ export const useUsersController = ({ authToken, currentUser }) => {
     setError("")
     setSuccessMessage("")
 
-    const validationError = validateAdminForm()
-    if (validationError) {
-      setError(validationError)
+    const validationResult = validateAdminFormWithFields()
+    setFormErrors(validationResult.fieldErrors)
+
+    if (!validationResult.isValid) {
+      setError(validationResult.message)
+      setSubmitting(false)
+      return
+    }
+
+    if (!editingUserId && !otpState.verified) {
+      const otpErrorMessage = "Vui lòng xác nhận OTP email trước khi tạo tài khoản."
+      setFormErrors((currentErrors) => ({
+        ...currentErrors,
+        otpInput: otpErrorMessage,
+      }))
+      setError(otpErrorMessage)
       setSubmitting(false)
       return
     }
@@ -504,6 +646,7 @@ export const useUsersController = ({ authToken, currentUser }) => {
       password: "",
       role: getApiRoleValue(user.role),
     })
+    setFormErrors(createManagedUserFormErrors())
     resetOtpState()
     setError("")
     setSuccessMessage("")
@@ -614,6 +757,7 @@ export const useUsersController = ({ authToken, currentUser }) => {
     error,
     successMessage,
     formValues,
+    formErrors,
     submitting,
     deletingUserId,
     statusActionUserId,

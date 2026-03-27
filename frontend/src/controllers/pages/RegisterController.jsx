@@ -8,6 +8,7 @@ const RegisterController = () => {
     submitting,
     error,
     successMessage,
+    formErrors,
     loginPath,
     otpState,
     otpSummary,
@@ -26,6 +27,7 @@ const RegisterController = () => {
       submitting={submitting}
       error={error}
       successMessage={successMessage}
+      formErrors={formErrors}
       loginPath={loginPath}
       otpState={otpState}
       otpSummary={otpSummary}
