@@ -4,7 +4,9 @@ import { useBookingController } from "./useBookingController"
 
 const BookingController = ({ authToken, currentUser }) => {
   const {
+    fields,
     bookings,
+    catalogMessage,
     scheduleRows,
     timeline,
     selectedField,
@@ -31,13 +33,15 @@ const BookingController = ({ authToken, currentUser }) => {
     handleBackToSchedule,
     handleCancelBooking,
     handleSubmit,
-  } = useBookingController({ authToken })
+  } = useBookingController({ authToken, currentUser })
 
   return (
     <BookingView
       authToken={authToken}
       currentUser={currentUser}
+      fields={fields}
       bookings={bookings}
+      catalogMessage={catalogMessage}
       scheduleRows={scheduleRows}
       timeline={timeline}
       selectedField={selectedField}

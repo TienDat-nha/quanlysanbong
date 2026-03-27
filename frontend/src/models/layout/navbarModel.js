@@ -24,11 +24,6 @@ const ADMIN_NAV_ITEMS = Object.freeze([
     to: createAdminFieldsSectionRoute(STAFF_DASHBOARD_SECTIONS.manageFields),
     label: "Quản lý sân",
   },
-  {
-    key: "fieldList",
-    to: createAdminFieldsSectionRoute(STAFF_DASHBOARD_SECTIONS.fieldList),
-    label: "Danh sách sân",
-  },
 ])
 
 const OWNER_NAV_ITEMS = Object.freeze([

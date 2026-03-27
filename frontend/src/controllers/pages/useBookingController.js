@@ -2,11 +2,13 @@ import { useEffect, useMemo, useState } from "react"
 import { useLocation, useNavigate, useParams } from "react-router-dom"
 import {
   cancelMyBooking,
+  confirmAdminBooking,
   createBooking,
   getFields,
   getMyBookings,
   getTimeSlots,
 } from "../../models/api"
+import { isOwnerUser } from "../../models/authModel"
 import {
   applyBookingSlotSelection,
   buildBookingPayload,
@@ -25,13 +27,152 @@ import { formatBookingStatusVi, validateBookingFormVi } from "../../models/booki
 import { getFieldList } from "../../models/fieldModel"
 import { createDepositPaymentRoute, ROUTES } from "../../models/routeModel"
 
-export const useBookingController = ({ authToken }) => {
+const OWNER_MANUAL_BOOKINGS_STORAGE_PREFIX = "sanbong_owner_manual_bookings"
+
+const getPortalOwnerKeys = (currentUser) =>
+  [
+    currentUser?.id,
+    currentUser?._id,
+    currentUser?.userId,
+    currentUser?.email,
+  ]
+    .map((value) => String(value || "").trim().toLowerCase())
+    .filter(Boolean)
+
+const filterFieldsForOwnerPortal = (fields, currentUser, isOwnerPortal) => {
+  const nextFields = Array.isArray(fields) ? fields : []
+
+  if (!isOwnerPortal) {
+    return nextFields
+  }
+
+  const ownerKeys = getPortalOwnerKeys(currentUser)
+  if (ownerKeys.length === 0) {
+    return []
+  }
+
+  return nextFields.filter((field) =>
+    ownerKeys.includes(
+      String(field?.ownerUserId || field?.userId || field?.ownerEmail || "")
+        .trim()
+        .toLowerCase()
+    )
+  )
+}
+
+const getManualBookingStorageKey = (currentUser) => {
+  const ownerKey = getPortalOwnerKeys(currentUser)[0]
+  return ownerKey ? `${OWNER_MANUAL_BOOKINGS_STORAGE_PREFIX}:${ownerKey}` : ""
+}
+
+const getBookingIdentity = (booking, index = 0) => {
+  const bookingId = String(booking?.id || booking?._id || "").trim()
+  if (bookingId) {
+    return `id:${bookingId}`
+  }
+
+  const compositeParts = [
+    booking?.fieldId,
+    booking?.subFieldId,
+    booking?.date,
+    booking?.timeSlotId,
+    booking?.timeSlot,
+    booking?.phone,
+    booking?.createdAt,
+    index,
+  ]
+    .map((value) => String(value || "").trim())
+    .filter(Boolean)
+
+  return compositeParts.length > 0 ? `slot:${compositeParts.join("|")}` : ""
+}
+
+const mergeBookingCollections = (...collections) => {
+  const bookingMap = new Map()
+
+  collections.flat().forEach((collection) => {
+    ;(Array.isArray(collection) ? collection : []).forEach((booking, index) => {
+      if (!booking || typeof booking !== "object") {
+        return
+      }
+
+      const identity = getBookingIdentity(booking, index)
+      if (!identity) {
+        return
+      }
+
+      const currentValue = bookingMap.get(identity) || {}
+      bookingMap.set(identity, {
+        ...currentValue,
+        ...booking,
+      })
+    })
+  })
+
+  return Array.from(bookingMap.values())
+}
+
+const persistOwnerManualBookings = (currentUser, bookings = []) => {
+  if (typeof window === "undefined" || !window.localStorage) {
+    return []
+  }
+
+  const storageKey = getManualBookingStorageKey(currentUser)
+  if (!storageKey) {
+    return []
+  }
+
+  const nextBookings = mergeBookingCollections(
+    (Array.isArray(bookings) ? bookings : []).filter((booking) => {
+      const status = String(booking?.status || "").trim().toLowerCase()
+      return status !== "cancelled" && status !== "canceled"
+    })
+  )
+
+  try {
+    if (nextBookings.length === 0) {
+      window.localStorage.removeItem(storageKey)
+    } else {
+      window.localStorage.setItem(storageKey, JSON.stringify(nextBookings))
+    }
+  } catch (_error) {
+    return nextBookings
+  }
+
+  return nextBookings
+}
+
+const getStoredOwnerManualBookings = (currentUser) => {
+  if (typeof window === "undefined" || !window.localStorage) {
+    return []
+  }
+
+  const storageKey = getManualBookingStorageKey(currentUser)
+  if (!storageKey) {
+    return []
+  }
+
+  try {
+    const rawValue = window.localStorage.getItem(storageKey)
+    if (!rawValue) {
+      return []
+    }
+
+    const parsedValue = JSON.parse(rawValue)
+    return Array.isArray(parsedValue) ? parsedValue.filter(Boolean) : []
+  } catch (_error) {
+    return []
+  }
+}
+
+export const useBookingController = ({ authToken, currentUser }) => {
   const navigate = useNavigate()
   const location = useLocation()
   const { fieldSlug = "" } = useParams()
   const searchParams = useMemo(() => new URLSearchParams(location.search), [location.search])
   const preselectedField = searchParams.get("fieldId") || ""
   const minBookingDate = getTodayBookingDate()
+  const isOwnerPortal = isOwnerUser(currentUser)
 
   const [fields, setFields] = useState([])
   const [timeSlots, setTimeSlots] = useState([])
@@ -39,6 +180,7 @@ export const useBookingController = ({ authToken }) => {
   const [loadingFields, setLoadingFields] = useState(true)
   const [loadingAvailability, setLoadingAvailability] = useState(true)
   const [loadingBookings, setLoadingBookings] = useState(false)
+  const [catalogMessage, setCatalogMessage] = useState("")
   const [form, setForm] = useState(() => createBookingForm(preselectedField, minBookingDate))
   const [submitting, setSubmitting] = useState(false)
   const [cancellingBookingId, setCancellingBookingId] = useState("")
@@ -75,17 +217,32 @@ export const useBookingController = ({ authToken }) => {
       setLoadingAvailability(true)
 
       try {
-        const [fieldsData, timeSlotsData] = await Promise.all([getFields(), getTimeSlots()])
+        const [fieldsData, timeSlotsData] = await Promise.all([
+          getFields(authToken),
+          getTimeSlots(),
+        ])
 
         if (!mounted) {
           return
         }
 
-        setFields(getFieldList(fieldsData))
+        const nextFields = filterFieldsForOwnerPortal(
+          getFieldList(fieldsData),
+          currentUser,
+          isOwnerPortal
+        )
+
+        setFields(nextFields)
         setTimeSlots(timeSlotsData.timeSlots || [])
+        setCatalogMessage(
+          nextFields.length === 0 && isOwnerPortal
+            ? "Chua co san nao gan voi tai khoan chu san nay. Hay tao san trong Quan ly san truoc."
+            : String(fieldsData?.message || "").trim()
+        )
       } catch (apiError) {
         if (mounted) {
           setFeedback({ type: "error", text: apiError.message })
+          setCatalogMessage("")
         }
       } finally {
         if (mounted) {
@@ -100,11 +257,13 @@ export const useBookingController = ({ authToken }) => {
     return () => {
       mounted = false
     }
-  }, [])
+  }, [authToken, currentUser, isOwnerPortal])
 
   useEffect(() => {
+    const storedOwnerManualBookings = isOwnerPortal ? getStoredOwnerManualBookings(currentUser) : []
+
     if (!authToken) {
-      setBookings([])
+      setBookings(storedOwnerManualBookings)
       setLoadingBookings(false)
       return
     }
@@ -117,10 +276,17 @@ export const useBookingController = ({ authToken }) => {
       try {
         const data = await getMyBookings(authToken)
         if (mounted) {
-          setBookings(data.bookings || [])
+          setBookings(
+            isOwnerPortal
+              ? mergeBookingCollections(data.bookings || [], storedOwnerManualBookings)
+              : data.bookings || []
+          )
         }
       } catch (apiError) {
         if (mounted) {
+          if (isOwnerPortal && storedOwnerManualBookings.length > 0) {
+            setBookings(storedOwnerManualBookings)
+          }
           setFeedback({ type: "error", text: apiError.message })
         }
       } finally {
@@ -135,7 +301,7 @@ export const useBookingController = ({ authToken }) => {
     return () => {
       mounted = false
     }
-  }, [authToken])
+  }, [authToken, currentUser, isOwnerPortal])
 
   const selectedField = useMemo(
     () => fields.find((field) => String(field.id) === String(form.fieldId)) || null,
@@ -162,13 +328,14 @@ export const useBookingController = ({ authToken }) => {
   const scheduleRows = useMemo(
     () =>
       buildBookingScheduleRows({
+        bookings,
         field: selectedField,
         selectedDate: form.date,
         selectedSubFieldKey: form.subFieldKey,
         selectedTimeSlotId: form.timeSlotId,
         timeline,
       }),
-    [selectedField, form.date, form.subFieldKey, form.timeSlotId, timeline]
+    [bookings, selectedField, form.date, form.subFieldKey, form.timeSlotId, timeline]
   )
 
   useEffect(() => {
@@ -233,7 +400,7 @@ export const useBookingController = ({ authToken }) => {
 
   const handleContinueToConfirm = () => {
     if (!hasSelectedSlot) {
-      setFeedback({ type: "error", text: "Vui lòng chọn sân con và khung giờ trước." })
+      setFeedback({ type: "error", text: "Vui long chon san con va khung gio truoc." })
       return
     }
 
@@ -250,7 +417,7 @@ export const useBookingController = ({ authToken }) => {
     let redirectedToPayment = false
 
     if (!authToken) {
-      setFeedback({ type: "error", text: "Bạn cần đăng nhập để đặt sân." })
+      setFeedback({ type: "error", text: "Ban can dang nhap de dat san." })
       return
     }
 
@@ -272,7 +439,7 @@ export const useBookingController = ({ authToken }) => {
       )
       const depositAmount = calculateBookingDepositAmount(totalPrice)
 
-      if (createdBooking?.id) {
+      if (createdBooking?.id && !isOwnerPortal) {
         redirectedToPayment = true
         navigate(createDepositPaymentRoute(createdBooking.id), {
           replace: true,
@@ -286,12 +453,61 @@ export const useBookingController = ({ authToken }) => {
         return
       }
 
-      setFeedback({ type: "success", text: "Đặt sân thành công." })
+      if (isOwnerPortal) {
+        let manualBookingRecord = createdBooking
+          ? {
+              ...createdBooking,
+              status: createdBooking.status || "PENDING",
+            }
+          : null
+        let ownerSuccessMessage = "Da tao don dat thu cong va danh dau lich san."
+
+        if (createdBooking?.id) {
+          try {
+            await confirmAdminBooking(authToken, createdBooking.id)
+            manualBookingRecord = {
+              ...manualBookingRecord,
+              status: "CONFIRMED",
+            }
+          } catch (confirmError) {
+            ownerSuccessMessage = `Da tao don dat thu cong. Don chua duoc backend xac nhan tu dong: ${confirmError.message}`
+          }
+        }
+
+        if (manualBookingRecord) {
+          setBookings((currentBookings) => {
+            const nextBookings = mergeBookingCollections(currentBookings, [manualBookingRecord])
+            persistOwnerManualBookings(currentUser, nextBookings)
+            return nextBookings
+          })
+        }
+
+        setFeedback({ type: "success", text: ownerSuccessMessage })
+      } else {
+        setFeedback({ type: "success", text: "Dat san thanh cong." })
+      }
+
       setForm((prev) => createBookingForm(prev.fieldId, prev.date))
       setBookingStep("schedule")
 
-      const bookingData = await getMyBookings(authToken)
-      setBookings(bookingData.bookings || [])
+      try {
+        const bookingData = await getMyBookings(authToken)
+        const nextBookings =
+          isOwnerPortal
+            ? mergeBookingCollections(
+                bookingData.bookings || [],
+                getStoredOwnerManualBookings(currentUser)
+              )
+            : bookingData.bookings || []
+
+        setBookings(nextBookings)
+
+        if (isOwnerPortal) {
+          persistOwnerManualBookings(currentUser, nextBookings)
+        }
+      } catch (_error) {
+        // Keep local manual bookings when backend does not expose owner-managed bookings.
+      }
     } catch (apiError) {
       setFeedback({ type: "error", text: apiError.message })
     } finally {
@@ -306,7 +522,7 @@ export const useBookingController = ({ authToken }) => {
       return
     }
 
-    const shouldCancel = window.confirm(`Hủy đơn đặt sân ${booking.fieldName || booking.id}?`)
+    const shouldCancel = window.confirm(`Huy don dat san ${booking.fieldName || booking.id}?`)
     if (!shouldCancel) {
       return
     }
@@ -318,12 +534,20 @@ export const useBookingController = ({ authToken }) => {
       const data = await cancelMyBooking(authToken, booking.id)
       const updatedBooking = data.booking || null
 
-      setBookings((currentBookings) =>
-        currentBookings.map((item) => (item.id === booking.id ? updatedBooking || item : item))
-      )
+      setBookings((currentBookings) => {
+        const nextBookings = currentBookings.map((item) =>
+          item.id === booking.id ? updatedBooking || item : item
+        )
+
+        if (isOwnerPortal) {
+          persistOwnerManualBookings(currentUser, nextBookings)
+        }
+
+        return nextBookings
+      })
       setFeedback({
         type: "success",
-        text: data.message || "Đã hủy đơn đặt của bạn.",
+        text: data.message || "Da huy don dat cua ban.",
       })
     } catch (apiError) {
       setFeedback({ type: "error", text: apiError.message })
@@ -335,6 +559,7 @@ export const useBookingController = ({ authToken }) => {
   return {
     fields,
     bookings,
+    catalogMessage,
     fieldSlug,
     scheduleRows,
     timeline,

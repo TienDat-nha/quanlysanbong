@@ -279,7 +279,108 @@ export const createBookingTimeline = (timeSlots = []) =>
 
 const parseOpenHours = (value) => parseTimeSlot(value)
 
+const normalizeBookingStatusKey = (value) => String(value || "").trim().toLowerCase()
+
+const isBlockingBooking = (booking) => {
+  const status = normalizeBookingStatusKey(booking?.status)
+  return status !== "cancelled" && status !== "canceled" && status !== "rejected"
+}
+
+const getBookingTimeRange = (booking) => {
+  const timeSlotInfo = booking?.timeSlotInfo
+
+  if (
+    Number.isFinite(Number(timeSlotInfo?.startMinutes))
+    && Number.isFinite(Number(timeSlotInfo?.endMinutes))
+  ) {
+    return {
+      startMinutes: Number(timeSlotInfo.startMinutes),
+      endMinutes: Number(timeSlotInfo.endMinutes),
+    }
+  }
+
+  return parseTimeSlot(
+    booking?.timeSlot
+    || timeSlotInfo?.timeSlot
+    || timeSlotInfo?.label
+    || ""
+  )
+}
+
+const getBookingFieldTokens = (booking) =>
+  [
+    booking?.fieldId,
+    booking?.field?._id,
+    booking?.field?.id,
+    booking?.fieldName,
+    booking?.field?.name,
+  ]
+    .map((value) => String(value || "").trim().toLowerCase())
+    .filter(Boolean)
+
+const getBookingSubFieldTokens = (booking) =>
+  [
+    booking?.subFieldId,
+    booking?.subField?._id,
+    booking?.subField?.id,
+    booking?.subFieldName,
+    booking?.subField?.name,
+    booking?.subField?.key,
+  ]
+    .map((value) => normalizeSubFieldKey(value))
+    .filter(Boolean)
+
+const doesBookingMatchField = (booking, field) => {
+  const bookingTokens = getBookingFieldTokens(booking)
+  const fieldTokens = [
+    field?.id,
+    field?._id,
+    field?.name,
+  ]
+    .map((value) => String(value || "").trim().toLowerCase())
+    .filter(Boolean)
+
+  if (bookingTokens.length === 0 || fieldTokens.length === 0) {
+    return false
+  }
+
+  return fieldTokens.some((token) => bookingTokens.includes(token))
+}
+
+const doesBookingMatchSubField = (booking, subField) => {
+  const bookingTokens = getBookingSubFieldTokens(booking)
+  const subFieldTokens = [
+    subField?.id,
+    subField?._id,
+    subField?.key,
+    subField?.name,
+  ]
+    .map((value) => normalizeSubFieldKey(value))
+    .filter(Boolean)
+
+  if (bookingTokens.length === 0 || subFieldTokens.length === 0) {
+    return false
+  }
+
+  return subFieldTokens.some((token) => bookingTokens.includes(token))
+}
+
+const doesTimeRangesOverlap = (bookingRange, slot) => {
+  if (
+    !bookingRange
+    || !Number.isFinite(bookingRange.startMinutes)
+    || !Number.isFinite(bookingRange.endMinutes)
+    || !Number.isFinite(slot?.startMinutes)
+    || !Number.isFinite(slot?.endMinutes)
+  ) {
+    return false
+  }
+
+  return bookingRange.startMinutes < slot.endMinutes && bookingRange.endMinutes > slot.startMinutes
+}
+
 export const buildBookingScheduleRows = ({
+  bookings = [],
   field,
   selectedDate,
   selectedSubFieldKey,
@@ -298,6 +399,12 @@ export const buildBookingScheduleRows = ({
   const currentMinutes = now.getHours() * 60 + now.getMinutes()
   const openHours = parseOpenHours(field.openHours)
   const normalizedSelectedSubFieldKey = normalizeSubFieldKey(selectedSubFieldKey)
+  const relevantBookings = (Array.isArray(bookings) ? bookings : []).filter(
+    (booking) =>
+      isBlockingBooking(booking)
+      && String(booking?.date || "").trim() === String(selectedDate || "").trim()
+      && doesBookingMatchField(booking, field)
+  )
 
   return subFields.map((subField) => ({
     field,
@@ -313,7 +420,23 @@ export const buildBookingScheduleRows = ({
         && bookingDate.getTime() === today.getTime()
         && Number.isFinite(slot.startMinutes)
         && slot.startMinutes <= currentMinutes
+      const matchedBooking =
+        relevantBookings.find((booking) => {
+          if (!doesBookingMatchSubField(booking, subField)) {
+            return false
+          }
+
+          const bookingTimeSlotId = String(booking?.timeSlotId || "").trim()
+          if (bookingTimeSlotId && bookingTimeSlotId === String(slot.id || "").trim()) {
+            return true
+          }
+
+          return doesTimeRangesOverlap(getBookingTimeRange(booking), slot)
+        }) || null
+      const isBooked = Boolean(matchedBooking)
       const isSelected =
+        !isBooked
+        &&
         normalizedSelectedSubFieldKey === normalizeSubFieldKey(subField.key)
         && String(slot.id || "") === String(selectedTimeSlotId || "")
 
@@ -322,14 +445,17 @@ export const buildBookingScheduleRows = ({
         state = "closed"
       } else if (isPast) {
         state = "past"
+      } else if (isBooked) {
+        state = "booked"
       } else if (isSelected) {
         state = "selected"
       }
 
       return {
         ...slot,
+        booking: matchedBooking,
         state,
-        disabled: state === "closed" || state === "past",
+        disabled: state === "closed" || state === "past" || state === "booked",
       }
     }),
   }))

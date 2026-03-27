@@ -19,6 +19,43 @@ const OWNER_DASHBOARD_CARDS = (stats) => [
   { key: "revenue", label: "Doanh thu", value: `${formatPrice(stats.totalRevenue)} VND`, tone: "success" },
 ]
 
+const getFieldModerationState = (field) => {
+  const rawStatus = String(field?.approvalStatus || field?.status || field?.fieldStatus || "")
+    .trim()
+    .toUpperCase()
+  const isLocked = Boolean(field?.isLocked || field?.locked)
+
+  if (isLocked || rawStatus === "LOCKED" || rawStatus === "REJECTED") {
+    return "LOCKED"
+  }
+
+  if (rawStatus === "PENDING") {
+    return "PENDING"
+  }
+
+  if (rawStatus === "APPROVED" || rawStatus === "ACTIVE") {
+    return "APPROVED"
+  }
+
+  return "APPROVED"
+}
+
+const getFieldStatusLabel = (field) => {
+  const moderationState = getFieldModerationState(field)
+
+  if (moderationState === "PENDING") {
+    return "Chờ admin duyệt"
+  }
+
+  if (moderationState === "LOCKED") {
+    return "Đã khóa / từ chối"
+  }
+
+  return "Đã duyệt"
+}
+
+const canShareFieldPublicly = (field) => getFieldModerationState(field) === "APPROVED"
+
 const AdminFieldsView = ({
   authToken,
   currentUser,
@@ -35,6 +72,8 @@ const AdminFieldsView = ({
   processingBookingId,
   processingBookingAction,
   deletingFieldId,
+  fieldStatusActionId,
+  fieldStatusActionMode,
   error,
   noticeMessage,
   successMessage,
@@ -63,6 +102,7 @@ const AdminFieldsView = ({
   handleEditField,
   handleCancelFieldEdit,
   handleDeleteField,
+  handleFieldModeration,
   handleSubmit,
   handleConfirmBooking,
   handleConfirmDeposit,
@@ -104,7 +144,7 @@ const AdminFieldsView = ({
           <h1>{isAdminPortal ? "Quản lý sân bóng" : "Bảng điều khiển chủ sân"}</h1>
           <p>
             {isAdminPortal
-              ? "Admin chỉ có quản lý tài khoản, quản lý sân và danh sách sân."
+              ? "Admin chỉ có quản lý tài khoản và quản lý sân. Mọi sân do Chủ sân tạo sẽ đi qua bước chờ duyệt."
               : "Chủ sân có đặt sân thủ công cho khách, danh sách sân, quản lý sân và quản lý đơn đặt của khách."}
           </p>
         </div>
@@ -145,12 +185,12 @@ const AdminFieldsView = ({
         <section className="usersPanel adminDashboardPanel">
           <div className="usersPanelHeader">
             <h2>{isAdminPortal ? "Nhóm chức năng Admin" : "Nhóm chức năng Chủ sân"}</h2>
-            <span>{isAdminPortal ? "3 mục chính" : "4 mục chính"}</span>
+            <span>{isAdminPortal ? "2 mục chính" : "4 mục chính"}</span>
           </div>
 
           <p className="helperText">
             {isAdminPortal
-              ? "Admin chỉ dùng khu này để quản lý sân và xem danh sách sân. Quản lý tài khoản tách riêng ở khu quản trị tài khoản."
+              ? "Admin dùng khu này để duyệt sân, chỉnh sửa, khóa hoặc xóa sân. Quản lý tài khoản tách riêng ở khu quản trị tài khoản."
               : "Chủ sân dùng khu này để quản lý sân và đơn khách. Việc đặt sân thủ công cho khách bắt đầu từ màn đặt sân hoặc danh sách sân."}
           </p>
 
@@ -162,9 +202,6 @@ const AdminFieldsView = ({
                 </Link>
                 <Link className="outlineBtnLink" to={manageFieldsSectionPath}>
                   Quản lý sân
-                </Link>
-                <Link className="outlineBtnLink" to={fieldListSectionPath}>
-                  Danh sách sân
                 </Link>
               </>
             ) : (
@@ -189,12 +226,23 @@ const AdminFieldsView = ({
         <aside className="usersSidebar" id={manageFieldsSectionId}>
           <form className="formCard usersForm adminCreateFieldForm" onSubmit={handleSubmit}>
             <div className="usersPanelHeader">
-              <h2>{isEditingField ? "Cập nhật sân" : "Tạo sân mới"}</h2>
+              <h2>
+                {isEditingField
+                  ? "Cập nhật sân"
+                  : isOwnerPortal
+                    ? "Gửi yêu cầu tạo sân"
+                    : "Tạo sân mới"}
+              </h2>
               {isEditingField && <span>Đang chỉnh sửa</span>}
             </div>
             {isEditingField && (
               <p className="helperText">
                 Bạn đang chỉnh sửa sân hiện có. Lưu để cập nhật, hoặc hủy để tạo mới.
+              </p>
+            )}
+            {!isEditingField && isOwnerPortal && (
+              <p className="helperText">
+                Sau khi gửi yêu cầu, Admin sẽ duyệt sân trước khi mở link đặt sân công khai.
               </p>
             )}
 
@@ -412,10 +460,14 @@ const AdminFieldsView = ({
                 {submitting
                   ? isEditingField
                     ? "Đang cập nhật..."
-                    : "Đang tạo sân..."
+                    : isOwnerPortal
+                      ? "Đang gửi yêu cầu..."
+                      : "Đang tạo sân..."
                   : isEditingField
                     ? "Lưu cập nhật"
-                    : "Tạo sân mới"}
+                    : isOwnerPortal
+                      ? "Gửi yêu cầu tạo sân"
+                      : "Tạo sân mới"}
               </button>
               {isEditingField && (
                 <button
@@ -435,7 +487,7 @@ const AdminFieldsView = ({
       <div className="container" id={fieldListSectionId}>
         <article className="usersPanel adminFieldListPanel">
           <div className="usersPanelHeader">
-            <h2>Danh sách sân</h2>
+            <h2>{isAdminPortal ? "Quản lý các sân gửi lên" : "Danh sách sân của bạn"}</h2>
             <span>{fields.length} sân</span>
           </div>
           {loading ? (
@@ -449,6 +501,17 @@ const AdminFieldsView = ({
               {fields.map((field) => {
                 const publicBookingUrl = createPublicBookingUrl(publicOrigin, field.slug)
                 const isDeleting = String(deletingFieldId) === String(field.id)
+                const moderationState = getFieldModerationState(field)
+                const canModerateField = isAdminPortal
+                const isFieldStatusProcessing =
+                  String(fieldStatusActionId) === String(field.id)
+                const canOpenPublicLink = canShareFieldPublicly(field)
+                const fieldStatusActionLabel =
+                  moderationState === "APPROVED"
+                    ? "Khóa sân"
+                    : moderationState === "LOCKED"
+                      ? "Mở khóa"
+                      : "Duyệt sân"
                 return (
                   <article className="adminFieldCard" key={field.id}>
                     <div className="adminFieldCardHeader">
@@ -461,6 +524,7 @@ const AdminFieldsView = ({
                       </span>
                     </div>
                     <div className="adminFieldMeta">
+                      <span>Trạng thái: {getFieldStatusLabel(field)}</span>
                       <span>Khu vực: {field.district}</span>
                       <span>Loại sân: {getFieldTypeSummary(field) || field.type}</span>
                       <span>Giờ mở cửa: {field.openHours}</span>
@@ -483,32 +547,56 @@ const AdminFieldsView = ({
                         </span>
                       ))}
                     </div>
-                    <label
-                      className="adminFieldLinkLabel"
-                      htmlFor={`booking-url-${field.id}`}
-                    >
-                      Link đặt sân công khai
-                    </label>
-                    <input
-                      id={`booking-url-${field.id}`}
-                      type="text"
-                      readOnly
-                      value={publicBookingUrl}
-                    />
+                    {canOpenPublicLink ? (
+                      <>
+                        <label
+                          className="adminFieldLinkLabel"
+                          htmlFor={`booking-url-${field.id}`}
+                        >
+                          Link đặt sân công khai
+                        </label>
+                        <input
+                          id={`booking-url-${field.id}`}
+                          type="text"
+                          readOnly
+                          value={publicBookingUrl}
+                        />
+                      </>
+                    ) : (
+                      <p className="helperText">
+                        Sân này chưa mở link công khai vì đang chờ Admin duyệt hoặc đã bị khóa.
+                      </p>
+                    )}
                     <div className="fieldActions">
-                      <a
-                        className="btn smallBtn"
-                        href={publicBookingUrl}
-                        target="_blank"
-                        rel="noreferrer"
-                      >
-                        Mở link đặt sân
-                      </a>
+                      {canOpenPublicLink && (
+                        <a
+                          className="btn smallBtn"
+                          href={publicBookingUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                        >
+                          Mở link đặt sân
+                        </a>
+                      )}
+                      {canModerateField && (
+                        <button
+                          type="button"
+                          className="outlineBtnInline"
+                          onClick={() => handleFieldModeration(field)}
+                          disabled={isDeleting || isFieldStatusProcessing}
+                        >
+                          {isFieldStatusProcessing
+                            ? fieldStatusActionMode === "approve"
+                              ? "Đang duyệt..."
+                              : "Đang khóa..."
+                            : fieldStatusActionLabel}
+                        </button>
+                      )}
                       <button
                         type="button"
                         className="outlineBtnInline"
                         onClick={() => handleEditField(field)}
-                        disabled={isDeleting}
+                        disabled={isDeleting || isFieldStatusProcessing}
                       >
                         Sửa sân
                       </button>
@@ -516,7 +604,7 @@ const AdminFieldsView = ({
                         type="button"
                         className="outlineBtnInline adminDangerBtn"
                         onClick={() => handleDeleteField(field)}
-                        disabled={isDeleting}
+                        disabled={isDeleting || isFieldStatusProcessing}
                       >
                         {isDeleting ? "Đang xóa..." : "Xóa sân"}
                       </button>

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react"
 import {
+  approveAdminField,
   cancelAdminBooking,
   confirmAdminBooking,
   confirmAdminBookingDeposit,
@@ -8,6 +9,7 @@ import {
   deleteAdminField,
   getAdminDashboard,
   getAdminFields,
+  rejectAdminField,
   updateAdminField,
   uploadAdminImage,
 } from "../../models/api"
@@ -35,6 +37,50 @@ const buildNoticeMessage = (...messages) =>
     .filter(Boolean)
     .join(" ")
 
+const getFieldModerationState = (field) => {
+  const rawStatus = String(field?.approvalStatus || field?.status || field?.fieldStatus || "")
+    .trim()
+    .toUpperCase()
+  const isLocked = Boolean(field?.isLocked || field?.locked)
+
+  if (isLocked || rawStatus === "LOCKED" || rawStatus === "REJECTED") {
+    return "LOCKED"
+  }
+
+  if (rawStatus === "PENDING") {
+    return "PENDING"
+  }
+
+  if (rawStatus === "APPROVED" || rawStatus === "ACTIVE") {
+    return "APPROVED"
+  }
+
+  return "APPROVED"
+}
+
+const filterFieldsForPortal = (fields, currentUser, isOwnerPortal) => {
+  const nextFields = Array.isArray(fields) ? fields : []
+
+  if (!isOwnerPortal) {
+    return nextFields
+  }
+
+  const ownerIds = [
+    currentUser?.id,
+    currentUser?._id,
+    currentUser?.userId,
+    currentUser?.email,
+  ]
+    .map((value) => String(value || "").trim().toLowerCase())
+    .filter(Boolean)
+
+  const ownedFields = nextFields.filter((field) =>
+    ownerIds.includes(String(field?.ownerUserId || field?.userId || field?.ownerEmail || "").trim().toLowerCase())
+  )
+
+  return ownedFields.length > 0 ? ownedFields : nextFields
+}
+
 export const useAdminFieldsController = ({ authToken, currentUser }) => {
   const [fields, setFields] = useState([])
   const [stats, setStats] = useState(EMPTY_ADMIN_STATS)
@@ -46,6 +92,8 @@ export const useAdminFieldsController = ({ authToken, currentUser }) => {
   const [processingBookingId, setProcessingBookingId] = useState("")
   const [processingBookingAction, setProcessingBookingAction] = useState("")
   const [deletingFieldId, setDeletingFieldId] = useState("")
+  const [fieldStatusActionId, setFieldStatusActionId] = useState("")
+  const [fieldStatusActionMode, setFieldStatusActionMode] = useState("")
   const [editingFieldId, setEditingFieldId] = useState(null)
   const [error, setError] = useState("")
   const [noticeMessage, setNoticeMessage] = useState("")
@@ -75,6 +123,8 @@ export const useAdminFieldsController = ({ authToken, currentUser }) => {
       setProcessingBookingId("")
       setProcessingBookingAction("")
       setDeletingFieldId("")
+      setFieldStatusActionId("")
+      setFieldStatusActionMode("")
       setNoticeMessage("")
       setError("")
       resetForm()
@@ -99,7 +149,11 @@ export const useAdminFieldsController = ({ authToken, currentUser }) => {
         const dashboardState = isOwnerPortal
           ? getAdminDashboardState(dashboardData)
           : getAdminDashboardState({})
-        const nextFields = getAdminFieldList(fieldsData)
+        const nextFields = filterFieldsForPortal(
+          getAdminFieldList(fieldsData),
+          currentUser,
+          isOwnerPortal
+        )
 
         setFields(nextFields)
         setStats({
@@ -132,7 +186,7 @@ export const useAdminFieldsController = ({ authToken, currentUser }) => {
     return () => {
       mounted = false
     }
-  }, [authToken, canAccessFieldDashboard, isOwnerPortal, refreshKey])
+  }, [authToken, canAccessFieldDashboard, currentUser, isOwnerPortal, refreshKey])
 
   const handleFieldChange = (field, value) => {
     setForm((prev) => {
@@ -338,9 +392,17 @@ export const useAdminFieldsController = ({ authToken, currentUser }) => {
         : await createAdminField(authToken, payload)
 
       resetForm()
+      const fallbackMessage = editingFieldId
+        ? isOwnerPortal
+          ? "Đã cập nhật sân. Admin có thể cần kiểm tra lại thay đổi."
+          : "Đã cập nhật sân."
+        : isOwnerPortal
+          ? "Đã gửi yêu cầu tạo sân tới admin."
+          : "Đã tạo sân mới."
+      const responseMessage = String(response?.message || "").trim()
+
       setSuccessMessage(
-        String(response?.message || "").trim()
-        || (editingFieldId ? "Đã cập nhật sân." : "Đã tạo sân mới.")
+        !editingFieldId && isOwnerPortal ? fallbackMessage : responseMessage || fallbackMessage
       )
       setRefreshKey((currentValue) => currentValue + 1)
     } catch (apiError) {
@@ -382,6 +444,61 @@ export const useAdminFieldsController = ({ authToken, currentUser }) => {
       setError(apiError.message)
     } finally {
       setDeletingFieldId("")
+    }
+  }
+
+  const handleFieldModeration = async (field) => {
+    if (!authToken || !isAdminPortal || !field?.id) {
+      return
+    }
+
+    const moderationState = getFieldModerationState(field)
+    const isApproveAction = moderationState !== "APPROVED"
+    const confirmMessage = isApproveAction
+      ? moderationState === "LOCKED"
+        ? `Mở khóa và duyệt sân "${field.name}"?`
+        : `Duyệt sân "${field.name}"?`
+      : `Khóa sân "${field.name}"?`
+
+    const shouldContinue = window.confirm(confirmMessage)
+    if (!shouldContinue) {
+      return
+    }
+
+    let reason = ""
+    if (!isApproveAction) {
+      const promptedReason = window.prompt(
+        "Nhập lý do khóa/từ chối sân",
+        "Khóa sân bởi admin."
+      )
+
+      if (promptedReason === null) {
+        return
+      }
+
+      reason = String(promptedReason || "").trim() || "Khóa sân bởi admin."
+    }
+
+    setFieldStatusActionId(String(field.id))
+    setFieldStatusActionMode(isApproveAction ? "approve" : "lock")
+    setError("")
+    setSuccessMessage("")
+
+    try {
+      const response = isApproveAction
+        ? await approveAdminField(authToken, field.id)
+        : await rejectAdminField(authToken, field.id, reason)
+
+      setSuccessMessage(
+        String(response?.message || "").trim()
+        || (isApproveAction ? "Đã duyệt sân." : "Đã khóa sân.")
+      )
+      setRefreshKey((currentValue) => currentValue + 1)
+    } catch (apiError) {
+      setError(apiError.message)
+    } finally {
+      setFieldStatusActionId("")
+      setFieldStatusActionMode("")
     }
   }
 
@@ -436,6 +553,8 @@ export const useAdminFieldsController = ({ authToken, currentUser }) => {
     processingBookingId,
     processingBookingAction,
     deletingFieldId,
+    fieldStatusActionId,
+    fieldStatusActionMode,
     error,
     noticeMessage,
     successMessage,
@@ -466,6 +585,7 @@ export const useAdminFieldsController = ({ authToken, currentUser }) => {
     handleEditField,
     handleCancelFieldEdit,
     handleDeleteField,
+    handleFieldModeration,
     handleSubmit,
     handleConfirmBooking: (bookingId) => handleBookingAction(bookingId, "confirm"),
     handleConfirmDeposit: (bookingId) => handleBookingAction(bookingId, "deposit"),
