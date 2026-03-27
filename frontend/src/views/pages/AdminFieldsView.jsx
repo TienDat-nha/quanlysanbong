@@ -3,9 +3,7 @@ import { Link } from "react-router-dom"
 import {
   FiArrowRight,
   FiCalendar,
-  FiEdit3,
   FiExternalLink,
-  FiGrid,
   FiImage,
   FiLayers,
   FiLink2,
@@ -36,31 +34,13 @@ const OWNER_DASHBOARD_CARDS = (stats) => [
   },
 ]
 
-const createOwnerQuickActions = ({
-  manualBookingPath,
-  fieldListSectionPath,
-  manageFieldsSectionPath,
-}) => [
+const createOwnerQuickActions = ({ manualBookingPath }) => [
   {
     key: "manual",
     title: "Đặt sân thủ công",
     path: manualBookingPath,
     icon: FiCalendar,
     tone: "primary",
-  },
-  {
-    key: "fields",
-    title: "Kho sân của bạn",
-    path: fieldListSectionPath,
-    icon: FiGrid,
-    tone: "neutral",
-  },
-  {
-    key: "manage",
-    title: "Gửi và cập nhật sân",
-    path: manageFieldsSectionPath,
-    icon: FiEdit3,
-    tone: "warning",
   },
 ]
 
@@ -943,8 +923,6 @@ const AdminFieldsView = ({
 
   const ownerQuickActions = createOwnerQuickActions({
     manualBookingPath,
-    fieldListSectionPath,
-    manageFieldsSectionPath,
   })
 
   if (isOwnerPortal) {
@@ -956,10 +934,7 @@ const AdminFieldsView = ({
             <h1>Quản lý sân</h1>
 
             <div className="ownerHeroActions">
-              <Link className="btn" to={manageFieldsSectionPath}>
-                Gửi / cập nhật sân
-              </Link>
-              <Link className="outlineBtnLink" to={manualBookingPath}>
+              <Link className="btn" to={manualBookingPath}>
                 Đặt sân thủ công
               </Link>
               <Link className="outlineBtnLink" to={fieldsPath}>
