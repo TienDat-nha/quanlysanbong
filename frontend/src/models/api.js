@@ -49,6 +49,7 @@ const REGISTER_PATHS = ["/user/register", "/register"]
 const LOGIN_PATHS = ["/user/login", "/login"]
 const GET_ME_PATHS = ["/user/getMe", "/getMe"]
 const KNOWN_FIELD_IDS_STORAGE_KEY = "sanbong_known_field_ids"
+const FIELD_SNAPSHOTS_STORAGE_KEY = "sanbong_field_snapshots"
 
 const isManagedUserOtpConfigured = () =>
   Boolean(EMAILJS_SERVICE_ID && EMAILJS_TEMPLATE_ID && EMAILJS_PUBLIC_KEY)
@@ -105,6 +106,98 @@ const setStoredKnownFieldIds = (fieldIds = []) => {
   }
 
   return nextFieldIds
+}
+
+const getStoredFieldSnapshots = () => {
+  if (typeof window === "undefined" || !window.localStorage) {
+    return {}
+  }
+
+  try {
+    const rawValue = window.localStorage.getItem(FIELD_SNAPSHOTS_STORAGE_KEY)
+    if (!rawValue) {
+      return {}
+    }
+
+    const parsedValue = JSON.parse(rawValue)
+    return parsedValue && typeof parsedValue === "object" && !Array.isArray(parsedValue)
+      ? parsedValue
+      : {}
+  } catch (_error) {
+    return {}
+  }
+}
+
+const buildPersistableFieldSnapshots = (snapshots = {}, { stripDataImages = false } = {}) => {
+  const nextSnapshots = {}
+
+  Object.entries(snapshots || {}).forEach(([key, value]) => {
+    const snapshotKey = String(key || "").trim()
+    if (!snapshotKey || !value || typeof value !== "object") {
+      return
+    }
+
+    const coverImage = String(value.coverImage || "").trim()
+    const images = (Array.isArray(value.images) ? value.images : [])
+      .map((item) => String(item || "").trim())
+      .filter(Boolean)
+
+    nextSnapshots[snapshotKey] = {
+      ...value,
+      coverImage:
+        stripDataImages && coverImage.startsWith("data:")
+          ? ""
+          : coverImage,
+      images:
+        stripDataImages
+          ? images.filter((item) => !item.startsWith("data:"))
+          : images,
+    }
+  })
+
+  return nextSnapshots
+}
+
+const setStoredFieldSnapshots = (snapshots = {}) => {
+  if (typeof window === "undefined" || !window.localStorage) {
+    return {}
+  }
+
+  const persistableSnapshots = buildPersistableFieldSnapshots(snapshots)
+
+  try {
+    if (Object.keys(persistableSnapshots).length === 0) {
+      window.localStorage.removeItem(FIELD_SNAPSHOTS_STORAGE_KEY)
+      return {}
+    }
+
+    window.localStorage.setItem(
+      FIELD_SNAPSHOTS_STORAGE_KEY,
+      JSON.stringify(persistableSnapshots)
+    )
+
+    return persistableSnapshots
+  } catch (_error) {
+    try {
+      const reducedSnapshots = buildPersistableFieldSnapshots(snapshots, {
+        stripDataImages: true,
+      })
+
+      if (Object.keys(reducedSnapshots).length === 0) {
+        window.localStorage.removeItem(FIELD_SNAPSHOTS_STORAGE_KEY)
+        return {}
+      }
+
+      window.localStorage.setItem(
+        FIELD_SNAPSHOTS_STORAGE_KEY,
+        JSON.stringify(reducedSnapshots)
+      )
+
+      return reducedSnapshots
+    } catch (_nestedError) {
+      return {}
+    }
+  }
 }
 
 const rememberKnownFieldIds = (...fieldIds) =>
@@ -260,9 +353,20 @@ const normalizeSubFieldItem = (subField, index = 0) => {
     _id: id || key || `sub-field-${index + 1}`,
     key: key || `sub-field-${index + 1}`,
     name,
-    type: String(subField.type || subField.fieldType || "").trim(),
-    pricePerHour: Number(subField.pricePerHour || subField.price || subField.hourlyPrice || 0),
-    openHours: String(subField.openHours || subField.timeRange || "").trim(),
+    type: String(subField.type || subField.fieldType || subField.subFieldType || "").trim(),
+    pricePerHour: Number(
+      subField.pricePerHour
+      || subField.price
+      || subField.hourlyPrice
+      || subField.basePrice
+      || 0
+    ),
+    openHours: String(
+      subField.openHours
+      || subField.timeRange
+      || subField.openingHours
+      || ""
+    ).trim(),
   }
 }
 
@@ -281,6 +385,8 @@ const normalizeFieldItem = (field) => {
   const rawSubFields = [
     ...(Array.isArray(field.subFields) ? field.subFields : []),
     ...(Array.isArray(field.subfields) ? field.subfields : []),
+    ...(Array.isArray(field.miniFields) ? field.miniFields : []),
+    ...(Array.isArray(field.children) ? field.children : []),
   ]
 
   return {
@@ -293,21 +399,292 @@ const normalizeFieldItem = (field) => {
     district: String(field.district || field.area || "").trim(),
     city: String(field.city || field.province || "").trim(),
     ward: String(field.ward || "").trim(),
-    type: String(field.type || field.fieldType || "").trim(),
-    openHours: String(field.openHours || field.timeRange || "").trim(),
-    pricePerHour: Number(field.pricePerHour || field.price || field.hourlyPrice || 0),
+    type: String(field.type || field.fieldType || field.category || "").trim(),
+    openHours: String(
+      field.openHours
+      || field.timeRange
+      || field.openingHours
+      || field.hours
+      || ""
+    ).trim(),
+    pricePerHour: Number(
+      field.pricePerHour
+      || field.price
+      || field.hourlyPrice
+      || field.basePrice
+      || 0
+    ),
     rating: Number(field.rating || 0),
     article: String(field.article || field.description || "").trim(),
-    coverImage: String(field.coverImage || field.image || field.thumbnail || "").trim(),
+    coverImage: String(
+      field.coverImage
+      || field.image
+      || field.thumbnail
+      || field.avatar
+      || ""
+    ).trim(),
     images:
       Array.isArray(field.images) && field.images.length > 0
         ? field.images.filter(Boolean)
-        : String(field.coverImage || field.image || field.thumbnail || "").trim()
-          ? [String(field.coverImage || field.image || field.thumbnail || "").trim()]
-          : [],
+        : Array.isArray(field.galleryImages) && field.galleryImages.length > 0
+          ? field.galleryImages.filter(Boolean)
+          : Array.isArray(field.gallery) && field.gallery.length > 0
+            ? field.gallery.filter(Boolean)
+            : String(field.coverImage || field.image || field.thumbnail || field.avatar || "").trim()
+              ? [String(field.coverImage || field.image || field.thumbnail || field.avatar || "").trim()]
+              : [],
+    ownerUserId: normalizeId(field.ownerUserId, field.userId, field.owner?._id, field.owner?.id),
+    userId: normalizeId(field.userId, field.ownerUserId, field.owner?._id, field.owner?.id),
+    ownerEmail: String(field.ownerEmail || field.userEmail || field.owner?.email || "").trim().toLowerCase(),
+    approvalStatus: String(field.approvalStatus || "").trim(),
+    status: String(field.status || "").trim(),
+    isLocked: Boolean(field.isLocked),
+    locked: Boolean(field.locked),
     subFields: rawSubFields.map((item, index) => normalizeSubFieldItem(item, index)).filter(Boolean),
   }
 }
+
+const pickFirstNonEmptyString = (...values) => {
+  for (const value of values) {
+    const normalized = String(value || "").trim()
+    if (normalized) {
+      return normalized
+    }
+  }
+
+  return ""
+}
+
+const pickFirstNonEmptyArray = (...values) => {
+  for (const value of values) {
+    if (Array.isArray(value) && value.length > 0) {
+      return value
+    }
+  }
+
+  return []
+}
+
+const pickFirstFiniteNumber = (...values) => {
+  for (const value of values) {
+    const normalized = Number(value)
+    if (Number.isFinite(normalized)) {
+      return normalized
+    }
+  }
+
+  return 0
+}
+
+const pickFirstPositiveNumber = (...values) => {
+  for (const value of values) {
+    const normalized = Number(value)
+    if (Number.isFinite(normalized) && normalized > 0) {
+      return normalized
+    }
+  }
+
+  return 0
+}
+
+const mergeFieldSources = (field, snapshot) => {
+  if (!snapshot || typeof snapshot !== "object") {
+    return normalizeFieldItem(field)
+  }
+
+  return normalizeFieldItem({
+    ...snapshot,
+    ...field,
+    id: normalizeId(field?.id, field?._id, field?.fieldId, snapshot.id, snapshot._id),
+    _id: normalizeId(field?._id, field?.id, field?.fieldId, snapshot._id, snapshot.id),
+    fieldId: normalizeId(field?.fieldId, field?.id, field?._id, snapshot.fieldId, snapshot.id),
+    slug: pickFirstNonEmptyString(field?.slug, snapshot.slug),
+    name: pickFirstNonEmptyString(field?.name, field?.fieldName, snapshot.name),
+    address: pickFirstNonEmptyString(field?.address, field?.location, snapshot.address),
+    district: pickFirstNonEmptyString(field?.district, field?.area, snapshot.district),
+    city: pickFirstNonEmptyString(field?.city, field?.province, snapshot.city),
+    ward: pickFirstNonEmptyString(field?.ward, snapshot.ward),
+    type: pickFirstNonEmptyString(field?.type, field?.fieldType, field?.category, snapshot.type),
+    openHours: pickFirstNonEmptyString(
+      field?.openHours,
+      field?.timeRange,
+      field?.openingHours,
+      field?.hours,
+      snapshot.openHours
+    ),
+    pricePerHour: pickFirstPositiveNumber(
+      field?.pricePerHour,
+      field?.price,
+      field?.hourlyPrice,
+      field?.basePrice,
+      snapshot.pricePerHour
+    ),
+    rating: pickFirstFiniteNumber(field?.rating, snapshot.rating),
+    article: pickFirstNonEmptyString(field?.article, field?.description, snapshot.article),
+    coverImage: pickFirstNonEmptyString(
+      field?.coverImage,
+      field?.image,
+      field?.thumbnail,
+      field?.avatar,
+      snapshot.coverImage
+    ),
+    images: pickFirstNonEmptyArray(
+      field?.images,
+      field?.galleryImages,
+      field?.gallery,
+      snapshot.images
+    ),
+    subFields: pickFirstNonEmptyArray(
+      field?.subFields,
+      field?.subfields,
+      field?.miniFields,
+      field?.children,
+      snapshot.subFields
+    ),
+    ownerUserId: normalizeId(
+      field?.ownerUserId,
+      field?.userId,
+      field?.owner?._id,
+      field?.owner?.id,
+      snapshot.ownerUserId,
+      snapshot.userId
+    ),
+    userId: normalizeId(
+      field?.userId,
+      field?.ownerUserId,
+      field?.owner?._id,
+      field?.owner?.id,
+      snapshot.userId,
+      snapshot.ownerUserId
+    ),
+    ownerEmail: pickFirstNonEmptyString(
+      field?.ownerEmail,
+      field?.userEmail,
+      field?.owner?.email,
+      snapshot.ownerEmail
+    ),
+    approvalStatus: pickFirstNonEmptyString(
+      field?.approvalStatus,
+      field?.status,
+      snapshot.approvalStatus,
+      snapshot.status
+    ),
+    status: pickFirstNonEmptyString(
+      field?.status,
+      field?.approvalStatus,
+      snapshot.status,
+      snapshot.approvalStatus
+    ),
+    isLocked:
+      field?.isLocked
+      ?? field?.locked
+      ?? snapshot.isLocked
+      ?? snapshot.locked
+      ?? false,
+    locked:
+      field?.locked
+      ?? field?.isLocked
+      ?? snapshot.locked
+      ?? snapshot.isLocked
+      ?? false,
+  })
+}
+
+const rememberFieldSnapshot = (field) => {
+  const normalizedField = normalizeFieldItem(field)
+  if (!normalizedField?.id) {
+    return normalizedField
+  }
+
+  const nextSnapshots = {
+    ...getStoredFieldSnapshots(),
+    [normalizedField.id]: {
+      id: normalizedField.id,
+      _id: normalizedField._id,
+      fieldId: normalizedField.id,
+      slug: normalizedField.slug,
+      name: normalizedField.name,
+      address: normalizedField.address,
+      district: normalizedField.district,
+      city: normalizedField.city,
+      ward: normalizedField.ward,
+      type: normalizedField.type,
+      openHours: normalizedField.openHours,
+      pricePerHour: normalizedField.pricePerHour,
+      rating: normalizedField.rating,
+      article: normalizedField.article,
+      coverImage: normalizedField.coverImage,
+      images: Array.isArray(normalizedField.images) ? normalizedField.images : [],
+      subFields: Array.isArray(normalizedField.subFields) ? normalizedField.subFields : [],
+      ownerUserId: normalizedField.ownerUserId,
+      userId: normalizedField.userId,
+      ownerEmail: normalizedField.ownerEmail,
+      approvalStatus: normalizedField.approvalStatus,
+      status: normalizedField.status,
+      isLocked: normalizedField.isLocked,
+      locked: normalizedField.locked,
+    },
+  }
+
+  setStoredFieldSnapshots(nextSnapshots)
+  return normalizedField
+}
+
+const mergeStoredFieldSnapshot = (field) => {
+  const normalizedField = normalizeFieldItem(field)
+  if (!normalizedField?.id) {
+    return normalizedField
+  }
+
+  const snapshot = getStoredFieldSnapshots()[normalizedField.id]
+  const mergedField = mergeFieldSources(normalizedField, snapshot)
+
+  if (mergedField?.id) {
+    rememberFieldSnapshot(mergedField)
+  }
+
+  return mergedField
+}
+
+const forgetStoredFieldSnapshot = (fieldId) => {
+  const normalizedFieldId = String(fieldId || "").trim()
+  if (!normalizedFieldId) {
+    return
+  }
+
+  const nextSnapshots = {
+    ...getStoredFieldSnapshots(),
+  }
+
+  delete nextSnapshots[normalizedFieldId]
+  setStoredFieldSnapshots(nextSnapshots)
+}
+
+const readFileAsDataUrl = (file) =>
+  new Promise((resolve, reject) => {
+    if (typeof FileReader === "undefined") {
+      reject(new Error("Trình duyệt hiện tại không hỗ trợ đọc tệp ảnh."))
+      return
+    }
+
+    const reader = new FileReader()
+
+    reader.onload = () => {
+      const result = String(reader.result || "").trim()
+      if (!result) {
+        reject(new Error("Không đọc được dữ liệu ảnh đã chọn."))
+        return
+      }
+
+      resolve(result)
+    }
+
+    reader.onerror = () => {
+      reject(new Error("Không đọc được dữ liệu ảnh đã chọn."))
+    }
+
+    reader.readAsDataURL(file)
+  })
 
 const normalizeTimeString = (value) => {
   const normalized = String(value || "").trim()
@@ -1007,7 +1384,7 @@ export const getFields = async (token = "") => {
   }
 
   const fields = getArrayFromResponse(response, ["fields", "items"])
-    .map((item) => normalizeFieldItem(item))
+    .map((item) => mergeStoredFieldSnapshot(item))
     .filter(Boolean)
 
   rememberKnownFieldIds(fields.map((field) => field?.id))
@@ -1027,8 +1404,8 @@ export const getFieldById = async (fieldId, token = "") => {
   )
 
   const field =
-    normalizeFieldItem(getObjectFromResponse(response, ["field", "item"]))
-    || normalizeFieldItem(unwrapResponseData(response))
+    mergeStoredFieldSnapshot(getObjectFromResponse(response, ["field", "item"]))
+    || mergeStoredFieldSnapshot(unwrapResponseData(response))
 
   if (field?.id) {
     rememberKnownFieldIds(field.id)
@@ -1094,8 +1471,21 @@ export const confirmAdminBookingPayment = async (token, bookingId) =>
     }),
   })
 
-export const uploadAdminImage = async () => {
-  throw new Error("Backend hiện tại không có API upload ảnh. Vui lòng dùng URL ảnh sẵn có.")
+export const uploadAdminImage = async (_token, file) => {
+  if (!file) {
+    throw new Error("Vui lòng chọn tệp ảnh.")
+  }
+
+  const imageUrl = await readFileAsDataUrl(file)
+
+  return {
+    file: {
+      url: imageUrl,
+      path: imageUrl,
+      name: String(file.name || "").trim(),
+    },
+    message: "Đã đọc ảnh từ thiết bị của bạn.",
+  }
 }
 
 export const createAdminField = async (token, payload) => {
@@ -1106,11 +1496,13 @@ export const createAdminField = async (token, payload) => {
   })
 
   const field =
-    normalizeFieldItem(getObjectFromResponse(response, ["field", "item"]))
-    || normalizeFieldItem(unwrapResponseData(response))
+    mergeFieldSources(getObjectFromResponse(response, ["field", "item"]), payload)
+    || mergeFieldSources(unwrapResponseData(response), payload)
+    || mergeFieldSources(payload, {})
 
   if (field?.id) {
     rememberKnownFieldIds(field.id)
+    rememberFieldSnapshot(field)
   }
 
   return {
@@ -1127,11 +1519,31 @@ export const updateAdminField = async (token, fieldId, payload) => {
   })
 
   const field =
-    normalizeFieldItem(getObjectFromResponse(response, ["field", "item"]))
-    || normalizeFieldItem(unwrapResponseData(response))
+    mergeFieldSources(getObjectFromResponse(response, ["field", "item"]), {
+      ...payload,
+      id: fieldId,
+      _id: fieldId,
+      fieldId,
+    })
+    || mergeFieldSources(unwrapResponseData(response), {
+      ...payload,
+      id: fieldId,
+      _id: fieldId,
+      fieldId,
+    })
+    || mergeFieldSources(
+      {
+        ...payload,
+        id: fieldId,
+        _id: fieldId,
+        fieldId,
+      },
+      {}
+    )
 
   if (field?.id || fieldId) {
     rememberKnownFieldIds(field?.id || fieldId)
+    rememberFieldSnapshot(field || { ...payload, id: fieldId, _id: fieldId, fieldId })
   }
 
   return {
@@ -1146,6 +1558,7 @@ export const deleteAdminField = async (token, fieldId) =>
     headers: createTokenHeaders(token),
   }).then((response) => {
     forgetKnownFieldId(fieldId)
+    forgetStoredFieldSnapshot(fieldId)
     return response
   })
 
