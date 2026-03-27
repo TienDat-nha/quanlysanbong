@@ -44,6 +44,7 @@ const AdminFieldsView = ({
   deletingFieldId,
   deletingContactId,
   error,
+  noticeMessage,
   successMessage,
   form,
   isEditingField,
@@ -112,6 +113,7 @@ const AdminFieldsView = ({
       </div>
 
       {successMessage && <div className="container"><p className="message success">{successMessage}</p></div>}
+      {noticeMessage && <div className="container"><p className="message warning">{noticeMessage}</p></div>}
       {error && <div className="container"><p className="message error">{error}</p></div>}
 
       <div className="container adminDashboardStats">

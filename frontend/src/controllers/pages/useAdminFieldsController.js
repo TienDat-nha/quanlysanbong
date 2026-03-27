@@ -61,6 +61,7 @@ export const useAdminFieldsController = ({ authToken, currentUser }) => {
   const [deletingContactId, setDeletingContactId] = useState("")
   const [editingFieldId, setEditingFieldId] = useState(null)
   const [error, setError] = useState("")
+  const [noticeMessage, setNoticeMessage] = useState("")
   const [successMessage, setSuccessMessage] = useState("")
   const [form, setForm] = useState(createAdminFieldForm)
   const [refreshKey, setRefreshKey] = useState(0)
@@ -91,6 +92,7 @@ export const useAdminFieldsController = ({ authToken, currentUser }) => {
       setProcessingBookingAction("")
       setDeletingFieldId("")
       setDeletingContactId("")
+      setNoticeMessage("")
       resetForm()
       return
     }
@@ -112,17 +114,21 @@ export const useAdminFieldsController = ({ authToken, currentUser }) => {
         }
 
         const dashboardState = getAdminDashboardState(dashboardData)
-        setFields(getAdminFieldList(fieldsData))
+        const nextFields = getAdminFieldList(fieldsData)
+
+        setFields(nextFields)
         setContacts(getAdminContactList(contactsData))
         setStats({
           ...EMPTY_ADMIN_STATS,
           ...(dashboardState.stats || {}),
+          totalFields: Number(dashboardState.stats?.totalFields || 0) || nextFields.length,
         })
         setRecentBookings(dashboardState.recentBookings)
         setManagedBookings(dashboardState.managedBookings)
         setDailyAvailability(dashboardState.dailyAvailability)
         setCustomerMonthlyStats(dashboardState.customerMonthlyStats)
         setCustomerSummaries(dashboardState.customerSummaries)
+        setNoticeMessage(String(fieldsData?.message || "").trim())
         setError("")
 
         if (
@@ -489,6 +495,7 @@ export const useAdminFieldsController = ({ authToken, currentUser }) => {
     deletingFieldId,
     deletingContactId,
     error,
+    noticeMessage,
     successMessage,
     form,
     isEditingField: Boolean(editingFieldId),

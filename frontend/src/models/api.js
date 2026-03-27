@@ -48,12 +48,70 @@ const EMAILJS_PUBLIC_KEY = String(process.env.REACT_APP_EMAILJS_PUBLIC_KEY || ""
 const REGISTER_PATHS = ["/user/register", "/register"]
 const LOGIN_PATHS = ["/user/login", "/login"]
 const GET_ME_PATHS = ["/user/getMe", "/getMe"]
+const KNOWN_FIELD_IDS_STORAGE_KEY = "sanbong_known_field_ids"
 
 const isManagedUserOtpConfigured = () =>
   Boolean(EMAILJS_SERVICE_ID && EMAILJS_TEMPLATE_ID && EMAILJS_PUBLIC_KEY)
 
 const getManagedUserOtpConfigMessage = () =>
   "Tai lieu BE hien tai chua co API OTP email. Hay cau hinh REACT_APP_EMAILJS_SERVICE_ID, REACT_APP_EMAILJS_TEMPLATE_ID va REACT_APP_EMAILJS_PUBLIC_KEY vao frontend/.env de gui OTP truoc khi goi API tao user."
+
+const buildUniqueStringList = (values = []) => {
+  const uniqueValues = new Set()
+
+  ;(Array.isArray(values) ? values : [values]).forEach((value) => {
+    const normalizedValue = String(value || "").trim()
+    if (normalizedValue) {
+      uniqueValues.add(normalizedValue)
+    }
+  })
+
+  return Array.from(uniqueValues)
+}
+
+const getStoredKnownFieldIds = () => {
+  if (typeof window === "undefined" || !window.localStorage) {
+    return []
+  }
+
+  try {
+    const rawValue = window.localStorage.getItem(KNOWN_FIELD_IDS_STORAGE_KEY)
+    if (!rawValue) {
+      return []
+    }
+
+    const parsedValue = JSON.parse(rawValue)
+    return buildUniqueStringList(parsedValue)
+  } catch (_error) {
+    return []
+  }
+}
+
+const setStoredKnownFieldIds = (fieldIds = []) => {
+  if (typeof window === "undefined" || !window.localStorage) {
+    return []
+  }
+
+  const nextFieldIds = buildUniqueStringList(fieldIds)
+
+  try {
+    if (nextFieldIds.length === 0) {
+      window.localStorage.removeItem(KNOWN_FIELD_IDS_STORAGE_KEY)
+    } else {
+      window.localStorage.setItem(KNOWN_FIELD_IDS_STORAGE_KEY, JSON.stringify(nextFieldIds))
+    }
+  } catch (_error) {
+    return nextFieldIds
+  }
+
+  return nextFieldIds
+}
+
+const rememberKnownFieldIds = (...fieldIds) =>
+  setStoredKnownFieldIds([...getStoredKnownFieldIds(), ...fieldIds.flat()])
+
+const forgetKnownFieldId = (fieldId) =>
+  setStoredKnownFieldIds(getStoredKnownFieldIds().filter((item) => item !== String(fieldId || "").trim()))
 
 const isHtmlLike = (value) => {
   const trimmed = String(value || "").trim().toLowerCase()
@@ -894,19 +952,25 @@ export const getTimeSlots = async () => {
   }
 }
 
-const getFieldByConfiguredIds = async (token = "") => {
-  const results = await Promise.allSettled(CONFIGURED_FIELD_IDS.map((fieldId) => getFieldById(fieldId, token)))
-
-  return results
+const getFieldByConfiguredIds = async (fieldIds = [], token = "") => {
+  const nextFieldIds = buildUniqueStringList(fieldIds)
+  const results = await Promise.allSettled(nextFieldIds.map((fieldId) => getFieldById(fieldId, token)))
+  const fields = results
     .filter((result) => result.status === "fulfilled")
     .map((result) => result.value?.field || result.value)
     .filter(Boolean)
+
+  rememberKnownFieldIds(fields.map((field) => field?.id))
+
+  return fields
 }
 
 export const getFields = async (token = "") => {
+  const knownFieldIds = buildUniqueStringList([...CONFIGURED_FIELD_IDS, ...getStoredKnownFieldIds()])
+
   if (CONFIGURED_FIELD_IDS.length > 0) {
     return {
-      fields: await getFieldByConfiguredIds(token),
+      fields: await getFieldByConfiguredIds(CONFIGURED_FIELD_IDS, token),
     }
   }
 
@@ -923,13 +987,33 @@ export const getFields = async (token = "") => {
   }
 
   if (lastError) {
-    throw new Error(
-      "Backend nay khong co API danh sach san. Hay cau hinh REACT_APP_FIELD_IDS trong frontend/.env de chi dinh cac id san can hien thi."
-    )
+    if (knownFieldIds.length > 0) {
+      const rememberedFields = await getFieldByConfiguredIds(knownFieldIds, token)
+
+      if (rememberedFields.length > 0) {
+        return {
+          fields: rememberedFields,
+          message:
+            "Backend hien tai khong co API danh sach san. Frontend dang hien thi cac san da ghi nho tu truoc.",
+        }
+      }
+    }
+
+    return {
+      fields: [],
+      message:
+        "Backend hien tai khong co API danh sach san. Sau khi tao san o man nay, frontend se tu ghi nho fieldId de tai lai o lan sau.",
+    }
   }
 
+  const fields = getArrayFromResponse(response, ["fields", "items"])
+    .map((item) => normalizeFieldItem(item))
+    .filter(Boolean)
+
+  rememberKnownFieldIds(fields.map((field) => field?.id))
+
   return {
-    fields: getArrayFromResponse(response, ["fields", "items"]).map((item) => normalizeFieldItem(item)).filter(Boolean),
+    fields,
   }
 }
 
@@ -945,6 +1029,10 @@ export const getFieldById = async (fieldId, token = "") => {
   const field =
     normalizeFieldItem(getObjectFromResponse(response, ["field", "item"]))
     || normalizeFieldItem(unwrapResponseData(response))
+
+  if (field?.id) {
+    rememberKnownFieldIds(field.id)
+  }
 
   return {
     field,
@@ -1017,10 +1105,16 @@ export const createAdminField = async (token, payload) => {
     body: JSON.stringify(buildFieldMutationPayload(payload)),
   })
 
+  const field =
+    normalizeFieldItem(getObjectFromResponse(response, ["field", "item"]))
+    || normalizeFieldItem(unwrapResponseData(response))
+
+  if (field?.id) {
+    rememberKnownFieldIds(field.id)
+  }
+
   return {
-    field:
-      normalizeFieldItem(getObjectFromResponse(response, ["field", "item"]))
-      || normalizeFieldItem(unwrapResponseData(response)),
+    field,
     message: String(response?.message || "").trim(),
   }
 }
@@ -1032,10 +1126,16 @@ export const updateAdminField = async (token, fieldId, payload) => {
     body: JSON.stringify(buildFieldMutationPayload(payload)),
   })
 
+  const field =
+    normalizeFieldItem(getObjectFromResponse(response, ["field", "item"]))
+    || normalizeFieldItem(unwrapResponseData(response))
+
+  if (field?.id || fieldId) {
+    rememberKnownFieldIds(field?.id || fieldId)
+  }
+
   return {
-    field:
-      normalizeFieldItem(getObjectFromResponse(response, ["field", "item"]))
-      || normalizeFieldItem(unwrapResponseData(response)),
+    field,
     message: String(response?.message || "").trim(),
   }
 }
@@ -1044,6 +1144,9 @@ export const deleteAdminField = async (token, fieldId) =>
   request(`/field/deleteField/${encodeURIComponent(fieldId)}`, {
     method: "POST",
     headers: createTokenHeaders(token),
+  }).then((response) => {
+    forgetKnownFieldId(fieldId)
+    return response
   })
 
 export const approveAdminField = async (token, fieldId) =>
