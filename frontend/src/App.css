@@ -2436,6 +2436,611 @@ button {
   min-height: 100%;
 }
 
+.ownerDashboardPage {
+  background:
+    radial-gradient(circle at top left, rgba(12, 91, 64, 0.14), transparent 32%),
+    radial-gradient(circle at top right, rgba(205, 174, 66, 0.14), transparent 26%),
+    linear-gradient(180deg, rgba(247, 250, 247, 0.94), rgba(240, 240, 246, 0.96));
+}
+
+.ownerMessageStack,
+.ownerDashboardStack {
+  display: grid;
+  gap: 1rem;
+}
+
+.ownerHeroCard {
+  position: relative;
+  overflow: hidden;
+  display: grid;
+  grid-template-columns: minmax(0, 1.55fr) minmax(280px, 0.72fr);
+  gap: 1rem;
+  padding: 1.4rem;
+  border-radius: 1.6rem;
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.96), rgba(246, 251, 247, 0.98)),
+    #fff;
+  border: 1px solid rgba(18, 95, 44, 0.12);
+  box-shadow: 0 24px 60px rgba(10, 64, 44, 0.12);
+}
+
+.ownerHeroCard::before,
+.ownerHeroCard::after {
+  content: "";
+  position: absolute;
+  border-radius: 999px;
+  pointer-events: none;
+}
+
+.ownerHeroCard::before {
+  width: 280px;
+  height: 280px;
+  top: -140px;
+  right: -90px;
+  background: radial-gradient(circle, rgba(223, 177, 43, 0.22), rgba(223, 177, 43, 0));
+}
+
+.ownerHeroCard::after {
+  width: 340px;
+  height: 340px;
+  left: -120px;
+  bottom: -220px;
+  background: radial-gradient(circle, rgba(45, 164, 91, 0.16), rgba(45, 164, 91, 0));
+}
+
+.ownerHeroCopy,
+.ownerHeroAside {
+  position: relative;
+  z-index: 1;
+}
+
+.ownerHeroCopy {
+  display: grid;
+  gap: 1rem;
+}
+
+.ownerHeroEyebrow,
+.ownerSectionEyebrow {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  min-height: 2rem;
+  padding: 0.35rem 0.8rem;
+  border-radius: 999px;
+  background: rgba(18, 95, 44, 0.1);
+  border: 1px solid rgba(18, 95, 44, 0.16);
+  color: var(--blackColor);
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.ownerHeroCopy h1,
+.ownerSectionTitle h2 {
+  color: var(--blackColor);
+}
+
+.ownerHeroLead {
+  max-width: 60ch;
+  font-size: 1.02rem;
+}
+
+.ownerHeroActions,
+.ownerFormActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.ownerHeroStepGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.85rem;
+}
+
+.ownerHeroStepCard,
+.ownerAccountCard,
+.ownerHeroTipCard,
+.ownerAdminMiniCard {
+  border-radius: 1.15rem;
+  border: 1px solid rgba(18, 95, 44, 0.14);
+  background: rgba(255, 255, 255, 0.86);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9);
+}
+
+.ownerHeroStepCard {
+  display: grid;
+  gap: 0.5rem;
+  padding: 1rem;
+}
+
+.ownerHeroStepIcon,
+.ownerQuickActionIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.8rem;
+  height: 2.8rem;
+  border-radius: 1rem;
+  background: linear-gradient(135deg, rgba(45, 164, 91, 0.16), rgba(223, 177, 43, 0.18));
+  color: var(--PrimaryColor);
+  font-size: 1.25rem;
+}
+
+.ownerHeroStepCard strong,
+.ownerAccountCard strong,
+.ownerHeroTipCard strong,
+.ownerQuickActionCard strong,
+.ownerSubFieldHeader strong {
+  color: var(--blackColor);
+}
+
+.ownerHeroAside {
+  display: grid;
+  gap: 1rem;
+}
+
+.ownerAccountCard,
+.ownerHeroTipCard {
+  padding: 1.05rem;
+}
+
+.ownerAccountCard {
+  display: grid;
+  gap: 0.3rem;
+  background: linear-gradient(135deg, rgba(12, 91, 64, 0.1), rgba(255, 255, 255, 0.95));
+}
+
+.ownerAccountCard span {
+  font-size: 0.82rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.ownerHeroTipHeader {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  margin-bottom: 0.7rem;
+  color: var(--blackColor);
+}
+
+.ownerHeroTipList {
+  display: grid;
+  gap: 0.55rem;
+  padding-left: 1.1rem;
+}
+
+.ownerHeroTipList li {
+  list-style: disc;
+}
+
+.ownerDashboardStats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 1rem;
+  margin: 1rem auto;
+}
+
+.ownerStatCard {
+  min-height: 100%;
+}
+
+.ownerQuickActionGrid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.ownerQuickActionCard {
+  display: grid;
+  gap: 0.7rem;
+  padding: 1rem;
+  border-radius: 1.2rem;
+  border: 1px solid rgba(18, 95, 44, 0.14);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(245, 251, 247, 0.98));
+  box-shadow: 0 16px 38px rgba(9, 96, 124, 0.08);
+  color: inherit;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.ownerQuickActionCard:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 20px 44px rgba(9, 96, 124, 0.12);
+}
+
+.ownerQuickActionCard--primary {
+  border-color: rgba(18, 95, 44, 0.2);
+}
+
+.ownerQuickActionCard--warning {
+  background: linear-gradient(180deg, rgba(255, 252, 242, 0.98), rgba(255, 248, 232, 0.98));
+}
+
+.ownerQuickActionCard--success {
+  background: linear-gradient(180deg, rgba(245, 252, 247, 0.98), rgba(238, 250, 242, 0.98));
+}
+
+.ownerQuickActionLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  color: var(--PrimaryColor);
+  font-weight: 700;
+}
+
+.ownerSectionCard {
+  border-radius: 1.35rem;
+  border: 1px solid rgba(9, 96, 124, 0.12);
+  background: rgba(255, 255, 255, 0.97);
+  box-shadow: 0 18px 46px rgba(9, 96, 124, 0.08);
+  padding: 1.15rem;
+  display: grid;
+  gap: 1rem;
+}
+
+.ownerSectionCard--form {
+  scroll-margin-top: 6rem;
+}
+
+.ownerSectionHeading,
+.ownerSectionMeta,
+.ownerFormSectionHeader,
+.ownerFormSectionActions,
+.ownerSubFieldHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 0.85rem;
+  flex-wrap: wrap;
+}
+
+.ownerSectionTitle {
+  display: grid;
+  gap: 0.3rem;
+}
+
+.ownerSectionMeta {
+  justify-content: flex-end;
+}
+
+.ownerSectionBadge,
+.ownerFormSectionChip,
+.ownerStatusPill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-height: 2rem;
+  padding: 0.35rem 0.75rem;
+  border-radius: 999px;
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.ownerSectionBadge,
+.ownerFormSectionChip,
+.ownerStatusPill--neutral {
+  background: rgba(9, 96, 124, 0.1);
+  border: 1px solid rgba(9, 96, 124, 0.16);
+  color: var(--blackColor);
+}
+
+.ownerSectionBadge--warning,
+.ownerStatusPill--warning {
+  background: rgba(223, 177, 43, 0.18);
+  border: 1px solid rgba(181, 141, 30, 0.22);
+  color: #7b5c0a;
+}
+
+.ownerStatusPill--success {
+  background: rgba(8, 126, 53, 0.12);
+  border: 1px solid rgba(18, 95, 44, 0.18);
+  color: #1f7744;
+}
+
+.ownerStatusPill--danger {
+  background: rgba(170, 39, 57, 0.12);
+  border: 1px solid rgba(170, 39, 57, 0.18);
+  color: #8f1f33;
+}
+
+.ownerCreateFieldForm {
+  gap: 1rem;
+  padding: 0;
+  border: none;
+  box-shadow: none;
+  background: transparent;
+}
+
+.ownerFormSection {
+  display: grid;
+  gap: 0.9rem;
+  padding: 1rem;
+  border-radius: 1.1rem;
+  background: linear-gradient(180deg, rgba(249, 252, 250, 0.98), rgba(243, 249, 246, 0.98));
+  border: 1px solid rgba(18, 95, 44, 0.1);
+}
+
+.ownerFormGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.9rem 1rem;
+}
+
+.ownerFormGrid--subfield {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.ownerFormField {
+  display: grid;
+  gap: 0.4rem;
+}
+
+.ownerFormField--wide {
+  grid-column: 1 / -1;
+}
+
+.ownerUploadGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.ownerUploadBox {
+  display: grid;
+  gap: 0.75rem;
+  padding: 0.95rem;
+  border-radius: 1rem;
+  background: rgba(255, 255, 255, 0.82);
+  border: 1px dashed rgba(18, 95, 44, 0.18);
+}
+
+.ownerInlineHelper {
+  margin-top: 0;
+}
+
+.ownerUploadPreviewCard {
+  background: #fff;
+}
+
+.ownerUploadPlaceholder {
+  min-height: 180px;
+  display: grid;
+  place-items: center;
+  gap: 0.45rem;
+  padding: 1rem;
+  border-radius: 1rem;
+  border: 1px dashed rgba(18, 95, 44, 0.18);
+  background: rgba(255, 255, 255, 0.7);
+  color: var(--blackColor);
+  text-align: center;
+}
+
+.ownerUploadPlaceholder svg {
+  font-size: 1.4rem;
+}
+
+.ownerUploadPlaceholder--soft {
+  min-height: 140px;
+}
+
+.ownerSubFieldGrid,
+.ownerFieldList,
+.ownerBookingList {
+  display: grid;
+  gap: 1rem;
+}
+
+.ownerSubFieldGrid {
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+}
+
+.ownerSubFieldCard,
+.ownerFieldCard,
+.ownerBookingCard {
+  border-radius: 1.05rem;
+  border: 1px solid rgba(9, 96, 124, 0.12);
+  background: linear-gradient(180deg, #fff, #f7fbfc);
+}
+
+.ownerSubFieldCard {
+  padding: 0.95rem;
+  display: grid;
+  gap: 0.9rem;
+}
+
+.ownerSubFieldHeader p,
+.ownerFieldHeader p,
+.ownerBookingHeader p {
+  margin-top: 0.2rem;
+}
+
+.ownerFieldCard {
+  display: grid;
+  grid-template-columns: minmax(220px, 280px) minmax(0, 1fr);
+  overflow: hidden;
+  box-shadow: 0 16px 40px rgba(9, 96, 124, 0.08);
+}
+
+.ownerFieldMedia {
+  min-height: 100%;
+  background: linear-gradient(135deg, rgba(12, 91, 64, 0.16), rgba(205, 174, 66, 0.18));
+}
+
+.ownerFieldMedia img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.ownerFieldMediaFallback {
+  height: 100%;
+  min-height: 220px;
+  display: grid;
+  place-items: center;
+  gap: 0.55rem;
+  padding: 1rem;
+  color: var(--blackColor);
+  font-weight: 700;
+  text-align: center;
+}
+
+.ownerFieldMediaFallback svg {
+  font-size: 1.5rem;
+}
+
+.ownerFieldBody {
+  padding: 1.1rem;
+  display: grid;
+  gap: 0.85rem;
+}
+
+.ownerFieldHeader,
+.ownerBookingHeader,
+.ownerBookingStatusGroup,
+.ownerFieldChipRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 0.8rem;
+  flex-wrap: wrap;
+}
+
+.ownerFieldHeader h3,
+.ownerBookingHeader h3 {
+  color: var(--blackColor);
+}
+
+.ownerFieldStatusText {
+  color: var(--textColor);
+}
+
+.ownerFieldMetrics,
+.ownerBookingMetaGrid,
+.ownerAdminMiniGrid {
+  display: grid;
+  gap: 0.8rem;
+}
+
+.ownerFieldMetrics {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.ownerBookingMetaGrid {
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+}
+
+.ownerAdminMiniGrid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.ownerFieldMetric,
+.ownerBookingMetaItem,
+.ownerAdminMiniCard {
+  padding: 0.9rem;
+  border-radius: 0.95rem;
+  border: 1px solid rgba(9, 96, 124, 0.12);
+  background: rgba(255, 255, 255, 0.86);
+}
+
+.ownerFieldMetric span,
+.ownerBookingMetaItem span {
+  display: block;
+  margin-bottom: 0.28rem;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.ownerFieldMetric strong,
+.ownerBookingMetaItem strong {
+  color: var(--blackColor);
+}
+
+.ownerFieldChipRow {
+  align-items: center;
+}
+
+.ownerFieldChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-height: 2rem;
+  padding: 0.35rem 0.75rem;
+  border-radius: 999px;
+  background: rgba(9, 96, 124, 0.08);
+  border: 1px solid rgba(9, 96, 124, 0.14);
+  font-size: 0.84rem;
+}
+
+.ownerFieldSubFieldList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+}
+
+.ownerFieldSubFieldChip {
+  background: rgba(18, 95, 44, 0.08);
+}
+
+.ownerFieldLinkBox,
+.ownerFieldNoteBox {
+  padding: 0.95rem 1rem;
+  border-radius: 1rem;
+  border: 1px solid rgba(9, 96, 124, 0.12);
+  background: rgba(247, 251, 252, 0.95);
+}
+
+.ownerFieldLinkBox input[readonly] {
+  margin-bottom: 0;
+}
+
+.ownerFieldNoteBox {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+}
+
+.ownerFieldActions {
+  align-items: center;
+}
+
+.ownerBookingCard {
+  padding: 1rem;
+  display: grid;
+  gap: 0.9rem;
+}
+
+.ownerBookingStatusGroup {
+  align-items: center;
+}
+
+.ownerAdminMiniCard {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.ownerAdminMiniCard svg {
+  font-size: 1.3rem;
+  color: var(--PrimaryColor);
+}
+
+@media screen and (max-width: 1024px) {
+  .ownerHeroCard {
+    grid-template-columns: 1fr;
+  }
+
+  .ownerQuickActionGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .ownerFieldMetrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
 @media screen and (max-width: 768px) {
   .registerRoleGrid,
   .registerFieldGrid {
@@ -2464,5 +3069,37 @@ button {
   .adminCustomerHeader,
   .adminContactHeader {
     flex-direction: column;
+  }
+
+  .ownerHeroCard,
+  .ownerQuickActionGrid,
+  .ownerHeroStepGrid,
+  .ownerUploadGrid,
+  .ownerFieldCard,
+  .ownerFieldMetrics,
+  .ownerAdminMiniGrid,
+  .ownerFormGrid,
+  .ownerFormGrid--subfield {
+    grid-template-columns: 1fr;
+  }
+
+  .ownerHeroActions,
+  .ownerSectionHeading,
+  .ownerSectionMeta,
+  .ownerFormSectionHeader,
+  .ownerFormSectionActions,
+  .ownerFieldHeader,
+  .ownerBookingHeader,
+  .ownerBookingStatusGroup,
+  .ownerFieldChipRow,
+  .ownerSubFieldHeader,
+  .ownerFormActions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .ownerHeroCard,
+  .ownerSectionCard {
+    padding: 1rem;
   }
 }

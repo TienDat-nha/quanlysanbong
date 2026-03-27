@@ -1,6 +1,23 @@
 import React from "react"
 import { Link } from "react-router-dom"
 import {
+  FiArrowRight,
+  FiCalendar,
+  FiCheckCircle,
+  FiEdit3,
+  FiExternalLink,
+  FiFileText,
+  FiFolderPlus,
+  FiGrid,
+  FiImage,
+  FiLayers,
+  FiLink2,
+  FiMapPin,
+  FiShield,
+  FiTool,
+  FiUsers,
+} from "react-icons/fi"
+import {
   formatBookingDateLabel,
   formatBookingDateTime,
 } from "../../models/bookingModel"
@@ -12,11 +29,77 @@ import { formatPrice, getFieldTypeSummary } from "../../models/fieldModel"
 import { FIELD_TYPE_OPTIONS } from "../../models/fieldTypeModel"
 
 const OWNER_DASHBOARD_CARDS = (stats) => [
-  { key: "fields", label: "Tổng sân", value: stats.totalFields, tone: "primary" },
-  { key: "bookings", label: "Tổng lượt đặt", value: stats.totalBookings, tone: "neutral" },
-  { key: "pending", label: "Chờ xác nhận", value: stats.pendingBookings, tone: "warning" },
-  { key: "confirmed", label: "Đã xác nhận", value: stats.confirmedBookings, tone: "success" },
-  { key: "revenue", label: "Doanh thu", value: `${formatPrice(stats.totalRevenue)} VND`, tone: "success" },
+  { key: "fields", label: "Tong san", value: stats.totalFields, tone: "primary" },
+  { key: "bookings", label: "Tong luot dat", value: stats.totalBookings, tone: "neutral" },
+  { key: "pending", label: "Cho xac nhan", value: stats.pendingBookings, tone: "warning" },
+  { key: "confirmed", label: "Da xac nhan", value: stats.confirmedBookings, tone: "success" },
+  {
+    key: "revenue",
+    label: "Doanh thu",
+    value: `${formatPrice(stats.totalRevenue)} VND`,
+    tone: "success",
+  },
+]
+
+const OWNER_HIGHLIGHT_STEPS = [
+  {
+    key: "request",
+    title: "Gui san",
+    text: "Hoan thien ho so san, san con va hinh anh truoc khi gui admin duyet.",
+    icon: FiFolderPlus,
+  },
+  {
+    key: "approval",
+    title: "Cho duyet",
+    text: "Admin co the duyet, khoa hoac yeu cau cap nhat lai thong tin.",
+    icon: FiShield,
+  },
+  {
+    key: "manual",
+    title: "Dat tay tai san",
+    text: "Nhan khach truc tiep va khoa lich ngay trong bang dat san thu cong.",
+    icon: FiCalendar,
+  },
+]
+
+const createOwnerQuickActions = ({
+  manualBookingPath,
+  fieldListSectionPath,
+  manageFieldsSectionPath,
+  ownerBookingsSectionPath,
+}) => [
+  {
+    key: "manual",
+    title: "Dat san thu cong",
+    text: "Tao don ngay tren san cua ban cho khach dat truc tiep.",
+    path: manualBookingPath,
+    icon: FiCalendar,
+    tone: "primary",
+  },
+  {
+    key: "fields",
+    title: "Kho san cua ban",
+    text: "Xem nhanh tat ca san dang cho duyet, da duyet hoac dang bi khoa.",
+    path: fieldListSectionPath,
+    icon: FiGrid,
+    tone: "neutral",
+  },
+  {
+    key: "manage",
+    title: "Gui va cap nhat san",
+    text: "Them thong tin, san con, hinh anh va mo ta trong mot form ro rang hon.",
+    path: manageFieldsSectionPath,
+    icon: FiEdit3,
+    tone: "warning",
+  },
+  {
+    key: "bookings",
+    title: "Don dat cua khach",
+    text: "Theo doi don dang cho xac nhan, coc va thanh toan.",
+    path: ownerBookingsSectionPath,
+    icon: FiUsers,
+    tone: "success",
+  },
 ]
 
 const getFieldModerationState = (field) => {
@@ -44,17 +127,824 @@ const getFieldStatusLabel = (field) => {
   const moderationState = getFieldModerationState(field)
 
   if (moderationState === "PENDING") {
-    return "Chờ admin duyệt"
+    return "Cho admin duyet"
   }
 
   if (moderationState === "LOCKED") {
-    return "Đã khóa / từ chối"
+    return "Da khoa / tu choi"
   }
 
-  return "Đã duyệt"
+  return "Da duyet"
+}
+
+const getFieldStatusTone = (field) => {
+  const moderationState = getFieldModerationState(field)
+
+  if (moderationState === "PENDING") {
+    return "warning"
+  }
+
+  if (moderationState === "LOCKED") {
+    return "danger"
+  }
+
+  return "success"
+}
+
+const getFieldStatusDescription = (field, isOwnerPortal) => {
+  const moderationState = getFieldModerationState(field)
+
+  if (moderationState === "PENDING") {
+    return isOwnerPortal
+      ? "San dang cho admin kiem tra truoc khi mo link cong khai."
+      : "Can admin duyet truoc khi cho phep dat cong khai."
+  }
+
+  if (moderationState === "LOCKED") {
+    return "San dang tam dung hien thi hoac da bi tu choi boi admin."
+  }
+
+  return "San da san sang cho dat cong khai va dat tay tai san."
 }
 
 const canShareFieldPublicly = (field) => getFieldModerationState(field) === "APPROVED"
+
+const buildManualBookingFieldPath = (manualBookingPath, fieldId) =>
+  `${manualBookingPath}?fieldId=${encodeURIComponent(String(fieldId || "").trim())}`
+
+const QuickActionGrid = ({ actions }) => (
+  <section className="ownerQuickActionGrid">
+    {actions.map((action) => {
+      const ActionIcon = action.icon
+
+      return (
+        <Link
+          key={action.key}
+          className={`ownerQuickActionCard ownerQuickActionCard--${action.tone}`}
+          to={action.path}
+        >
+          <span className="ownerQuickActionIcon" aria-hidden="true">
+            <ActionIcon />
+          </span>
+          <strong>{action.title}</strong>
+          <p>{action.text}</p>
+          <span className="ownerQuickActionLink">
+            Mo muc nay <FiArrowRight aria-hidden="true" />
+          </span>
+        </Link>
+      )
+    })}
+  </section>
+)
+
+const FieldFormPanel = ({
+  isAdminPortal,
+  isOwnerPortal,
+  form,
+  isEditingField,
+  submitting,
+  uploadingCover,
+  uploadingGallery,
+  manageFieldsSectionId,
+  handleFieldChange,
+  handleSubFieldChange,
+  handleAddSubField,
+  handleRemoveSubField,
+  handleCoverImageUpload,
+  handleGalleryImagesUpload,
+  handleRemoveCoverImage,
+  handleRemoveGalleryImage,
+  handleCancelFieldEdit,
+  handleSubmit,
+}) => (
+  <section className="ownerSectionCard ownerSectionCard--form" id={manageFieldsSectionId}>
+    <form className="formCard ownerCreateFieldForm" onSubmit={handleSubmit}>
+      <div className="ownerSectionHeading">
+        <div className="ownerSectionTitle">
+          <p className="ownerSectionEyebrow">
+            {isAdminPortal ? "Quan ly ho so san" : "Khong gian gui san"}
+          </p>
+          <h2>
+            {isEditingField
+              ? "Cap nhat san"
+              : isOwnerPortal
+                ? "Gui yeu cau tao san"
+                : "Tao san moi"}
+          </h2>
+          <p>
+            {isAdminPortal
+              ? "Admin co the tao nhanh, cap nhat, khoa va quan ly san trong cung mot bieu mau."
+              : "Form nay duoc tach theo tung nhom de chu san nhap thong tin gon va de canh hon."}
+          </p>
+        </div>
+
+        <div className="ownerSectionMeta">
+          {isEditingField && <span className="ownerSectionBadge">Dang chinh sua</span>}
+          {!isEditingField && isOwnerPortal && (
+            <span className="ownerSectionBadge ownerSectionBadge--warning">Cho admin duyet</span>
+          )}
+        </div>
+      </div>
+
+      <section className="ownerFormSection">
+        <div className="ownerFormSectionHeader">
+          <div>
+            <h3>Thong tin co ban</h3>
+            <p>Ten san, dia chi, khu vuc va khung gia de admin / khach nhan dien nhanh.</p>
+          </div>
+          <span className="ownerFormSectionChip">
+            <FiMapPin aria-hidden="true" /> Co ban
+          </span>
+        </div>
+
+        <div className="ownerFormGrid">
+          <label className="ownerFormField" htmlFor="admin-field-name">
+            <span>Ten san</span>
+            <input
+              id="admin-field-name"
+              type="text"
+              value={form.name}
+              onChange={(event) => handleFieldChange("name", event.target.value)}
+              placeholder="San Bong Riverside"
+            />
+          </label>
+
+          <label className="ownerFormField ownerFormField--wide" htmlFor="admin-field-address">
+            <span>Dia chi</span>
+            <input
+              id="admin-field-address"
+              type="text"
+              value={form.address}
+              onChange={(event) => handleFieldChange("address", event.target.value)}
+              placeholder="123 Nguyen Hue, Quan 1"
+            />
+          </label>
+
+          <label className="ownerFormField" htmlFor="admin-field-district">
+            <span>Khu vuc</span>
+            <input
+              id="admin-field-district"
+              type="text"
+              value={form.district}
+              onChange={(event) => handleFieldChange("district", event.target.value)}
+              placeholder="Quan 1"
+            />
+          </label>
+
+          <label className="ownerFormField" htmlFor="admin-field-type">
+            <span>Loai san mac dinh</span>
+            <select
+              id="admin-field-type"
+              value={form.type}
+              onChange={(event) => handleFieldChange("type", event.target.value)}
+            >
+              {FIELD_TYPE_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <label className="ownerFormField" htmlFor="admin-field-open-hours">
+            <span>Gio mo cua</span>
+            <input
+              id="admin-field-open-hours"
+              type="text"
+              value={form.openHours}
+              onChange={(event) => handleFieldChange("openHours", event.target.value)}
+              placeholder="06:00 - 22:00"
+            />
+          </label>
+
+          <label className="ownerFormField" htmlFor="admin-field-price">
+            <span>Gia mac dinh theo gio</span>
+            <input
+              id="admin-field-price"
+              type="number"
+              min="1000"
+              step="1000"
+              value={form.pricePerHour}
+              onChange={(event) => handleFieldChange("pricePerHour", event.target.value)}
+              placeholder="350000"
+            />
+          </label>
+        </div>
+      </section>
+
+      <section className="ownerFormSection">
+        <div className="ownerFormSectionHeader">
+          <div>
+            <h3>Anh va mo ta</h3>
+            <p>Bo phan upload duoc doi thanh khu xem truoc de chu san de canh noi dung hon.</p>
+          </div>
+          <span className="ownerFormSectionChip">
+            <FiImage aria-hidden="true" /> Trinh bay
+          </span>
+        </div>
+
+        <div className="ownerUploadGrid">
+          <div className="ownerUploadBox">
+            <label className="ownerFormField" htmlFor="admin-field-cover">
+              <span>Anh dai dien</span>
+              <input
+                id="admin-field-cover"
+                type="file"
+                accept="image/png,image/jpeg,image/webp,image/gif"
+                onChange={async (event) => {
+                  const file = event.target.files?.[0]
+                  await handleCoverImageUpload(file)
+                  event.target.value = ""
+                }}
+              />
+            </label>
+            <p className="helperText ownerInlineHelper">Ho tro JPG, PNG, WEBP, GIF. Toi da 8MB.</p>
+            {uploadingCover && <p className="helperText ownerInlineHelper">Dang tai anh dai dien...</p>}
+            {form.coverImage ? (
+              <div className="adminUploadPreviewCard ownerUploadPreviewCard">
+                <img
+                  src={form.coverImage}
+                  alt="Anh dai dien san"
+                  className="adminUploadPreviewImage"
+                />
+                <div className="adminUploadPreviewMeta">
+                  <span>Anh dai dien da tai len</span>
+                  <button
+                    type="button"
+                    className="outlineBtnInline adminDangerBtn"
+                    onClick={handleRemoveCoverImage}
+                    disabled={uploadingCover}
+                  >
+                    Xoa anh
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="ownerUploadPlaceholder">
+                <FiImage aria-hidden="true" />
+                <span>Chua co anh dai dien</span>
+              </div>
+            )}
+          </div>
+
+          <div className="ownerUploadBox">
+            <label className="ownerFormField" htmlFor="admin-field-images">
+              <span>Thu vien anh</span>
+              <input
+                id="admin-field-images"
+                type="file"
+                accept="image/png,image/jpeg,image/webp,image/gif"
+                multiple
+                onChange={async (event) => {
+                  await handleGalleryImagesUpload(event.target.files)
+                  event.target.value = ""
+                }}
+              />
+            </label>
+            <p className="helperText ownerInlineHelper">
+              Ban co the chon nhieu anh cung luc cho gallery.
+            </p>
+            {uploadingGallery && <p className="helperText ownerInlineHelper">Dang tai anh thu vien...</p>}
+            {form.galleryImages.length > 0 ? (
+              <div className="adminUploadPreviewGrid ownerGalleryGrid">
+                {form.galleryImages.map((imageUrl, index) => (
+                  <article className="adminUploadPreviewCard ownerUploadPreviewCard" key={`${imageUrl}-${index}`}>
+                    <img
+                      src={imageUrl}
+                      alt={`Anh thu vien san ${index + 1}`}
+                      className="adminUploadPreviewImage"
+                    />
+                    <div className="adminUploadPreviewMeta">
+                      <span>Anh thu vien {index + 1}</span>
+                      <button
+                        type="button"
+                        className="outlineBtnInline adminDangerBtn"
+                        onClick={() => handleRemoveGalleryImage(imageUrl)}
+                        disabled={uploadingGallery}
+                      >
+                        Xoa anh
+                      </button>
+                    </div>
+                  </article>
+                ))}
+              </div>
+            ) : (
+              <div className="ownerUploadPlaceholder ownerUploadPlaceholder--soft">
+                <FiLayers aria-hidden="true" />
+                <span>Gallery se hien o day sau khi tai anh.</span>
+              </div>
+            )}
+          </div>
+        </div>
+
+        <label className="ownerFormField ownerFormField--wide" htmlFor="admin-field-article">
+          <span>Mo ta san</span>
+          <textarea
+            id="admin-field-article"
+            rows={4}
+            value={form.article}
+            onChange={(event) => handleFieldChange("article", event.target.value)}
+            placeholder="Mo ta ngan ve san bong cua ban"
+          />
+        </label>
+      </section>
+
+      <section className="ownerFormSection">
+        <div className="ownerFormSectionHeader">
+          <div>
+            <h3>Cau hinh san con</h3>
+            <p>Moi san con co ten, loai san va gia rieng de thao tac dat tay khong bi nham.</p>
+          </div>
+
+          <div className="ownerFormSectionActions">
+            <span className="ownerFormSectionChip">
+              <FiTool aria-hidden="true" /> {(form.subFields || []).length} san con
+            </span>
+            <button type="button" className="outlineBtnInline" onClick={handleAddSubField}>
+              Them san con
+            </button>
+          </div>
+        </div>
+
+        <div className="ownerSubFieldGrid">
+          {(form.subFields || []).map((subField, index) => (
+            <article className="ownerSubFieldCard" key={subField.id}>
+              <div className="ownerSubFieldHeader">
+                <div>
+                  <strong>San con {index + 1}</strong>
+                  <p>Dat ten ro rang de nhan dien nhanh trong dat san thu cong.</p>
+                </div>
+                <button
+                  type="button"
+                  className="outlineBtnInline adminDangerBtn"
+                  onClick={() => handleRemoveSubField(subField.id)}
+                  disabled={(form.subFields || []).length === 1}
+                >
+                  Xoa
+                </button>
+              </div>
+
+              <div className="ownerFormGrid ownerFormGrid--subfield">
+                <label className="ownerFormField ownerFormField--wide" htmlFor={`admin-subfield-name-${subField.id}`}>
+                  <span>Ten san con</span>
+                  <input
+                    id={`admin-subfield-name-${subField.id}`}
+                    type="text"
+                    value={subField.name}
+                    onChange={(event) =>
+                      handleSubFieldChange(subField.id, "name", event.target.value)
+                    }
+                    placeholder={`San ${index + 1}`}
+                  />
+                </label>
+
+                <label className="ownerFormField" htmlFor={`admin-subfield-type-${subField.id}`}>
+                  <span>Loai san</span>
+                  <select
+                    id={`admin-subfield-type-${subField.id}`}
+                    value={subField.type}
+                    onChange={(event) =>
+                      handleSubFieldChange(subField.id, "type", event.target.value)
+                    }
+                  >
+                    {FIELD_TYPE_OPTIONS.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+
+                <label className="ownerFormField" htmlFor={`admin-subfield-price-${subField.id}`}>
+                  <span>Gia theo gio</span>
+                  <input
+                    id={`admin-subfield-price-${subField.id}`}
+                    type="number"
+                    min="1000"
+                    step="1000"
+                    value={subField.pricePerHour}
+                    onChange={(event) =>
+                      handleSubFieldChange(subField.id, "pricePerHour", event.target.value)
+                    }
+                    placeholder={form.pricePerHour || "350000"}
+                  />
+                </label>
+              </div>
+            </article>
+          ))}
+        </div>
+      </section>
+
+      <div className="ownerFormActions">
+        <button
+          className="btn"
+          type="submit"
+          disabled={submitting || uploadingCover || uploadingGallery}
+        >
+          {submitting
+            ? isEditingField
+              ? "Dang cap nhat..."
+              : isOwnerPortal
+                ? "Dang gui yeu cau..."
+                : "Dang tao san..."
+            : isEditingField
+              ? "Luu cap nhat"
+              : isOwnerPortal
+                ? "Gui yeu cau tao san"
+                : "Tao san moi"}
+        </button>
+
+        {isEditingField && (
+          <button
+            className="outlineBtnInline"
+            type="button"
+            onClick={handleCancelFieldEdit}
+            disabled={submitting}
+          >
+            Huy chinh sua
+          </button>
+        )}
+      </div>
+    </form>
+  </section>
+)
+
+const FieldListSection = ({
+  isAdminPortal,
+  isOwnerPortal,
+  fields,
+  loading,
+  deletingFieldId,
+  fieldStatusActionId,
+  fieldStatusActionMode,
+  fieldListSectionId,
+  manualBookingPath,
+  fieldsPath,
+  publicOrigin,
+  createPublicBookingUrl,
+  handleFieldModeration,
+  handleEditField,
+  handleDeleteField,
+}) => (
+  <section className="ownerSectionCard ownerSectionCard--list" id={fieldListSectionId}>
+    <div className="ownerSectionHeading">
+      <div className="ownerSectionTitle">
+        <p className="ownerSectionEyebrow">
+          {isAdminPortal ? "Danh sach can duyet" : "Kho san dang quan ly"}
+        </p>
+        <h2>{isAdminPortal ? "Quan ly cac san gui len" : "Danh sach san cua ban"}</h2>
+        <p>
+          {isAdminPortal
+            ? "Admin co the duyet, khoa, sua hoac xoa tung san tu danh sach nay."
+            : "Moi the san cho biet ro trang thai duyet, link cong khai va loi di nhanh sang dat san thu cong."}
+        </p>
+      </div>
+
+      <div className="ownerSectionMeta">
+        <span className="ownerSectionBadge">{fields.length} san</span>
+        {isOwnerPortal && (
+          <Link className="outlineBtnLink" to={fieldsPath}>
+            Xem giao dien cong khai
+          </Link>
+        )}
+      </div>
+    </div>
+
+    {loading ? (
+      <p>Dang tai danh sach san...</p>
+    ) : fields.length === 0 ? (
+      <p className="usersEmptyState">
+        {isAdminPortal
+          ? "Chua co san nao duoc gui len de quan ly."
+          : "Ban chua tao san nao. Sau khi gui san, trang thai va link cong khai se hien o day."}
+      </p>
+    ) : (
+      <div className="ownerFieldList">
+        {fields.map((field) => {
+          const publicBookingUrl = createPublicBookingUrl(publicOrigin, field.slug)
+          const isDeleting = String(deletingFieldId) === String(field.id)
+          const moderationState = getFieldModerationState(field)
+          const isFieldStatusProcessing = String(fieldStatusActionId) === String(field.id)
+          const canModerateField = isAdminPortal
+          const canOpenPublicLink = canShareFieldPublicly(field)
+          const fieldStatusActionLabel =
+            moderationState === "APPROVED"
+              ? "Khoa san"
+              : moderationState === "LOCKED"
+                ? "Mo khoa"
+                : "Duyet san"
+
+          return (
+            <article className="ownerFieldCard" key={field.id}>
+              <div className="ownerFieldMedia">
+                {field.coverImage ? (
+                  <img src={field.coverImage} alt={field.name} />
+                ) : (
+                  <div className="ownerFieldMediaFallback">
+                    <FiMapPin aria-hidden="true" />
+                    <span>{field.district || "San bong"}</span>
+                  </div>
+                )}
+              </div>
+
+              <div className="ownerFieldBody">
+                <div className="ownerFieldHeader">
+                  <div>
+                    <h3>{field.name}</h3>
+                    <p>{field.address}</p>
+                  </div>
+                  <span className={`ownerStatusPill ownerStatusPill--${getFieldStatusTone(field)}`}>
+                    {getFieldStatusLabel(field)}
+                  </span>
+                </div>
+
+                <p className="ownerFieldStatusText">
+                  {getFieldStatusDescription(field, isOwnerPortal)}
+                </p>
+
+                <div className="ownerFieldMetrics">
+                  <article className="ownerFieldMetric">
+                    <span>Gia / gio</span>
+                    <strong>{formatPrice(field.pricePerHour)} VND</strong>
+                  </article>
+                  <article className="ownerFieldMetric">
+                    <span>Gio mo cua</span>
+                    <strong>{field.openHours || "--"}</strong>
+                  </article>
+                  <article className="ownerFieldMetric">
+                    <span>Loai san</span>
+                    <strong>{getFieldTypeSummary(field) || field.type || "--"}</strong>
+                  </article>
+                  <article className="ownerFieldMetric">
+                    <span>San con</span>
+                    <strong>{(field.subFields || []).length}</strong>
+                  </article>
+                </div>
+
+                <div className="ownerFieldChipRow">
+                  <span className="ownerFieldChip">
+                    <FiLink2 aria-hidden="true" /> /dat-san/{field.slug}
+                  </span>
+                  <span className="ownerFieldChip">
+                    <FiMapPin aria-hidden="true" /> {field.district || "Dang cap nhat khu vuc"}
+                  </span>
+                </div>
+
+                <div className="ownerFieldSubFieldList">
+                  {(field.subFields || []).map((item, index) => (
+                    <span
+                      className="adminSlotTag ownerFieldSubFieldChip"
+                      key={`${field.id}-${item.key || item.name || index}`}
+                    >
+                      {item.name}
+                      {item.type ? ` | ${item.type}` : ""}
+                      {item.pricePerHour ? ` | ${formatPrice(item.pricePerHour)} VND/gio` : ""}
+                    </span>
+                  ))}
+                </div>
+
+                {canOpenPublicLink ? (
+                  <div className="ownerFieldLinkBox">
+                    <label className="adminFieldLinkLabel" htmlFor={`booking-url-${field.id}`}>
+                      Link dat san cong khai
+                    </label>
+                    <input id={`booking-url-${field.id}`} type="text" readOnly value={publicBookingUrl} />
+                  </div>
+                ) : (
+                  <div className="ownerFieldNoteBox">
+                    <FiShield aria-hidden="true" />
+                    <span>Link cong khai se mo sau khi admin duyet xong ho so san.</span>
+                  </div>
+                )}
+
+                <div className="fieldActions ownerFieldActions">
+                  {isOwnerPortal && (
+                    <Link className="btn smallBtn" to={buildManualBookingFieldPath(manualBookingPath, field.id)}>
+                      Dat tay tren san nay
+                    </Link>
+                  )}
+
+                  {canOpenPublicLink && (
+                    <a
+                      className="outlineBtnLink"
+                      href={publicBookingUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      Mo link cong khai <FiExternalLink aria-hidden="true" />
+                    </a>
+                  )}
+
+                  {canModerateField && (
+                    <button
+                      type="button"
+                      className="outlineBtnInline"
+                      onClick={() => handleFieldModeration(field)}
+                      disabled={isDeleting || isFieldStatusProcessing}
+                    >
+                      {isFieldStatusProcessing
+                        ? fieldStatusActionMode === "approve"
+                          ? "Dang duyet..."
+                          : "Dang khoa..."
+                        : fieldStatusActionLabel}
+                    </button>
+                  )}
+
+                  <button
+                    type="button"
+                    className="outlineBtnInline"
+                    onClick={() => handleEditField(field)}
+                    disabled={isDeleting || isFieldStatusProcessing}
+                  >
+                    Sua san
+                  </button>
+
+                  <button
+                    type="button"
+                    className="outlineBtnInline adminDangerBtn"
+                    onClick={() => handleDeleteField(field)}
+                    disabled={isDeleting || isFieldStatusProcessing}
+                  >
+                    {isDeleting ? "Dang xoa..." : "Xoa san"}
+                  </button>
+                </div>
+              </div>
+            </article>
+          )
+        })}
+      </div>
+    )}
+  </section>
+)
+
+const ManagedBookingsSection = ({
+  loading,
+  managedBookings,
+  processingBookingId,
+  processingBookingAction,
+  ownerBookingsSectionId,
+  manualBookingPath,
+  handleConfirmBooking,
+  handleConfirmDeposit,
+  handleConfirmPayment,
+  handleCancelBooking,
+}) => (
+  <section className="ownerSectionCard ownerSectionCard--bookings" id={ownerBookingsSectionId}>
+    <div className="ownerSectionHeading">
+      <div className="ownerSectionTitle">
+        <p className="ownerSectionEyebrow">Don dat cua khach</p>
+        <h2>Quan ly don dat cua khach</h2>
+        <p>Theo doi tien do xac nhan san, coc va thanh toan trong mot danh sach ro rang hon.</p>
+      </div>
+
+      <div className="ownerSectionMeta">
+        <span className="ownerSectionBadge">{managedBookings.length} don</span>
+        <Link className="outlineBtnLink" to={manualBookingPath}>
+          Tao don moi
+        </Link>
+      </div>
+    </div>
+
+    {loading ? (
+      <p>Dang tai danh sach don dat cua khach...</p>
+    ) : managedBookings.length === 0 ? (
+      <p className="usersEmptyState">Chua co don dat nao trong danh sach quan ly cua chu san.</p>
+    ) : (
+      <div className="ownerBookingList">
+        {managedBookings.map((booking) => {
+          const isProcessing = String(processingBookingId) === String(booking.id)
+          const bookingStatus = String(booking.status || "").trim().toLowerCase()
+          const paymentStatus = String(
+            booking.paymentStatus || (booking.depositPaid ? "deposit_paid" : "unpaid")
+          )
+            .trim()
+            .toLowerCase()
+          const isConfirmingBooking = isProcessing && processingBookingAction === "confirm"
+          const isConfirmingDeposit = isProcessing && processingBookingAction === "deposit"
+          const isConfirmingPayment = isProcessing && processingBookingAction === "payment"
+          const isCancelling = isProcessing && processingBookingAction === "cancel"
+          const canConfirm = bookingStatus === "pending"
+          const canConfirmDeposit =
+            bookingStatus !== "cancelled"
+            && paymentStatus !== "paid"
+            && paymentStatus !== "deposit_paid"
+          const canConfirmPayment = bookingStatus !== "cancelled" && paymentStatus !== "paid"
+          const canCancel = bookingStatus !== "cancelled"
+
+          return (
+            <article className="ownerBookingCard" key={booking.id}>
+              <div className="ownerBookingHeader">
+                <div>
+                  <h3>{booking.fieldName}</h3>
+                  <p>
+                    {booking.subFieldName || "San tong"}
+                    {booking.subFieldType ? ` | ${booking.subFieldType}` : ""}
+                    {" | "}
+                    {formatBookingDateLabel(booking.date)} | {booking.timeSlot}
+                  </p>
+                </div>
+
+                <div className="ownerBookingStatusGroup">
+                  <span className="ownerStatusPill ownerStatusPill--warning">
+                    {formatBookingStatusVi(booking.status)}
+                  </span>
+                  <span className="ownerStatusPill ownerStatusPill--neutral">
+                    {formatPaymentStatusVi(booking.paymentStatus, booking.depositStatus)}
+                  </span>
+                </div>
+              </div>
+
+              <div className="ownerBookingMetaGrid">
+                <article className="ownerBookingMetaItem">
+                  <span>Khach</span>
+                  <strong>{booking.customer?.fullName || "Khach hang"}</strong>
+                </article>
+                <article className="ownerBookingMetaItem">
+                  <span>Lien he</span>
+                  <strong>{booking.customer?.phone || booking.customer?.email || "--"}</strong>
+                </article>
+                <article className="ownerBookingMetaItem">
+                  <span>Tong tien</span>
+                  <strong>{formatPrice(booking.totalPrice)} VND</strong>
+                </article>
+                <article className="ownerBookingMetaItem">
+                  <span>Dat coc</span>
+                  <strong>{formatPrice(booking.depositAmount)} VND</strong>
+                </article>
+                <article className="ownerBookingMetaItem">
+                  <span>Con lai</span>
+                  <strong>{formatPrice(booking.remainingAmount)} VND</strong>
+                </article>
+                <article className="ownerBookingMetaItem">
+                  <span>Tao luc</span>
+                  <strong>{formatBookingDateTime(booking.createdAt)}</strong>
+                </article>
+              </div>
+
+              {booking.note && (
+                <p className="adminBookingNote">
+                  <strong>Ghi chu:</strong> {booking.note}
+                </p>
+              )}
+
+              {(canConfirm || canConfirmDeposit || canConfirmPayment || canCancel) && (
+                <div className="fieldActions ownerFieldActions">
+                  {canConfirm && (
+                    <button
+                      type="button"
+                      className="outlineBtnInline"
+                      disabled={isProcessing}
+                      onClick={() => handleConfirmBooking(booking.id)}
+                    >
+                      {isConfirmingBooking ? "Dang xac nhan..." : "Xac nhan dat san"}
+                    </button>
+                  )}
+
+                  {canConfirmDeposit && (
+                    <button
+                      type="button"
+                      className="outlineBtnInline"
+                      disabled={isProcessing}
+                      onClick={() => handleConfirmDeposit(booking.id)}
+                    >
+                      {isConfirmingDeposit
+                        ? "Dang xac nhan coc..."
+                        : "Xac nhan dat coc thanh cong"}
+                    </button>
+                  )}
+
+                  {canConfirmPayment && (
+                    <button
+                      type="button"
+                      className="outlineBtnInline"
+                      disabled={isProcessing}
+                      onClick={() => handleConfirmPayment(booking.id)}
+                    >
+                      {isConfirmingPayment
+                        ? "Dang xac nhan thanh toan..."
+                        : "Xac nhan thanh toan thanh cong"}
+                    </button>
+                  )}
+
+                  {canCancel && (
+                    <button
+                      type="button"
+                      className="outlineBtnInline adminDangerBtn"
+                      disabled={isProcessing}
+                      onClick={() => handleCancelBooking(booking.id)}
+                    >
+                      {isCancelling ? "Dang huy..." : "Huy don dat"}
+                    </button>
+                  )}
+                </div>
+              )}
+            </article>
+          )
+        })}
+      </div>
+    )}
+  </section>
+)
 
 const AdminFieldsView = ({
   authToken,
@@ -113,10 +1003,10 @@ const AdminFieldsView = ({
     return (
       <section className="page section">
         <div className="container pageHeader">
-          <h1>Khu quản lý sân</h1>
+          <h1>Khu quan ly san</h1>
           <p>
-            Vui lòng <Link to={loginPath}>đăng nhập</Link> bằng tài khoản Admin hoặc Chủ sân để
-            quản lý sân.
+            Vui long <Link to={loginPath}>dang nhap</Link> bang tai khoan Admin hoac Chu san de quan
+            ly san.
           </p>
         </div>
       </section>
@@ -127,8 +1017,155 @@ const AdminFieldsView = ({
     return (
       <section className="page section">
         <div className="container pageHeader">
-          <h1>Khu quản lý sân</h1>
-          <p>Tài khoản {currentUser?.email} không có quyền truy cập khu vực quản lý sân.</p>
+          <h1>Khu quan ly san</h1>
+          <p>Tai khoan {currentUser?.email} khong co quyen truy cap khu vuc quan ly san.</p>
+        </div>
+      </section>
+    )
+  }
+
+  const ownerQuickActions = createOwnerQuickActions({
+    manualBookingPath,
+    fieldListSectionPath,
+    manageFieldsSectionPath,
+    ownerBookingsSectionPath,
+  })
+
+  if (isOwnerPortal) {
+    return (
+      <section className="page section adminDashboardPage ownerDashboardPage">
+        <div className="container ownerHeroCard">
+          <div className="ownerHeroCopy">
+            <p className="ownerHeroEyebrow">Khong gian chu san</p>
+            <h1>Quan ly san theo mot luong ro rang hon</h1>
+            <p className="ownerHeroLead">
+              Giao dien nay duoc tach lai de Chu san co the gui san, theo doi trang thai duyet,
+              dat san thu cong va xu ly don khach ma khong bi cac khoi trong vo nghia.
+            </p>
+
+            <div className="ownerHeroActions">
+              <Link className="btn" to={manageFieldsSectionPath}>
+                Gui / cap nhat san
+              </Link>
+              <Link className="outlineBtnLink" to={manualBookingPath}>
+                Dat san thu cong
+              </Link>
+              <Link className="outlineBtnLink" to={fieldsPath}>
+                Xem giao dien cong khai
+              </Link>
+            </div>
+
+            <div className="ownerHeroStepGrid">
+              {OWNER_HIGHLIGHT_STEPS.map((item) => {
+                const ItemIcon = item.icon
+
+                return (
+                  <article className="ownerHeroStepCard" key={item.key}>
+                    <span className="ownerHeroStepIcon" aria-hidden="true">
+                      <ItemIcon />
+                    </span>
+                    <strong>{item.title}</strong>
+                    <p>{item.text}</p>
+                  </article>
+                )
+              })}
+            </div>
+          </div>
+
+          <aside className="ownerHeroAside">
+            <div className="ownerAccountCard">
+              <span>Tai khoan chu san</span>
+              <strong>{currentUser?.email}</strong>
+              <p>Toan bo san do ban gui se duoc admin phe duyet truoc khi mo cong khai.</p>
+            </div>
+
+            <div className="ownerHeroTipCard">
+              <div className="ownerHeroTipHeader">
+                <FiCheckCircle aria-hidden="true" />
+                <strong>Nhung gi nen lam tiep theo</strong>
+              </div>
+              <ul className="ownerHeroTipList">
+                <li>Bo sung anh dai dien va mo ta ngan de san de duoc duyet hon.</li>
+                <li>Tach ro san con va gia de thao tac dat tay khong bi nham.</li>
+                <li>Kiem tra don dat ben duoi sau moi lan nhan khach tai san.</li>
+              </ul>
+            </div>
+          </aside>
+        </div>
+
+        {(successMessage || noticeMessage || error) && (
+          <div className="container ownerMessageStack">
+            {successMessage && <p className="message success">{successMessage}</p>}
+            {noticeMessage && <p className="message warning">{noticeMessage}</p>}
+            {error && <p className="message error">{error}</p>}
+          </div>
+        )}
+
+        <div className="container ownerDashboardStats">
+          {OWNER_DASHBOARD_CARDS(stats).map((card) => (
+            <article className={`adminStatCard adminStatCard--${card.tone} ownerStatCard`} key={card.key}>
+              <span>{card.label}</span>
+              <strong>{card.value}</strong>
+            </article>
+          ))}
+        </div>
+
+        <div className="container">
+          <QuickActionGrid actions={ownerQuickActions} />
+        </div>
+
+        <div className="container ownerDashboardStack">
+          <FieldFormPanel
+            isAdminPortal={isAdminPortal}
+            isOwnerPortal={isOwnerPortal}
+            form={form}
+            isEditingField={isEditingField}
+            submitting={submitting}
+            uploadingCover={uploadingCover}
+            uploadingGallery={uploadingGallery}
+            manageFieldsSectionId={manageFieldsSectionId}
+            handleFieldChange={handleFieldChange}
+            handleSubFieldChange={handleSubFieldChange}
+            handleAddSubField={handleAddSubField}
+            handleRemoveSubField={handleRemoveSubField}
+            handleCoverImageUpload={handleCoverImageUpload}
+            handleGalleryImagesUpload={handleGalleryImagesUpload}
+            handleRemoveCoverImage={handleRemoveCoverImage}
+            handleRemoveGalleryImage={handleRemoveGalleryImage}
+            handleCancelFieldEdit={handleCancelFieldEdit}
+            handleSubmit={handleSubmit}
+          />
+
+          <FieldListSection
+            isAdminPortal={isAdminPortal}
+            isOwnerPortal={isOwnerPortal}
+            fields={fields}
+            loading={loading}
+            deletingFieldId={deletingFieldId}
+            fieldStatusActionId={fieldStatusActionId}
+            fieldStatusActionMode={fieldStatusActionMode}
+            fieldListSectionId={fieldListSectionId}
+            manualBookingPath={manualBookingPath}
+            fieldsPath={fieldsPath}
+            publicOrigin={publicOrigin}
+            createPublicBookingUrl={createPublicBookingUrl}
+            handleFieldModeration={handleFieldModeration}
+            handleEditField={handleEditField}
+            handleDeleteField={handleDeleteField}
+          />
+
+          <ManagedBookingsSection
+            loading={loading}
+            managedBookings={managedBookings}
+            processingBookingId={processingBookingId}
+            processingBookingAction={processingBookingAction}
+            ownerBookingsSectionId={ownerBookingsSectionId}
+            manualBookingPath={manualBookingPath}
+            handleConfirmBooking={handleConfirmBooking}
+            handleConfirmDeposit={handleConfirmDeposit}
+            handleConfirmPayment={handleConfirmPayment}
+            handleCancelBooking={handleCancelBooking}
+          />
         </div>
       </section>
     )
@@ -138,18 +1175,15 @@ const AdminFieldsView = ({
     <section className="page section adminDashboardPage">
       <div className="container adminDashboardHero">
         <div>
-          <p className="usersEyebrow">
-            {isAdminPortal ? "Khu quản lý dành cho Admin" : "Khu quản lý dành cho Chủ sân"}
-          </p>
-          <h1>{isAdminPortal ? "Quản lý sân bóng" : "Bảng điều khiển chủ sân"}</h1>
+          <p className="usersEyebrow">Khu quan ly danh cho Admin</p>
+          <h1>Quan ly san bong</h1>
           <p>
-            {isAdminPortal
-              ? "Admin chỉ có quản lý tài khoản và quản lý sân. Mọi sân do Chủ sân tạo sẽ đi qua bước chờ duyệt."
-              : "Chủ sân có đặt sân thủ công cho khách, danh sách sân, quản lý sân và quản lý đơn đặt của khách."}
+            Admin chi co quan ly tai khoan va quan ly san. Moi san do Chu san tao se di qua buoc
+            cho duyet, khoa hoac chinh sua tai day.
           </p>
         </div>
         <div className="adminDashboardOwner">
-          <span>{isAdminPortal ? "Tài khoản admin" : "Tài khoản chủ sân"}</span>
+          <span>Tai khoan admin</span>
           <strong>{currentUser?.email}</strong>
         </div>
       </div>
@@ -170,581 +1204,82 @@ const AdminFieldsView = ({
         </div>
       )}
 
-      {isOwnerPortal && (
-        <div className="container adminDashboardStats">
-          {OWNER_DASHBOARD_CARDS(stats).map((card) => (
-            <article className={`adminStatCard adminStatCard--${card.tone}`} key={card.key}>
-              <span>{card.label}</span>
-              <strong>{card.value}</strong>
-            </article>
-          ))}
-        </div>
-      )}
-
       <div className="container adminDashboardGrid">
         <section className="usersPanel adminDashboardPanel">
           <div className="usersPanelHeader">
-            <h2>{isAdminPortal ? "Nhóm chức năng Admin" : "Nhóm chức năng Chủ sân"}</h2>
-            <span>{isAdminPortal ? "2 mục chính" : "4 mục chính"}</span>
+            <h2>Nhom chuc nang Admin</h2>
+            <span>2 muc chinh</span>
           </div>
 
           <p className="helperText">
-            {isAdminPortal
-              ? "Admin dùng khu này để duyệt sân, chỉnh sửa, khóa hoặc xóa sân. Quản lý tài khoản tách riêng ở khu quản trị tài khoản."
-              : "Chủ sân dùng khu này để quản lý sân và đơn khách. Việc đặt sân thủ công cho khách bắt đầu từ màn đặt sân hoặc danh sách sân."}
+            Admin dung khu nay de duyet san, chinh sua, khoa hoac xoa san. Quan ly tai khoan tach
+            rieng o khu quan tri tai khoan.
           </p>
 
           <div className="fieldActions">
-            {isAdminPortal ? (
-              <>
-                <Link className="btn smallBtn" to={adminUsersPath}>
-                  Quản lý tài khoản
-                </Link>
-                <Link className="outlineBtnLink" to={manageFieldsSectionPath}>
-                  Quản lý sân
-                </Link>
-              </>
-            ) : (
-              <>
-                <Link className="btn smallBtn" to={manualBookingPath}>
-                  Đặt sân thủ công
-                </Link>
-                <Link className="outlineBtnLink" to={fieldsPath}>
-                  Danh sách sân
-                </Link>
-                <Link className="outlineBtnLink" to={manageFieldsSectionPath}>
-                  Quản lý sân
-                </Link>
-                <Link className="outlineBtnLink" to={ownerBookingsSectionPath}>
-                  Đơn đặt của khách
-                </Link>
-              </>
-            )}
+            <Link className="btn smallBtn" to={adminUsersPath}>
+              Quan ly tai khoan
+            </Link>
+            <Link className="outlineBtnLink" to={manageFieldsSectionPath}>
+              Quan ly san
+            </Link>
+          </div>
+
+          <div className="ownerAdminMiniGrid">
+            <article className="ownerAdminMiniCard">
+              <FiShield aria-hidden="true" />
+              <strong>Duyet san moi</strong>
+              <p>Kiem tra thong tin Chu san gui len truoc khi mo cong khai.</p>
+            </article>
+            <article className="ownerAdminMiniCard">
+              <FiFileText aria-hidden="true" />
+              <strong>Cap nhat du lieu</strong>
+              <p>Sua ten san, san con, gia va mo ta ngay trong cung mot form.</p>
+            </article>
           </div>
         </section>
 
-        <aside className="usersSidebar" id={manageFieldsSectionId}>
-          <form className="formCard usersForm adminCreateFieldForm" onSubmit={handleSubmit}>
-            <div className="usersPanelHeader">
-              <h2>
-                {isEditingField
-                  ? "Cập nhật sân"
-                  : isOwnerPortal
-                    ? "Gửi yêu cầu tạo sân"
-                    : "Tạo sân mới"}
-              </h2>
-              {isEditingField && <span>Đang chỉnh sửa</span>}
-            </div>
-            {isEditingField && (
-              <p className="helperText">
-                Bạn đang chỉnh sửa sân hiện có. Lưu để cập nhật, hoặc hủy để tạo mới.
-              </p>
-            )}
-            {!isEditingField && isOwnerPortal && (
-              <p className="helperText">
-                Sau khi gửi yêu cầu, Admin sẽ duyệt sân trước khi mở link đặt sân công khai.
-              </p>
-            )}
-
-            <label htmlFor="admin-field-name">Tên sân</label>
-            <input
-              id="admin-field-name"
-              type="text"
-              value={form.name}
-              onChange={(event) => handleFieldChange("name", event.target.value)}
-              placeholder="Sân Bóng Riverside"
-            />
-
-            <label htmlFor="admin-field-address">Địa chỉ</label>
-            <input
-              id="admin-field-address"
-              type="text"
-              value={form.address}
-              onChange={(event) => handleFieldChange("address", event.target.value)}
-              placeholder="123 Nguyễn Huệ, Quận 1"
-            />
-
-            <label htmlFor="admin-field-district">Khu vực</label>
-            <input
-              id="admin-field-district"
-              type="text"
-              value={form.district}
-              onChange={(event) => handleFieldChange("district", event.target.value)}
-              placeholder="Quận 1"
-            />
-
-            <label htmlFor="admin-field-type">Loại sân mặc định</label>
-            <select
-              id="admin-field-type"
-              value={form.type}
-              onChange={(event) => handleFieldChange("type", event.target.value)}
-            >
-              {FIELD_TYPE_OPTIONS.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-
-            <label htmlFor="admin-field-open-hours">Giờ mở cửa</label>
-            <input
-              id="admin-field-open-hours"
-              type="text"
-              value={form.openHours}
-              onChange={(event) => handleFieldChange("openHours", event.target.value)}
-              placeholder="06:00 - 22:00"
-            />
-
-            <label htmlFor="admin-field-price">Giá mặc định theo giờ</label>
-            <input
-              id="admin-field-price"
-              type="number"
-              min="1000"
-              step="1000"
-              value={form.pricePerHour}
-              onChange={(event) => handleFieldChange("pricePerHour", event.target.value)}
-              placeholder="350000"
-            />
-
-            <label htmlFor="admin-field-cover">Ảnh đại diện</label>
-            <input
-              id="admin-field-cover"
-              type="file"
-              accept="image/png,image/jpeg,image/webp,image/gif"
-              onChange={async (event) => {
-                const file = event.target.files?.[0]
-                await handleCoverImageUpload(file)
-                event.target.value = ""
-              }}
-            />
-            <p className="helperText">Hỗ trợ JPG, PNG, WEBP, GIF. Tối đa 8MB.</p>
-            {uploadingCover && <p className="helperText">Đang tải ảnh đại diện...</p>}
-            {form.coverImage && (
-              <div className="adminUploadPreviewCard">
-                <img
-                  src={form.coverImage}
-                  alt="Ảnh đại diện sân"
-                  className="adminUploadPreviewImage"
-                />
-                <div className="adminUploadPreviewMeta">
-                  <span>Ảnh đại diện đã tải lên</span>
-                  <button
-                    type="button"
-                    className="outlineBtnInline adminDangerBtn"
-                    onClick={handleRemoveCoverImage}
-                    disabled={uploadingCover}
-                  >
-                    Xóa ảnh
-                  </button>
-                </div>
-              </div>
-            )}
-
-            <label htmlFor="admin-field-article">Mô tả</label>
-            <textarea
-              id="admin-field-article"
-              rows={4}
-              value={form.article}
-              onChange={(event) => handleFieldChange("article", event.target.value)}
-              placeholder="Mô tả ngắn về sân bóng của bạn"
-            />
-
-            <div className="adminSubFieldBuilderHeader">
-              <label>Thiết lập từng sân con</label>
-              <button type="button" className="outlineBtnInline" onClick={handleAddSubField}>
-                Thêm sân con
-              </button>
-            </div>
-            <p className="helperText">
-              Mỗi sân con có tên, loại sân và giá riêng. Chỉ hỗ trợ Sân 5, Sân 7, Sân 11 và
-              Futsal.
-            </p>
-            <div className="adminSubFieldConfigList">
-              {(form.subFields || []).map((subField, index) => (
-                <article className="adminSubFieldConfigCard" key={subField.id}>
-                  <div className="adminSubFieldConfigHeader">
-                    <strong>Sân con {index + 1}</strong>
-                    <button
-                      type="button"
-                      className="outlineBtnInline adminDangerBtn"
-                      onClick={() => handleRemoveSubField(subField.id)}
-                      disabled={(form.subFields || []).length === 1}
-                    >
-                      Xóa
-                    </button>
-                  </div>
-                  <label htmlFor={`admin-subfield-name-${subField.id}`}>Tên sân con</label>
-                  <input
-                    id={`admin-subfield-name-${subField.id}`}
-                    type="text"
-                    value={subField.name}
-                    onChange={(event) =>
-                      handleSubFieldChange(subField.id, "name", event.target.value)
-                    }
-                    placeholder={`Sân ${index + 1}`}
-                  />
-                  <label htmlFor={`admin-subfield-type-${subField.id}`}>Loại sân</label>
-                  <select
-                    id={`admin-subfield-type-${subField.id}`}
-                    value={subField.type}
-                    onChange={(event) =>
-                      handleSubFieldChange(subField.id, "type", event.target.value)
-                    }
-                  >
-                    {FIELD_TYPE_OPTIONS.map((option) => (
-                      <option key={option.value} value={option.value}>
-                        {option.label}
-                      </option>
-                    ))}
-                  </select>
-                  <label htmlFor={`admin-subfield-price-${subField.id}`}>Giá theo giờ</label>
-                  <input
-                    id={`admin-subfield-price-${subField.id}`}
-                    type="number"
-                    min="1000"
-                    step="1000"
-                    value={subField.pricePerHour}
-                    onChange={(event) =>
-                      handleSubFieldChange(subField.id, "pricePerHour", event.target.value)
-                    }
-                    placeholder={form.pricePerHour || "350000"}
-                  />
-                </article>
-              ))}
-            </div>
-
-            <label htmlFor="admin-field-images">Ảnh thư viện</label>
-            <input
-              id="admin-field-images"
-              type="file"
-              accept="image/png,image/jpeg,image/webp,image/gif"
-              multiple
-              onChange={async (event) => {
-                await handleGalleryImagesUpload(event.target.files)
-                event.target.value = ""
-              }}
-            />
-            <p className="helperText">Bạn có thể chọn nhiều ảnh cùng lúc cho thư viện ảnh.</p>
-            {uploadingGallery && <p className="helperText">Đang tải ảnh thư viện...</p>}
-            {form.galleryImages.length > 0 && (
-              <div className="adminUploadPreviewGrid">
-                {form.galleryImages.map((imageUrl, index) => (
-                  <article className="adminUploadPreviewCard" key={`${imageUrl}-${index}`}>
-                    <img
-                      src={imageUrl}
-                      alt={`Ảnh thư viện sân ${index + 1}`}
-                      className="adminUploadPreviewImage"
-                    />
-                    <div className="adminUploadPreviewMeta">
-                      <span>Ảnh thư viện {index + 1}</span>
-                      <button
-                        type="button"
-                        className="outlineBtnInline adminDangerBtn"
-                        onClick={() => handleRemoveGalleryImage(imageUrl)}
-                        disabled={uploadingGallery}
-                      >
-                        Xóa ảnh
-                      </button>
-                    </div>
-                  </article>
-                ))}
-              </div>
-            )}
-
-            <div className="fieldActions">
-              <button
-                className="btn"
-                type="submit"
-                disabled={submitting || uploadingCover || uploadingGallery}
-              >
-                {submitting
-                  ? isEditingField
-                    ? "Đang cập nhật..."
-                    : isOwnerPortal
-                      ? "Đang gửi yêu cầu..."
-                      : "Đang tạo sân..."
-                  : isEditingField
-                    ? "Lưu cập nhật"
-                    : isOwnerPortal
-                      ? "Gửi yêu cầu tạo sân"
-                      : "Tạo sân mới"}
-              </button>
-              {isEditingField && (
-                <button
-                  className="outlineBtnInline"
-                  type="button"
-                  onClick={handleCancelFieldEdit}
-                  disabled={submitting}
-                >
-                  Hủy chỉnh sửa
-                </button>
-              )}
-            </div>
-          </form>
-        </aside>
+        <FieldFormPanel
+          isAdminPortal={isAdminPortal}
+          isOwnerPortal={isOwnerPortal}
+          form={form}
+          isEditingField={isEditingField}
+          submitting={submitting}
+          uploadingCover={uploadingCover}
+          uploadingGallery={uploadingGallery}
+          manageFieldsSectionId={manageFieldsSectionId}
+          handleFieldChange={handleFieldChange}
+          handleSubFieldChange={handleSubFieldChange}
+          handleAddSubField={handleAddSubField}
+          handleRemoveSubField={handleRemoveSubField}
+          handleCoverImageUpload={handleCoverImageUpload}
+          handleGalleryImagesUpload={handleGalleryImagesUpload}
+          handleRemoveCoverImage={handleRemoveCoverImage}
+          handleRemoveGalleryImage={handleRemoveGalleryImage}
+          handleCancelFieldEdit={handleCancelFieldEdit}
+          handleSubmit={handleSubmit}
+        />
       </div>
 
-      <div className="container" id={fieldListSectionId}>
-        <article className="usersPanel adminFieldListPanel">
-          <div className="usersPanelHeader">
-            <h2>{isAdminPortal ? "Quản lý các sân gửi lên" : "Danh sách sân của bạn"}</h2>
-            <span>{fields.length} sân</span>
-          </div>
-          {loading ? (
-            <p>Đang tải danh sách sân...</p>
-          ) : fields.length === 0 ? (
-            <p className="usersEmptyState">
-              Bạn chưa tạo sân nào. Sau khi tạo, link công khai đặt sân sẽ hiển thị ở đây.
-            </p>
-          ) : (
-            <div className="adminFieldList">
-              {fields.map((field) => {
-                const publicBookingUrl = createPublicBookingUrl(publicOrigin, field.slug)
-                const isDeleting = String(deletingFieldId) === String(field.id)
-                const moderationState = getFieldModerationState(field)
-                const canModerateField = isAdminPortal
-                const isFieldStatusProcessing =
-                  String(fieldStatusActionId) === String(field.id)
-                const canOpenPublicLink = canShareFieldPublicly(field)
-                const fieldStatusActionLabel =
-                  moderationState === "APPROVED"
-                    ? "Khóa sân"
-                    : moderationState === "LOCKED"
-                      ? "Mở khóa"
-                      : "Duyệt sân"
-                return (
-                  <article className="adminFieldCard" key={field.id}>
-                    <div className="adminFieldCardHeader">
-                      <div>
-                        <h3>{field.name}</h3>
-                        <p>{field.address}</p>
-                      </div>
-                      <span className="adminFieldPrice">
-                        {formatPrice(field.pricePerHour)} VND/giờ
-                      </span>
-                    </div>
-                    <div className="adminFieldMeta">
-                      <span>Trạng thái: {getFieldStatusLabel(field)}</span>
-                      <span>Khu vực: {field.district}</span>
-                      <span>Loại sân: {getFieldTypeSummary(field) || field.type}</span>
-                      <span>Giờ mở cửa: {field.openHours}</span>
-                    </div>
-                    <div className="adminFieldMeta">
-                      <span>Slug: /dat-san/{field.slug}</span>
-                      <span>Số sân con: {(field.subFields || []).length}</span>
-                    </div>
-                    <div className="adminFieldSubFieldList">
-                      {(field.subFields || []).map((item, index) => (
-                        <span
-                          className="adminSlotTag"
-                          key={`${field.id}-${item.key || item.name || index}`}
-                        >
-                          {item.name}
-                          {item.type ? ` | ${item.type}` : ""}
-                          {item.pricePerHour
-                            ? ` | ${formatPrice(item.pricePerHour)} VND/giờ`
-                            : ""}
-                        </span>
-                      ))}
-                    </div>
-                    {canOpenPublicLink ? (
-                      <>
-                        <label
-                          className="adminFieldLinkLabel"
-                          htmlFor={`booking-url-${field.id}`}
-                        >
-                          Link đặt sân công khai
-                        </label>
-                        <input
-                          id={`booking-url-${field.id}`}
-                          type="text"
-                          readOnly
-                          value={publicBookingUrl}
-                        />
-                      </>
-                    ) : (
-                      <p className="helperText">
-                        Sân này chưa mở link công khai vì đang chờ Admin duyệt hoặc đã bị khóa.
-                      </p>
-                    )}
-                    <div className="fieldActions">
-                      {canOpenPublicLink && (
-                        <a
-                          className="btn smallBtn"
-                          href={publicBookingUrl}
-                          target="_blank"
-                          rel="noreferrer"
-                        >
-                          Mở link đặt sân
-                        </a>
-                      )}
-                      {canModerateField && (
-                        <button
-                          type="button"
-                          className="outlineBtnInline"
-                          onClick={() => handleFieldModeration(field)}
-                          disabled={isDeleting || isFieldStatusProcessing}
-                        >
-                          {isFieldStatusProcessing
-                            ? fieldStatusActionMode === "approve"
-                              ? "Đang duyệt..."
-                              : "Đang khóa..."
-                            : fieldStatusActionLabel}
-                        </button>
-                      )}
-                      <button
-                        type="button"
-                        className="outlineBtnInline"
-                        onClick={() => handleEditField(field)}
-                        disabled={isDeleting || isFieldStatusProcessing}
-                      >
-                        Sửa sân
-                      </button>
-                      <button
-                        type="button"
-                        className="outlineBtnInline adminDangerBtn"
-                        onClick={() => handleDeleteField(field)}
-                        disabled={isDeleting || isFieldStatusProcessing}
-                      >
-                        {isDeleting ? "Đang xóa..." : "Xóa sân"}
-                      </button>
-                    </div>
-                  </article>
-                )
-              })}
-            </div>
-          )}
-        </article>
+      <div className="container ownerDashboardStack">
+        <FieldListSection
+          isAdminPortal={isAdminPortal}
+          isOwnerPortal={isOwnerPortal}
+          fields={fields}
+          loading={loading}
+          deletingFieldId={deletingFieldId}
+          fieldStatusActionId={fieldStatusActionId}
+          fieldStatusActionMode={fieldStatusActionMode}
+          fieldListSectionId={fieldListSectionId}
+          manualBookingPath={manualBookingPath}
+          fieldsPath={fieldsPath}
+          publicOrigin={publicOrigin}
+          createPublicBookingUrl={createPublicBookingUrl}
+          handleFieldModeration={handleFieldModeration}
+          handleEditField={handleEditField}
+          handleDeleteField={handleDeleteField}
+        />
       </div>
-
-      {isOwnerPortal && (
-        <div className="container" id={ownerBookingsSectionId}>
-          <section className="usersPanel adminDashboardPanel">
-            <div className="usersPanelHeader">
-              <h2>Quản lý đơn đặt của khách</h2>
-              <span>{managedBookings.length} đơn</span>
-            </div>
-            {loading ? (
-              <p>Đang tải danh sách đơn đặt của khách...</p>
-            ) : managedBookings.length === 0 ? (
-              <p className="usersEmptyState">
-                Chưa có đơn đặt nào trong danh sách quản lý của chủ sân.
-              </p>
-            ) : (
-              <div className="adminManagedBookingList">
-                {managedBookings.map((booking) => {
-                  const isProcessing = String(processingBookingId) === String(booking.id)
-                  const bookingStatus = String(booking.status || "").trim().toLowerCase()
-                  const paymentStatus = String(
-                    booking.paymentStatus || (booking.depositPaid ? "deposit_paid" : "unpaid")
-                  )
-                    .trim()
-                    .toLowerCase()
-                  const isConfirmingBooking = isProcessing && processingBookingAction === "confirm"
-                  const isConfirmingDeposit = isProcessing && processingBookingAction === "deposit"
-                  const isConfirmingPayment = isProcessing && processingBookingAction === "payment"
-                  const isCancelling = isProcessing && processingBookingAction === "cancel"
-                  const canConfirm = bookingStatus === "pending"
-                  const canConfirmDeposit =
-                    bookingStatus !== "cancelled"
-                    && paymentStatus !== "paid"
-                    && paymentStatus !== "deposit_paid"
-                  const canConfirmPayment = bookingStatus !== "cancelled" && paymentStatus !== "paid"
-                  const canCancel = bookingStatus !== "cancelled"
-
-                  return (
-                    <article className="adminManagedBookingCard" key={booking.id}>
-                      <div className="adminRecentBookingHeader">
-                        <div>
-                          <h3>{booking.fieldName}</h3>
-                          <p>
-                            {booking.subFieldName || "Sân tổng"}
-                            {booking.subFieldType ? ` | ${booking.subFieldType}` : ""}
-                            {" | "}
-                            {formatBookingDateLabel(booking.date)} | {booking.timeSlot}
-                          </p>
-                        </div>
-                        <div className="adminManagedBookingStatusGroup">
-                          <span className="adminRecentBookingStatus">
-                            {formatBookingStatusVi(booking.status)}
-                          </span>
-                          <span className="adminDepositBadge">
-                            {formatPaymentStatusVi(booking.paymentStatus, booking.depositStatus)}
-                          </span>
-                        </div>
-                      </div>
-                      <div className="adminFieldMeta">
-                        <span>Khách: {booking.customer?.fullName || "Khách hàng"}</span>
-                        {booking.customer?.email && <span>Email: {booking.customer.email}</span>}
-                        {booking.customer?.phone && <span>SĐT: {booking.customer.phone}</span>}
-                      </div>
-                      <div className="adminFieldMeta">
-                        <span>Tổng tiền: {formatPrice(booking.totalPrice)} VND</span>
-                        <span>Đặt cọc: {formatPrice(booking.depositAmount)} VND</span>
-                        <span>Còn lại: {formatPrice(booking.remainingAmount)} VND</span>
-                        <span>Tạo lúc: {formatBookingDateTime(booking.createdAt)}</span>
-                      </div>
-                      {booking.note && (
-                        <p className="adminBookingNote">
-                          <strong>Ghi chú:</strong> {booking.note}
-                        </p>
-                      )}
-                      {(canConfirm || canConfirmDeposit || canConfirmPayment || canCancel) && (
-                        <div className="fieldActions">
-                          {canConfirm && (
-                            <button
-                              type="button"
-                              className="outlineBtnInline"
-                              disabled={isProcessing}
-                              onClick={() => handleConfirmBooking(booking.id)}
-                            >
-                              {isConfirmingBooking ? "Đang xác nhận..." : "Xác nhận đặt sân"}
-                            </button>
-                          )}
-                          {canConfirmDeposit && (
-                            <button
-                              type="button"
-                              className="outlineBtnInline"
-                              disabled={isProcessing}
-                              onClick={() => handleConfirmDeposit(booking.id)}
-                            >
-                              {isConfirmingDeposit
-                                ? "Đang xác nhận cọc..."
-                                : "Xác nhận đặt cọc thành công"}
-                            </button>
-                          )}
-                          {canConfirmPayment && (
-                            <button
-                              type="button"
-                              className="outlineBtnInline"
-                              disabled={isProcessing}
-                              onClick={() => handleConfirmPayment(booking.id)}
-                            >
-                              {isConfirmingPayment
-                                ? "Đang xác nhận thanh toán..."
-                                : "Xác nhận thanh toán thành công"}
-                            </button>
-                          )}
-                          {canCancel && (
-                            <button
-                              type="button"
-                              className="outlineBtnInline adminDangerBtn"
-                              disabled={isProcessing}
-                              onClick={() => handleCancelBooking(booking.id)}
-                            >
-                              {isCancelling ? "Đang hủy..." : "Hủy đơn đặt"}
-                            </button>
-                          )}
-                        </div>
-                      )}
-                    </article>
-                  )
-                })}
-              </div>
-            )}
-          </section>
-        </div>
-      )}
     </section>
   )
 }
