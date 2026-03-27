@@ -60,6 +60,25 @@ const filterFieldsForOwnerPortal = (fields, currentUser, isOwnerPortal) => {
   )
 }
 
+const getFieldModerationState = (field) => {
+  const rawStatus = String(field?.approvalStatus || field?.status || field?.fieldStatus || "")
+    .trim()
+    .toUpperCase()
+  const isLocked = Boolean(field?.isLocked || field?.locked)
+
+  if (isLocked || rawStatus === "LOCKED" || rawStatus === "REJECTED") {
+    return "LOCKED"
+  }
+
+  if (rawStatus === "PENDING") {
+    return "PENDING"
+  }
+
+  return "APPROVED"
+}
+
+const isFieldApprovedForBooking = (field) => getFieldModerationState(field) === "APPROVED"
+
 const getManualBookingStorageKey = (currentUser) => {
   const ownerKey = getPortalOwnerKeys(currentUser)[0]
   return ownerKey ? `${OWNER_MANUAL_BOOKINGS_STORAGE_PREFIX}:${ownerKey}` : ""
@@ -226,11 +245,11 @@ export const useBookingController = ({ authToken, currentUser }) => {
           return
         }
 
-        const nextFields = filterFieldsForOwnerPortal(
-          getFieldList(fieldsData),
-          currentUser,
-          isOwnerPortal
-        )
+        const allFields = getFieldList(fieldsData)
+        const ownedFields = filterFieldsForOwnerPortal(allFields, currentUser, isOwnerPortal)
+        const nextFields = isOwnerPortal
+          ? ownedFields.filter((field) => isFieldApprovedForBooking(field))
+          : allFields
 
         setFields(nextFields)
         setTimeSlots(timeSlotsData.timeSlots || [])
@@ -239,6 +258,15 @@ export const useBookingController = ({ authToken, currentUser }) => {
             ? "Chưa có sân nào gắn với tài khoản chủ sân này."
             : String(fieldsData?.message || "").trim()
         )
+        if (isOwnerPortal) {
+          setCatalogMessage(
+            ownedFields.length === 0
+              ? "Chưa có sân nào gắn với tài khoản chủ sân này."
+              : nextFields.length === 0
+                ? "Các sân của bạn đang chờ admin duyệt hoặc đang bị khóa nên chưa thể đặt."
+                : ""
+          )
+        }
       } catch (apiError) {
         if (mounted) {
           setFeedback({ type: "error", text: apiError.message })
@@ -399,6 +427,14 @@ export const useBookingController = ({ authToken, currentUser }) => {
   }
 
   const handleContinueToConfirm = () => {
+    if (selectedField && !isFieldApprovedForBooking(selectedField)) {
+      setFeedback({
+        type: "error",
+        text: "Sân này đang chờ admin duyệt hoặc đang bị khóa, chưa thể đặt.",
+      })
+      return
+    }
+
     if (!hasSelectedSlot) {
       setFeedback({ type: "error", text: "Vui lòng chọn sân con và khung giờ trước." })
       return
@@ -418,6 +454,14 @@ export const useBookingController = ({ authToken, currentUser }) => {
 
     if (!authToken) {
       setFeedback({ type: "error", text: "Bạn cần đăng nhập để đặt sân." })
+      return
+    }
+
+    if (selectedField && !isFieldApprovedForBooking(selectedField)) {
+      setFeedback({
+        type: "error",
+        text: "Sân này đang chờ admin duyệt hoặc đang bị khóa, chưa thể đặt.",
+      })
       return
     }
 

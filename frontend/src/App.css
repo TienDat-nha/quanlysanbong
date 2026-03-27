@@ -2778,6 +2778,18 @@ button {
   gap: 0.4rem;
 }
 
+.ownerFormControl--error {
+  border-color: #d94b4b !important;
+  box-shadow: 0 0 0 3px rgba(217, 75, 75, 0.12);
+}
+
+.ownerFieldError {
+  margin: 0;
+  color: #b42318;
+  font-size: 0.82rem;
+  line-height: 1.4;
+}
+
 .ownerFormField--wide {
   grid-column: 1 / -1;
 }

@@ -17,6 +17,7 @@ import { EMPTY_ADMIN_STATS, getAdminDashboardState } from "../../models/adminDas
 import {
   buildAdminFieldPayload,
   createAdminFieldForm,
+  createAdminFieldFormErrors,
   createAdminFieldFormFromField,
   createAdminSubFieldDraft,
   getAdminFieldList,
@@ -81,6 +82,51 @@ const filterFieldsForPortal = (fields, currentUser, isOwnerPortal) => {
   return ownedFields.length > 0 ? ownedFields : nextFields
 }
 
+const OWNER_MANUAL_BOOKINGS_STORAGE_PREFIX = "sanbong_owner_manual_bookings"
+
+const getPortalOwnerKeys = (currentUser) =>
+  [
+    currentUser?.id,
+    currentUser?._id,
+    currentUser?.userId,
+    currentUser?.email,
+  ]
+    .map((value) => String(value || "").trim().toLowerCase())
+    .filter(Boolean)
+
+const getManualBookingStorageKey = (currentUser) => {
+  const ownerKey = getPortalOwnerKeys(currentUser)[0]
+  return ownerKey ? `${OWNER_MANUAL_BOOKINGS_STORAGE_PREFIX}:${ownerKey}` : ""
+}
+
+const getStoredOwnerManualBookings = (currentUser) => {
+  if (typeof window === "undefined" || !window.localStorage) {
+    return []
+  }
+
+  const storageKey = getManualBookingStorageKey(currentUser)
+  if (!storageKey) {
+    return []
+  }
+
+  try {
+    const rawValue = window.localStorage.getItem(storageKey)
+    if (!rawValue) {
+      return []
+    }
+
+    const parsedValue = JSON.parse(rawValue)
+    return Array.isArray(parsedValue) ? parsedValue.filter(Boolean) : []
+  } catch (_error) {
+    return []
+  }
+}
+
+const hasActiveBookingStatus = (status) => {
+  const normalizedStatus = String(status || "").trim().toLowerCase()
+  return normalizedStatus !== "cancelled" && normalizedStatus !== "canceled"
+}
+
 export const useAdminFieldsController = ({ authToken, currentUser }) => {
   const [fields, setFields] = useState([])
   const [stats, setStats] = useState(EMPTY_ADMIN_STATS)
@@ -99,6 +145,9 @@ export const useAdminFieldsController = ({ authToken, currentUser }) => {
   const [noticeMessage, setNoticeMessage] = useState("")
   const [successMessage, setSuccessMessage] = useState("")
   const [form, setForm] = useState(createAdminFieldForm)
+  const [formErrors, setFormErrors] = useState(() =>
+    createAdminFieldFormErrors(createAdminFieldForm())
+  )
   const [refreshKey, setRefreshKey] = useState(0)
 
   const isAdminPortal = isAdminUser(currentUser)
@@ -110,8 +159,80 @@ export const useAdminFieldsController = ({ authToken, currentUser }) => {
   )
 
   const resetForm = () => {
-    setForm(createAdminFieldForm())
+    const nextForm = createAdminFieldForm()
+    setForm(nextForm)
+    setFormErrors(createAdminFieldFormErrors(nextForm))
     setEditingFieldId(null)
+  }
+
+  const clearTopMessages = () => {
+    setError("")
+    setSuccessMessage("")
+  }
+
+  const clearFieldError = (fieldName) => {
+    setFormErrors((prev) => ({
+      ...prev,
+      [fieldName]: "",
+    }))
+  }
+
+  const clearSubFieldError = (subFieldIndex, fieldName) => {
+    setFormErrors((prev) => ({
+      ...prev,
+      subFieldsMessage: "",
+      subFields: (Array.isArray(prev.subFields) ? prev.subFields : []).map((item, index) =>
+        index === subFieldIndex
+          ? {
+              ...item,
+              [fieldName]: "",
+            }
+          : item
+      ),
+    }))
+  }
+
+  const getFieldDeletionState = (field) => {
+    const fieldIds = [
+      field?.id,
+      field?._id,
+      field?.fieldId,
+    ]
+      .map((value) => String(value || "").trim())
+      .filter(Boolean)
+    const fieldName = String(field?.name || "").trim().toLowerCase()
+    const localManualBookings = isOwnerPortal ? getStoredOwnerManualBookings(currentUser) : []
+    const relatedBookings = [...managedBookings, ...localManualBookings]
+    const hasActiveBookings =
+      Number(field?.bookingCount || field?.totalBookings || 0) > 0
+      || relatedBookings.some((booking) => {
+        if (!hasActiveBookingStatus(booking?.status)) {
+          return false
+        }
+
+        const bookingFieldId = String(booking?.fieldId || "").trim()
+        const bookingFieldName = String(booking?.fieldName || "").trim().toLowerCase()
+
+        return (
+          (bookingFieldId && fieldIds.includes(bookingFieldId))
+          || (bookingFieldName && fieldName && bookingFieldName === fieldName)
+        )
+      })
+
+    if (hasActiveBookings) {
+      return {
+        canDelete: false,
+        reason: "Sân này đã có khách đặt, không thể xóa.",
+      }
+    }
+
+    return {
+      canDelete: true,
+      reason:
+        getFieldModerationState(field) === "PENDING"
+          ? "Sân đang chờ admin duyệt."
+          : "",
+    }
   }
 
   useEffect(() => {
@@ -189,6 +310,9 @@ export const useAdminFieldsController = ({ authToken, currentUser }) => {
   }, [authToken, canAccessFieldDashboard, currentUser, isOwnerPortal, refreshKey])
 
   const handleFieldChange = (field, value) => {
+    clearTopMessages()
+    clearFieldError(field)
+
     setForm((prev) => {
       if (field !== "type") {
         return {
@@ -217,9 +341,21 @@ export const useAdminFieldsController = ({ authToken, currentUser }) => {
         }),
       }
     })
+
+    if (field === "type") {
+      setFormErrors((prev) => ({
+        ...prev,
+        type: "",
+        subFields: (Array.isArray(prev.subFields) ? prev.subFields : []).map((item) => ({
+          ...item,
+          type: "",
+        })),
+      }))
+    }
   }
 
   const handleSubFieldChange = (subFieldId, field, value) => {
+    clearTopMessages()
     setForm((prev) => ({
       ...prev,
       subFields: prev.subFields.map((subField) =>
@@ -231,9 +367,17 @@ export const useAdminFieldsController = ({ authToken, currentUser }) => {
           : subField
       ),
     }))
+
+    const subFieldIndex = (Array.isArray(form.subFields) ? form.subFields : []).findIndex(
+      (subField) => subField.id === subFieldId
+    )
+    if (subFieldIndex >= 0) {
+      clearSubFieldError(subFieldIndex, field)
+    }
   }
 
   const handleAddSubField = () => {
+    clearTopMessages()
     setForm((prev) => ({
       ...prev,
       subFields: [
@@ -244,9 +388,22 @@ export const useAdminFieldsController = ({ authToken, currentUser }) => {
         }),
       ],
     }))
+    setFormErrors((prev) => ({
+      ...prev,
+      subFieldsMessage: "",
+      subFields: [
+        ...(Array.isArray(prev.subFields) ? prev.subFields : []),
+        {
+          name: "",
+          type: "",
+          pricePerHour: "",
+        },
+      ],
+    }))
   }
 
   const handleRemoveSubField = (subFieldId) => {
+    clearTopMessages()
     setForm((prev) => {
       const nextSubFields = prev.subFields.filter((subField) => subField.id !== subFieldId)
       return {
@@ -259,6 +416,25 @@ export const useAdminFieldsController = ({ authToken, currentUser }) => {
                   type: prev.type,
                   pricePerHour: prev.pricePerHour,
                 }),
+              ],
+      }
+    })
+    setFormErrors((prev) => {
+      const nextSubFieldErrors = (Array.isArray(prev.subFields) ? prev.subFields : []).filter(
+        (_item, index) => (form.subFields || [])[index]?.id !== subFieldId
+      )
+      return {
+        ...prev,
+        subFieldsMessage: "",
+        subFields:
+          nextSubFieldErrors.length > 0
+            ? nextSubFieldErrors
+            : [
+                {
+                  name: "",
+                  type: "",
+                  pricePerHour: "",
+                },
               ],
       }
     })
@@ -333,6 +509,7 @@ export const useAdminFieldsController = ({ authToken, currentUser }) => {
   }
 
   const handleRemoveCoverImage = () => {
+    clearTopMessages()
     setForm((prev) => ({
       ...prev,
       coverImage: "",
@@ -340,6 +517,7 @@ export const useAdminFieldsController = ({ authToken, currentUser }) => {
   }
 
   const handleRemoveGalleryImage = (imageUrl) => {
+    clearTopMessages()
     setForm((prev) => ({
       ...prev,
       galleryImages: prev.galleryImages.filter((item) => item !== imageUrl),
@@ -348,9 +526,10 @@ export const useAdminFieldsController = ({ authToken, currentUser }) => {
 
   const handleEditField = (field) => {
     setEditingFieldId(Number(field?.id || 0) || null)
-    setForm(createAdminFieldFormFromField(field))
-    setError("")
-    setSuccessMessage("")
+    const nextForm = createAdminFieldFormFromField(field)
+    setForm(nextForm)
+    setFormErrors(createAdminFieldFormErrors(nextForm))
+    clearTopMessages()
 
     if (typeof window !== "undefined") {
       window.scrollTo({ top: 0, behavior: "smooth" })
@@ -359,8 +538,7 @@ export const useAdminFieldsController = ({ authToken, currentUser }) => {
 
   const handleCancelFieldEdit = () => {
     resetForm()
-    setError("")
-    setSuccessMessage("")
+    clearTopMessages()
   }
 
   const handleSubmit = async (event) => {
@@ -368,9 +546,10 @@ export const useAdminFieldsController = ({ authToken, currentUser }) => {
     setError("")
     setSuccessMessage("")
 
-    const validationError = validateAdminFieldForm(form)
-    if (validationError) {
-      setError(validationError)
+    const validationState = validateAdminFieldForm(form)
+    setFormErrors(validationState.fieldErrors)
+    if (!validationState.isValid) {
+      setError(validationState.message)
       return
     }
 
@@ -417,6 +596,45 @@ export const useAdminFieldsController = ({ authToken, currentUser }) => {
       return
     }
 
+    const deletionState = getFieldDeletionState(field)
+    if (!deletionState.canDelete) {
+      setError(deletionState.reason)
+      setSuccessMessage("")
+      return
+    }
+
+    const shouldDeleteField = window.confirm(
+      `Bạn có chắc chắn muốn xóa sân "${field.name}" không?`
+    )
+
+    if (!shouldDeleteField) {
+      return
+    }
+
+    setDeletingFieldId(String(field.id))
+    setError("")
+    setSuccessMessage("")
+
+    try {
+      const response = await deleteAdminField(authToken, field.id)
+
+      setFields((currentFields) => currentFields.filter((item) => item.id !== field.id))
+
+      if (Number(editingFieldId) === Number(field.id)) {
+        resetForm()
+      }
+
+      setSuccessMessage(String(response?.message || "").trim() || "Đã xóa sân thành công.")
+      setRefreshKey((currentValue) => currentValue + 1)
+    } catch (apiError) {
+      setError(apiError.message)
+    } finally {
+      setDeletingFieldId("")
+    }
+
+    return
+
+    // eslint-disable-next-line no-unreachable
     const shouldDelete = window.confirm(
       `Xóa sân "${field.name}"? Tất cả booking liên quan sẽ bị xóa.`
     )
@@ -559,6 +777,7 @@ export const useAdminFieldsController = ({ authToken, currentUser }) => {
     noticeMessage,
     successMessage,
     form,
+    formErrors,
     isEditingField: Boolean(editingFieldId),
     loginPath: ROUTES.login,
     fieldsPath: ROUTES.fields,
@@ -574,6 +793,7 @@ export const useAdminFieldsController = ({ authToken, currentUser }) => {
     ),
     publicOrigin,
     createPublicBookingUrl,
+    getFieldDeletionState,
     handleFieldChange,
     handleSubFieldChange,
     handleAddSubField,

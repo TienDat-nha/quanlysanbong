@@ -47,6 +47,21 @@ export const createAdminFieldForm = () => ({
   galleryImages: [],
 })
 
+export const createAdminFieldFormErrors = (form = {}) => ({
+  name: "",
+  address: "",
+  district: "",
+  type: "",
+  openHours: "",
+  pricePerHour: "",
+  subFieldsMessage: "",
+  subFields: (Array.isArray(form?.subFields) ? form.subFields : []).map(() => ({
+    name: "",
+    type: "",
+    pricePerHour: "",
+  })),
+})
+
 export const createAdminFieldFormFromField = (field) => ({
   name: String(field?.name || "").trim(),
   address: String(field?.address || "").trim(),
@@ -79,51 +94,120 @@ export const createAdminFieldFormFromField = (field) => ({
   galleryImages: Array.isArray(field?.images) ? field.images.filter(Boolean) : [],
 })
 
+const getFirstAdminFieldErrorMessage = (fieldErrors) => {
+  const directKeys = ["name", "address", "district", "type", "openHours", "pricePerHour"]
+  for (const key of directKeys) {
+    if (fieldErrors[key]) {
+      return fieldErrors[key]
+    }
+  }
+
+  if (fieldErrors.subFieldsMessage) {
+    return fieldErrors.subFieldsMessage
+  }
+
+  const subFieldErrors = Array.isArray(fieldErrors.subFields) ? fieldErrors.subFields : []
+  for (const item of subFieldErrors) {
+    if (!item || typeof item !== "object") {
+      continue
+    }
+
+    if (item.name) {
+      return item.name
+    }
+
+    if (item.type) {
+      return item.type
+    }
+
+    if (item.pricePerHour) {
+      return item.pricePerHour
+    }
+  }
+
+  return ""
+}
+
 export const validateAdminFieldForm = (form) => {
+  const fieldErrors = createAdminFieldFormErrors(form)
   const normalizedType = normalizeFieldType(form.type)
-  const requiredValues = [
-    form.name,
-    form.address,
-    form.district,
-    normalizedType,
-    form.openHours,
-    form.pricePerHour,
-  ].map((value) => String(value || "").trim())
+  const normalizedName = String(form.name || "").trim()
+  const normalizedAddress = String(form.address || "").trim()
+  const normalizedDistrict = String(form.district || "").trim()
+  const normalizedOpenHours = String(form.openHours || "").trim()
+  const normalizedPricePerHour = String(form.pricePerHour || "").trim()
 
-  if (requiredValues.some((value) => !value)) {
-    return "Vui lòng nhập đầy đủ thông tin sân."
+  if (!normalizedName) {
+    fieldErrors.name = "Vui lòng nhập tên sân."
   }
 
-  if (
-    !/^([01]\d|2[0-3]):([0-5]\d)\s*-\s*([01]\d|2[0-3]):([0-5]\d)$/.test(
-      String(form.openHours || "").trim()
-    )
+  if (!normalizedAddress) {
+    fieldErrors.address = "Vui lòng nhập địa chỉ sân."
+  }
+
+  if (!normalizedDistrict) {
+    fieldErrors.district = "Vui lòng nhập khu vực."
+  }
+
+  if (!normalizedType) {
+    fieldErrors.type = "Vui lòng chọn loại sân mặc định."
+  }
+
+  if (!normalizedOpenHours) {
+    fieldErrors.openHours = "Vui lòng nhập giờ mở cửa."
+  } else if (
+    !/^([01]\d|2[0-3]):([0-5]\d)\s*-\s*([01]\d|2[0-3]):([0-5]\d)$/.test(normalizedOpenHours)
   ) {
-    return "Giờ mở cửa phải theo định dạng HH:mm - HH:mm."
+    fieldErrors.openHours = "Giờ mở cửa phải theo định dạng HH:mm - HH:mm."
   }
 
-  if (!isValidFieldPrice(form.pricePerHour)) {
-    return "Giá mặc định theo giờ phải từ 1.000 VND trở lên và là bội số của 1.000."
+  if (!normalizedPricePerHour) {
+    fieldErrors.pricePerHour = "Vui lòng nhập giá mặc định theo giờ."
+  } else if (!isValidFieldPrice(normalizedPricePerHour)) {
+    fieldErrors.pricePerHour =
+      "Giá mặc định theo giờ phải từ 1.000 VND trở lên và là bội số của 1.000."
   }
 
   const subFields = Array.isArray(form.subFields) ? form.subFields : []
   if (subFields.length === 0) {
-    return "Vui lòng tạo ít nhất 1 sân con."
+    fieldErrors.subFieldsMessage = "Vui lòng tạo ít nhất 1 sân con."
   }
 
-  const hasInvalidSubField = subFields.some((subField) => {
+  fieldErrors.subFields = subFields.map((subField) => {
+    const subFieldErrors = {
+      name: "",
+      type: "",
+      pricePerHour: "",
+    }
     const name = String(subField?.name || "").trim()
     const type = normalizeFieldType(subField?.type, normalizedType)
-    const pricePerHour = Number(subField?.pricePerHour || form.pricePerHour || 0)
+    const rawPricePerHour = String(subField?.pricePerHour || "").trim()
+    const effectivePricePerHour = rawPricePerHour || normalizedPricePerHour
 
-    return !name || !type || !isValidFieldPrice(pricePerHour)
+    if (!name) {
+      subFieldErrors.name = "Vui lòng nhập tên sân con."
+    }
+
+    if (!type) {
+      subFieldErrors.type = "Vui lòng chọn loại sân."
+    }
+
+    if (!effectivePricePerHour) {
+      subFieldErrors.pricePerHour = "Vui lòng nhập giá theo giờ cho sân con."
+    } else if (!isValidFieldPrice(effectivePricePerHour)) {
+      subFieldErrors.pricePerHour = "Giá sân con phải là bội số hợp lệ của 1.000."
+    }
+
+    return subFieldErrors
   })
 
-  if (hasInvalidSubField) {
-    return "Mỗi sân con cần có tên, loại sân và giá theo giờ hợp lệ."
-  }
+  const message = getFirstAdminFieldErrorMessage(fieldErrors)
 
-  return ""
+  return {
+    isValid: !message,
+    message,
+    fieldErrors,
+  }
 }
 
 export const buildAdminFieldPayload = (form) => ({
