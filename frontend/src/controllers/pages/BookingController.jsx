@@ -21,6 +21,7 @@ const BookingController = ({ authToken, currentUser }) => {
     loginPath,
     fieldsPath,
     adminFieldsPath,
+    adminUsersPath,
     minBookingDate,
     formatDateTime,
     formatStatus,
@@ -53,6 +54,7 @@ const BookingController = ({ authToken, currentUser }) => {
       loginPath={loginPath}
       fieldsPath={fieldsPath}
       adminFieldsPath={adminFieldsPath}
+      adminUsersPath={adminUsersPath}
       minBookingDate={minBookingDate}
       formatDateTime={formatDateTime}
       formatStatus={formatStatus}

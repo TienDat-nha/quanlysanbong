@@ -1,6 +1,6 @@
 import React from "react"
 import { Link } from "react-router-dom"
-import { FiShield, FiUser } from "react-icons/fi"
+import { FiMapPin, FiShield, FiUser } from "react-icons/fi"
 import { LOGIN_ACCOUNT_TYPES } from "../../models/authModel"
 
 const LOGIN_OPTIONS = Object.freeze([
@@ -13,8 +13,15 @@ const LOGIN_OPTIONS = Object.freeze([
   },
   {
     value: LOGIN_ACCOUNT_TYPES.owner,
-    title: "Chủ sân / Admin",
-    description: "Dành cho tài khoản quản lý sân hoặc tài khoản quản trị được cấp sẵn.",
+    title: "Chủ sân",
+    description: "Dành cho tài khoản quản lý sân, đặt sân thủ công và theo dõi đơn của khách.",
+    icon: <FiMapPin />,
+    iconClassName: "roleCardIcon",
+  },
+  {
+    value: LOGIN_ACCOUNT_TYPES.admin,
+    title: "Admin",
+    description: "Dành cho tài khoản quản trị tài khoản và khu vực quản lý sân trong admin.",
     icon: <FiShield />,
     iconClassName: "roleCardIcon roleCardIconAdmin",
   },
@@ -29,15 +36,17 @@ const LoginView = ({
   onSubmit,
   registerPath,
 }) => {
-  const isOwnerMode = form.accountType === LOGIN_ACCOUNT_TYPES.owner
+  const selectedOption =
+    LOGIN_OPTIONS.find((option) => option.value === form.accountType) || LOGIN_OPTIONS[0]
+  const isCustomerMode = form.accountType === LOGIN_ACCOUNT_TYPES.customer
 
   return (
     <section className="page section authPage">
       <div className="container narrowContainer">
-        <h1>{isOwnerMode ? "Đăng Nhập Chủ Sân / Admin" : "Đăng Nhập Người Dùng"}</h1>
+        <h1>{`Đăng Nhập ${selectedOption.title}`}</h1>
         <p>
-          Chọn đúng loại tài khoản trước khi đăng nhập. Người dùng đặt sân và chủ sân dùng chung
-          backend đăng nhập nhưng được điều hướng sang khu vực khác nhau.
+          Chọn đúng loại tài khoản trước khi đăng nhập. Backend hiện gộp Chủ sân và Admin chung
+          một nhóm quyền, nên frontend sẽ dựa vào lựa chọn đăng nhập để mở đúng khu vực làm việc.
         </p>
 
         <form className="formCard" onSubmit={onSubmit}>
@@ -47,9 +56,11 @@ const LoginView = ({
             <div>
               <h2>Loại đăng nhập</h2>
               <p>
-                {isOwnerMode
-                  ? "Dùng cho tài khoản chủ sân hoặc tài khoản quản trị được DB cấp."
-                  : "Dùng cho tài khoản người dùng đặt sân được đăng ký ở giao diện chính."}
+                {isCustomerMode
+                  ? "Dùng cho tài khoản người dùng đặt sân được đăng ký ở giao diện chính."
+                  : selectedOption.value === LOGIN_ACCOUNT_TYPES.owner
+                    ? "Dùng cho tài khoản Chủ sân cần đặt sân thủ công, quản lý sân và đơn của khách."
+                    : "Dùng cho tài khoản Admin quản lý tài khoản, quản lý sân và danh sách sân."}
               </p>
             </div>
           </div>
@@ -104,11 +115,7 @@ const LoginView = ({
           {error && <p className="message error">{error}</p>}
 
           <button className="btn" type="submit" disabled={submitting}>
-            {submitting
-              ? "Đang xử lý..."
-              : isOwnerMode
-                ? "Đăng Nhập Chủ Sân / Admin"
-                : "Đăng Nhập Người Dùng"}
+            {submitting ? "Đang xử lý..." : `Đăng Nhập ${selectedOption.title}`}
           </button>
         </form>
 

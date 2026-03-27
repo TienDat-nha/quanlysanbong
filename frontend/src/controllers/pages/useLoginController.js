@@ -2,8 +2,10 @@ import { useState } from "react"
 import { useLocation, useNavigate } from "react-router-dom"
 import {
   createLoginForm,
-  isOwnerAccount,
+  isStaffAccount,
+  LOGIN_ACCOUNT_TYPES,
   matchesLoginAccountType,
+  normalizeLoginAccountType,
 } from "../../models/authModel"
 import { loginUser } from "../../models/api"
 import { ROUTES } from "../../models/routeModel"
@@ -34,21 +36,26 @@ export const useLoginController = ({ onLoginSuccess }) => {
 
     try {
       const data = await loginUser(form)
+      const requestedAccountType = normalizeLoginAccountType(form.accountType)
 
-      if (!matchesLoginAccountType(data.user, form.accountType)) {
+      if (!matchesLoginAccountType(data.user, requestedAccountType)) {
         setError(
-          isOwnerAccount(data.user)
-            ? "Tài khoản này thuộc nhóm chủ sân / quản trị. Hãy chọn đúng loại đăng nhập."
-            : "Tài khoản này là người dùng đặt sân. Hãy chọn đăng nhập người dùng."
+          isStaffAccount(data.user)
+            ? "Tài khoản này thuộc nhóm quản lý sân. Hãy chọn đúng đăng nhập Chủ sân hoặc Admin."
+            : "Tài khoản này là người dùng đặt sân. Hãy chọn đăng nhập Người dùng."
         )
         return
       }
 
-      onLoginSuccess?.(data.token, data.user)
-      navigate(
-        location.state?.from || (isOwnerAccount(data.user) ? ROUTES.adminFields : ROUTES.booking),
-        { replace: true }
-      )
+      const fallbackPath =
+        requestedAccountType === LOGIN_ACCOUNT_TYPES.admin
+          ? ROUTES.adminUsers
+          : requestedAccountType === LOGIN_ACCOUNT_TYPES.owner
+            ? ROUTES.adminFields
+            : ROUTES.booking
+
+      onLoginSuccess?.(data.token, data.user, requestedAccountType)
+      navigate(location.state?.from || fallbackPath, { replace: true })
     } catch (apiError) {
       setError(apiError.message)
     } finally {

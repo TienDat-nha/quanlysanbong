@@ -1,6 +1,6 @@
 import React from "react"
 import { Link, useLocation } from "react-router-dom"
-import { isAdminUser } from "../../models/authModel"
+import { isAdminUser, isOwnerUser } from "../../models/authModel"
 import {
   calculateBookingTotalPrice,
   formatBookingDateLabel,
@@ -63,9 +63,7 @@ const BookingHistoryPanel = ({
             .trim()
             .toLowerCase()
           const canShowDepositAction =
-            Boolean(authToken)
-            && bookingStatus !== "cancelled"
-            && paymentStatus !== "paid"
+            Boolean(authToken) && bookingStatus !== "cancelled" && paymentStatus !== "paid"
           const canCancelBooking = Boolean(authToken) && bookingStatus !== "cancelled"
           const isCancelling = String(cancellingBookingId) === String(booking.id)
           const paymentActionLabel =
@@ -137,6 +135,7 @@ const BookingView = ({
   loginPath,
   fieldsPath,
   adminFieldsPath,
+  adminUsersPath,
   onFieldChange,
   onSlotSelect,
   onContinueToConfirm,
@@ -152,7 +151,8 @@ const BookingView = ({
   const hasRequestedField = Boolean(fieldSlug || form.fieldId)
   const hasBookingTarget = Boolean(selectedField)
   const hasInvalidFieldSelection = hasRequestedField && !loadingFields && !selectedField
-  const isAdmin = isAdminUser(currentUser)
+  const isAdminPortal = isAdminUser(currentUser)
+  const isOwnerPortal = isOwnerUser(currentUser)
   const loginState = {
     from: `${location.pathname}${location.search}`,
     message: "Đăng nhập để tiếp tục đặt sân.",
@@ -167,6 +167,41 @@ const BookingView = ({
   const compactTimeSlot = formatCompactTimeSlot(form.timeSlot)
   const displayName = currentUser?.fullName || currentUser?.name || ""
 
+  if (isAdminPortal) {
+    return (
+      <section className="page section">
+        <div className="container pageHeader">
+          <h1>Đặt sân thủ công</h1>
+          <p>Tài khoản admin không sử dụng màn đặt sân thủ công cho khách.</p>
+        </div>
+
+        <div className="container bookingHistoryPage">
+          <section className="formCard bookingHistoryNotice">
+            <div className="bookingHistoryNoticeText">
+              <h2>Chuyển sang đúng khu vực</h2>
+              <p>
+                Admin chỉ có quản lý tài khoản, quản lý sân và danh sách sân. Hãy dùng các khu vực
+                tương ứng bên dưới.
+              </p>
+            </div>
+
+            <div className="bookingHistoryActions">
+              <Link className="btn smallBtn" to={adminUsersPath}>
+                Quản lý tài khoản
+              </Link>
+              <Link className="outlineBtnLink" to={adminFieldsPath}>
+                Quản lý sân
+              </Link>
+              <Link className="outlineBtnLink" to={fieldsPath}>
+                Danh sách sân
+              </Link>
+            </div>
+          </section>
+        </div>
+      </section>
+    )
+  }
+
   if (hasRequestedField && loadingFields) {
     return (
       <section className="page section">
@@ -179,6 +214,44 @@ const BookingView = ({
   }
 
   if (!hasBookingTarget) {
+    if (isOwnerPortal) {
+      return (
+        <section className="page section">
+          <div className="container pageHeader">
+            <h1>Đặt sân thủ công cho khách</h1>
+            <p>Chọn một sân trong danh sách để mở lịch, chọn khung giờ và tạo đơn cho khách.</p>
+          </div>
+
+          <div className="container bookingHistoryPage">
+            {hasInvalidFieldSelection && (
+              <p className="message error">
+                Không tìm thấy sân cần đặt. Vui lòng quay lại danh sách sân và chọn lại.
+              </p>
+            )}
+
+            <section className="formCard bookingHistoryNotice">
+              <div className="bookingHistoryNoticeText">
+                <h2>Bắt đầu từ danh sách sân</h2>
+                <p>
+                  Màn đặt sân thủ công chỉ hoạt động khi bạn chọn một sân cụ thể. Hãy mở danh sách
+                  sân rồi bấm Đặt lịch ở đúng sân cần tạo đơn cho khách.
+                </p>
+              </div>
+
+              <div className="bookingHistoryActions">
+                <Link className="btn" to={fieldsPath}>
+                  Chọn sân để đặt
+                </Link>
+                <Link className="outlineBtnLink" to={adminFieldsPath}>
+                  Về quản lý sân
+                </Link>
+              </div>
+            </section>
+          </div>
+        </section>
+      )
+    }
+
     return (
       <section className="page section">
         <div className="container pageHeader">
@@ -195,8 +268,8 @@ const BookingView = ({
 
           {!authToken && (
             <p className="message warning">
-              Bạn chưa đăng nhập. Vui lòng <Link to={loginPath} state={loginState}>đăng nhập</Link> để
-              xem lịch sử và xác nhận đặt sân.
+              Bạn chưa đăng nhập. Vui lòng <Link to={loginPath} state={loginState}>đăng nhập</Link>{" "}
+              để xem lịch sử và xác nhận đặt sân.
             </p>
           )}
 
@@ -210,11 +283,6 @@ const BookingView = ({
             </div>
 
             <div className="bookingHistoryActions">
-              {isAdmin && (
-                <Link className="btn smallBtn" to={adminFieldsPath}>
-                  Về bảng điều khiển admin
-                </Link>
-              )}
               <Link className="btn" to={fieldsPath}>
                 Xem danh sách sân
               </Link>
@@ -246,13 +314,17 @@ const BookingView = ({
               Quay lại
             </button>
             <div>
-              <h1>Đặt lịch ngay trực quan</h1>
-              <p>Xác nhận lại thông tin trước khi gửi yêu cầu đặt sân.</p>
+              <h1>{isOwnerPortal ? "Đặt sân thủ công cho khách" : "Đặt lịch ngay trực quan"}</h1>
+              <p>
+                {isOwnerPortal
+                  ? "Xác nhận lại thông tin trước khi tạo đơn đặt sân cho khách."
+                  : "Xác nhận lại thông tin trước khi gửi yêu cầu đặt sân."}
+              </p>
             </div>
-            {isAdmin && (
+            {isOwnerPortal && (
               <div className="bookingCheckoutHeaderActions">
                 <Link className="outlineBtnLink bookingBackLink" to={adminFieldsPath}>
-                  Về bảng điều khiển admin
+                  Về quản lý sân
                 </Link>
               </div>
             )}
@@ -382,7 +454,13 @@ const BookingView = ({
               type="submit"
               disabled={submitting || !authToken || !hasSelectedSlot}
             >
-              {submitting ? "Đang gửi yêu cầu..." : "Xác nhận và thanh toán"}
+              {submitting
+                ? isOwnerPortal
+                  ? "Đang tạo đơn..."
+                  : "Đang gửi yêu cầu..."
+                : isOwnerPortal
+                  ? "Xác nhận và tạo đơn"
+                  : "Xác nhận và thanh toán"}
             </button>
           </form>
         </div>
@@ -393,8 +471,12 @@ const BookingView = ({
   return (
     <section className="page section">
       <div className="container pageHeader">
-        <h1>Đặt lịch {selectedField.name}</h1>
-        <p>Chọn sân con và bấm vào bảng thời gian để chọn khung giờ muốn đặt.</p>
+        <h1>{isOwnerPortal ? `Đặt sân thủ công: ${selectedField.name}` : `Đặt lịch ${selectedField.name}`}</h1>
+        <p>
+          {isOwnerPortal
+            ? "Chọn sân con và bấm vào bảng thời gian để tạo đơn đặt sân thủ công cho khách."
+            : "Chọn sân con và bấm vào bảng thời gian để chọn khung giờ muốn đặt."}
+        </p>
       </div>
 
       <div className="container bookingStagePage">
@@ -414,8 +496,12 @@ const BookingView = ({
         <section className="bookingPlanner">
           <div className="bookingPlannerHeader">
             <div>
-              <h2>Đặt lịch ngay trực quan</h2>
-              <p>Sau khi chọn sân con, bấm các ô liền kề để ghép thành khung giờ dài hơn.</p>
+              <h2>{isOwnerPortal ? "Tạo đơn đặt thủ công" : "Đặt lịch ngay trực quan"}</h2>
+              <p>
+                {isOwnerPortal
+                  ? "Sau khi chọn sân con, bấm các ô liền kề để ghép thành khung giờ dài hơn cho khách."
+                  : "Sau khi chọn sân con, bấm các ô liền kề để ghép thành khung giờ dài hơn."}
+              </p>
             </div>
 
             <div className="bookingPlannerControls">
@@ -430,9 +516,9 @@ const BookingView = ({
                 />
               </label>
 
-              {isAdmin && (
+              {isOwnerPortal && (
                 <Link className="btn smallBtn bookingBackLink" to={adminFieldsPath}>
-                  Về bảng điều khiển admin
+                  Về quản lý sân
                 </Link>
               )}
               <Link className="outlineBtnLink bookingBackLink" to={fieldsPath}>
@@ -455,7 +541,9 @@ const BookingView = ({
                 <span key={subField.key} className="bookingSubFieldTag">
                   {subField.name}
                   {subField.type ? ` | ${subField.type}` : ""}
-                  {subField.pricePerHour ? ` | ${formatPrice(subField.pricePerHour)} VND/giờ` : ""}
+                  {subField.pricePerHour
+                    ? ` | ${formatPrice(subField.pricePerHour)} VND/giờ`
+                    : ""}
                 </span>
               ))}
             </div>
@@ -496,7 +584,9 @@ const BookingView = ({
               )}
 
               {!loadingAvailability && scheduleRows.length === 0 && (
-                <p className="helperText bookingBoardStatus">Sân này chưa có sân con để hiển thị.</p>
+                <p className="helperText bookingBoardStatus">
+                  Sân này chưa có sân con để hiển thị.
+                </p>
               )}
 
               {!loadingAvailability &&
@@ -543,8 +633,8 @@ const BookingView = ({
                 </strong>
                 <span>
                   {selectedSubField?.type ? `${selectedSubField.type} | ` : ""}
-                  Tong gio {formatBookingDurationLabel(durationMinutes)} | Tong tien {formatPrice(totalPrice)}{" "}
-                  VND
+                  Tổng giờ {formatBookingDurationLabel(durationMinutes)} | Tổng tiền{" "}
+                  {formatPrice(totalPrice)} VND
                 </span>
               </>
             ) : (

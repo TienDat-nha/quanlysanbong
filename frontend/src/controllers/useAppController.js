@@ -1,13 +1,18 @@
 import { useEffect, useState } from "react"
 import { getMe } from "../models/api"
 import {
+  attachLoginAccountType,
   clearStoredAuthToken,
+  clearStoredLoginAccountType,
   getStoredAuthToken,
+  getStoredLoginAccountType,
   persistAuthToken,
+  persistLoginAccountType,
 } from "../models/authModel"
 
 export const useAppController = () => {
   const [authToken, setAuthToken] = useState(() => getStoredAuthToken())
+  const [loginAccountType, setLoginAccountType] = useState(() => getStoredLoginAccountType())
   const [currentUser, setCurrentUser] = useState(null)
   const [checkingAuth, setCheckingAuth] = useState(true)
 
@@ -15,6 +20,12 @@ export const useAppController = () => {
     if (!authToken) {
       setCurrentUser(null)
       setCheckingAuth(false)
+
+      if (loginAccountType) {
+        setLoginAccountType("")
+        clearStoredLoginAccountType()
+      }
+
       return
     }
 
@@ -24,13 +35,15 @@ export const useAppController = () => {
       try {
         const data = await getMe(authToken)
         if (mounted) {
-          setCurrentUser(data.user || null)
+          setCurrentUser(attachLoginAccountType(data.user, loginAccountType))
         }
       } catch (error) {
         if (mounted) {
           setAuthToken("")
+          setLoginAccountType("")
           setCurrentUser(null)
           clearStoredAuthToken()
+          clearStoredLoginAccountType()
         }
       } finally {
         if (mounted) {
@@ -44,19 +57,26 @@ export const useAppController = () => {
     return () => {
       mounted = false
     }
-  }, [authToken])
+  }, [authToken, loginAccountType])
 
-  const handleLoginSuccess = (token, user) => {
+  const handleLoginSuccess = (token, user, accountType) => {
+    const nextUser = attachLoginAccountType(user, accountType)
+    const nextAccountType = String(nextUser?.loginAccountType || "").trim().toLowerCase()
+
     setAuthToken(token)
-    setCurrentUser(user || null)
+    setLoginAccountType(nextAccountType)
+    setCurrentUser(nextUser || null)
     persistAuthToken(token)
+    persistLoginAccountType(nextAccountType)
     setCheckingAuth(false)
   }
 
   const handleLogout = () => {
     setAuthToken("")
+    setLoginAccountType("")
     setCurrentUser(null)
     clearStoredAuthToken()
+    clearStoredLoginAccountType()
     setCheckingAuth(false)
   }
 

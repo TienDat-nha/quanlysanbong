@@ -11,6 +11,20 @@ export const ROUTES = Object.freeze({
   depositPayment: "/thanh-toan-dat-coc",
 })
 
+export const STAFF_DASHBOARD_SECTIONS = Object.freeze({
+  manageFields: "quan-ly-san",
+  fieldList: "danh-sach-san",
+  ownerBookings: "don-dat-khach",
+})
+
+export const createRouteWithHash = (path, hash = "") => {
+  const normalizedHash = String(hash || "").replace(/^#+/g, "").trim()
+  return normalizedHash ? `${path}#${normalizedHash}` : path
+}
+
+export const createAdminFieldsSectionRoute = (section = "") =>
+  createRouteWithHash(ROUTES.adminFields, section)
+
 export const createFieldDetailRoute = (fieldId) => `${ROUTES.fields}/${fieldId}`
 export const createBookingRoute = (fieldSlug = "") =>
   fieldSlug ? `${ROUTES.booking}/${fieldSlug}` : ROUTES.booking

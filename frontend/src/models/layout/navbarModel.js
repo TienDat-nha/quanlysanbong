@@ -1,5 +1,9 @@
-import { isAdminUser } from "../authModel"
-import { ROUTES } from "../routeModel"
+import { isAdminUser, isOwnerUser } from "../authModel"
+import {
+  createAdminFieldsSectionRoute,
+  ROUTES,
+  STAFF_DASHBOARD_SECTIONS,
+} from "../routeModel"
 
 const BASE_NAV_ITEMS = Object.freeze([
   { key: "home", to: ROUTES.home, label: "Trang chủ", end: true },
@@ -13,14 +17,41 @@ const GUEST_ACTIONS = Object.freeze([
   { key: "register", to: ROUTES.register, label: "Đăng ký", className: "btn outlineBtn" },
 ])
 
+const ADMIN_NAV_ITEMS = Object.freeze([
+  { key: "adminUsers", to: ROUTES.adminUsers, label: "Quản lý tài khoản" },
+  {
+    key: "manageFields",
+    to: createAdminFieldsSectionRoute(STAFF_DASHBOARD_SECTIONS.manageFields),
+    label: "Quản lý sân",
+  },
+  {
+    key: "fieldList",
+    to: createAdminFieldsSectionRoute(STAFF_DASHBOARD_SECTIONS.fieldList),
+    label: "Danh sách sân",
+  },
+])
+
+const OWNER_NAV_ITEMS = Object.freeze([
+  { key: "manualBooking", to: ROUTES.booking, label: "Đặt sân thủ công" },
+  { key: "fields", to: ROUTES.fields, label: "Danh sách sân" },
+  {
+    key: "manageFields",
+    to: createAdminFieldsSectionRoute(STAFF_DASHBOARD_SECTIONS.manageFields),
+    label: "Quản lý sân",
+  },
+  {
+    key: "ownerBookings",
+    to: createAdminFieldsSectionRoute(STAFF_DASHBOARD_SECTIONS.ownerBookings),
+    label: "Đơn đặt của khách",
+  },
+])
+
 export const createNavbarModel = (currentUser) => {
   const navItems = isAdminUser(currentUser)
-    ? [
-        ...BASE_NAV_ITEMS,
-        { key: "adminUsers", to: ROUTES.adminUsers, label: "Quản trị tài khoản" },
-        { key: "adminFields", to: ROUTES.adminFields, label: "Quản lý sân" },
-      ]
-    : [...BASE_NAV_ITEMS]
+    ? [...ADMIN_NAV_ITEMS]
+    : isOwnerUser(currentUser)
+      ? [...OWNER_NAV_ITEMS]
+      : [...BASE_NAV_ITEMS]
 
   return {
     navItems,

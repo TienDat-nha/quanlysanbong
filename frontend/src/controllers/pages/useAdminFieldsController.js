@@ -5,19 +5,13 @@ import {
   confirmAdminBookingDeposit,
   confirmAdminBookingPayment,
   createAdminField,
-  deleteAdminContact,
   deleteAdminField,
-  getAdminContacts,
   getAdminDashboard,
   getAdminFields,
   updateAdminField,
   uploadAdminImage,
 } from "../../models/api"
-import {
-  createAdminDashboardDate,
-  EMPTY_ADMIN_STATS,
-  getAdminDashboardState,
-} from "../../models/adminDashboardModel"
+import { EMPTY_ADMIN_STATS, getAdminDashboardState } from "../../models/adminDashboardModel"
 import {
   buildAdminFieldPayload,
   createAdminFieldForm,
@@ -26,31 +20,25 @@ import {
   getAdminFieldList,
   validateAdminFieldForm,
 } from "../../models/adminFieldModel"
-import { isAdminUser } from "../../models/authModel"
-import { getAdminContactList } from "../../models/contactModel"
+import { canManageFields, isAdminUser, isOwnerUser } from "../../models/authModel"
 import { normalizeFieldType } from "../../models/fieldTypeModel"
-import { createPublicBookingUrl, ROUTES } from "../../models/routeModel"
+import {
+  createAdminFieldsSectionRoute,
+  createPublicBookingUrl,
+  ROUTES,
+  STAFF_DASHBOARD_SECTIONS,
+} from "../../models/routeModel"
 
-const EMPTY_DASHBOARD_STATE = Object.freeze({
-  recentBookings: [],
-  managedBookings: [],
-  dailyAvailability: [],
-  customerMonthlyStats: [],
-  customerSummaries: [],
-})
+const buildNoticeMessage = (...messages) =>
+  messages
+    .map((message) => String(message || "").trim())
+    .filter(Boolean)
+    .join(" ")
 
 export const useAdminFieldsController = ({ authToken, currentUser }) => {
   const [fields, setFields] = useState([])
-  const [contacts, setContacts] = useState([])
   const [stats, setStats] = useState(EMPTY_ADMIN_STATS)
-  const [recentBookings, setRecentBookings] = useState(EMPTY_DASHBOARD_STATE.recentBookings)
-  const [managedBookings, setManagedBookings] = useState(EMPTY_DASHBOARD_STATE.managedBookings)
-  const [dailyAvailability, setDailyAvailability] = useState(EMPTY_DASHBOARD_STATE.dailyAvailability)
-  const [customerMonthlyStats, setCustomerMonthlyStats] = useState(
-    EMPTY_DASHBOARD_STATE.customerMonthlyStats
-  )
-  const [customerSummaries, setCustomerSummaries] = useState(EMPTY_DASHBOARD_STATE.customerSummaries)
-  const [selectedDate, setSelectedDate] = useState(createAdminDashboardDate)
+  const [managedBookings, setManagedBookings] = useState([])
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
   const [uploadingCover, setUploadingCover] = useState(false)
@@ -58,7 +46,6 @@ export const useAdminFieldsController = ({ authToken, currentUser }) => {
   const [processingBookingId, setProcessingBookingId] = useState("")
   const [processingBookingAction, setProcessingBookingAction] = useState("")
   const [deletingFieldId, setDeletingFieldId] = useState("")
-  const [deletingContactId, setDeletingContactId] = useState("")
   const [editingFieldId, setEditingFieldId] = useState(null)
   const [error, setError] = useState("")
   const [noticeMessage, setNoticeMessage] = useState("")
@@ -66,7 +53,9 @@ export const useAdminFieldsController = ({ authToken, currentUser }) => {
   const [form, setForm] = useState(createAdminFieldForm)
   const [refreshKey, setRefreshKey] = useState(0)
 
-  const isAdmin = isAdminUser(currentUser)
+  const isAdminPortal = isAdminUser(currentUser)
+  const isOwnerPortal = isOwnerUser(currentUser)
+  const canAccessFieldDashboard = Boolean(authToken) && canManageFields(currentUser)
   const publicOrigin = useMemo(
     () => (typeof window !== "undefined" ? window.location.origin : ""),
     []
@@ -78,21 +67,16 @@ export const useAdminFieldsController = ({ authToken, currentUser }) => {
   }
 
   useEffect(() => {
-    if (!authToken || !isAdmin) {
+    if (!canAccessFieldDashboard) {
       setFields([])
-      setContacts([])
       setStats(EMPTY_ADMIN_STATS)
-      setRecentBookings([])
       setManagedBookings([])
-      setDailyAvailability([])
-      setCustomerMonthlyStats([])
-      setCustomerSummaries([])
       setLoading(false)
       setProcessingBookingId("")
       setProcessingBookingAction("")
       setDeletingFieldId("")
-      setDeletingContactId("")
       setNoticeMessage("")
+      setError("")
       resetForm()
       return
     }
@@ -103,40 +87,35 @@ export const useAdminFieldsController = ({ authToken, currentUser }) => {
       setLoading(true)
 
       try {
-        const [fieldsData, dashboardData, contactsData] = await Promise.all([
+        const [fieldsData, dashboardData] = await Promise.all([
           getAdminFields(authToken),
-          getAdminDashboard(authToken, { date: selectedDate, months: 6 }),
-          getAdminContacts(authToken),
+          isOwnerPortal ? getAdminDashboard(authToken, { months: 6 }) : Promise.resolve({}),
         ])
 
         if (!mounted) {
           return
         }
 
-        const dashboardState = getAdminDashboardState(dashboardData)
+        const dashboardState = isOwnerPortal
+          ? getAdminDashboardState(dashboardData)
+          : getAdminDashboardState({})
         const nextFields = getAdminFieldList(fieldsData)
 
         setFields(nextFields)
-        setContacts(getAdminContactList(contactsData))
         setStats({
           ...EMPTY_ADMIN_STATS,
           ...(dashboardState.stats || {}),
           totalFields: Number(dashboardState.stats?.totalFields || 0) || nextFields.length,
         })
-        setRecentBookings(dashboardState.recentBookings)
-        setManagedBookings(dashboardState.managedBookings)
-        setDailyAvailability(dashboardState.dailyAvailability)
-        setCustomerMonthlyStats(dashboardState.customerMonthlyStats)
-        setCustomerSummaries(dashboardState.customerSummaries)
-        setNoticeMessage(String(fieldsData?.message || "").trim())
+        setManagedBookings(
+          isOwnerPortal && Array.isArray(dashboardState.managedBookings)
+            ? dashboardState.managedBookings
+            : []
+        )
+        setNoticeMessage(
+          buildNoticeMessage(fieldsData?.message, isOwnerPortal ? dashboardData?.message : "")
+        )
         setError("")
-
-        if (
-          dashboardState.availabilityDate
-          && dashboardState.availabilityDate !== selectedDate
-        ) {
-          setSelectedDate(dashboardState.availabilityDate)
-        }
       } catch (apiError) {
         if (mounted) {
           setError(apiError.message)
@@ -153,7 +132,7 @@ export const useAdminFieldsController = ({ authToken, currentUser }) => {
     return () => {
       mounted = false
     }
-  }, [authToken, isAdmin, refreshKey, selectedDate])
+  }, [authToken, canAccessFieldDashboard, isOwnerPortal, refreshKey])
 
   const handleFieldChange = (field, value) => {
     setForm((prev) => {
@@ -231,17 +210,13 @@ export const useAdminFieldsController = ({ authToken, currentUser }) => {
     })
   }
 
-  const handleDashboardDateChange = (value) => {
-    setSelectedDate(value || createAdminDashboardDate())
-  }
-
   const handleCoverImageUpload = async (file) => {
     if (!file) {
       return
     }
 
-    if (!authToken || !isAdmin) {
-      setError("Bạn cần đăng nhập bằng tài khoản admin.")
+    if (!canAccessFieldDashboard) {
+      setError("Bạn cần đăng nhập bằng tài khoản quản lý sân.")
       return
     }
 
@@ -273,8 +248,8 @@ export const useAdminFieldsController = ({ authToken, currentUser }) => {
       return
     }
 
-    if (!authToken || !isAdmin) {
-      setError("Bạn cần đăng nhập bằng tài khoản admin.")
+    if (!canAccessFieldDashboard) {
+      setError("Bạn cần đăng nhập bằng tài khoản quản lý sân.")
       return
     }
 
@@ -345,8 +320,8 @@ export const useAdminFieldsController = ({ authToken, currentUser }) => {
       return
     }
 
-    if (!authToken || !isAdmin) {
-      setError("Bạn cần đăng nhập bằng tài khoản admin.")
+    if (!canAccessFieldDashboard) {
+      setError("Bạn cần đăng nhập bằng tài khoản quản lý sân.")
       return
     }
 
@@ -376,7 +351,7 @@ export const useAdminFieldsController = ({ authToken, currentUser }) => {
   }
 
   const handleDeleteField = async (field) => {
-    if (!authToken || !isAdmin || !field?.id) {
+    if (!canAccessFieldDashboard || !field?.id) {
       return
     }
 
@@ -401,10 +376,7 @@ export const useAdminFieldsController = ({ authToken, currentUser }) => {
         resetForm()
       }
 
-      setSuccessMessage(
-        String(response?.message || "").trim()
-        || "Đã xóa sân thành công."
-      )
+      setSuccessMessage(String(response?.message || "").trim() || "Đã xóa sân thành công.")
       setRefreshKey((currentValue) => currentValue + 1)
     } catch (apiError) {
       setError(apiError.message)
@@ -413,33 +385,8 @@ export const useAdminFieldsController = ({ authToken, currentUser }) => {
     }
   }
 
-  const handleDeleteContact = async (contact) => {
-    if (!authToken || !isAdmin || !contact?.id) {
-      return
-    }
-
-    const shouldDelete = window.confirm(`Xóa liên hệ của ${contact.name || contact.email}?`)
-    if (!shouldDelete) {
-      return
-    }
-
-    setDeletingContactId(String(contact.id))
-    setError("")
-    setSuccessMessage("")
-
-    try {
-      const response = await deleteAdminContact(authToken, contact.id)
-      setContacts((currentContacts) => currentContacts.filter((item) => item.id !== contact.id))
-      setSuccessMessage(String(response?.message || "").trim() || "Đã xóa liên hệ.")
-    } catch (apiError) {
-      setError(apiError.message)
-    } finally {
-      setDeletingContactId("")
-    }
-  }
-
   const handleBookingAction = async (bookingId, action) => {
-    if (!authToken || !isAdmin || !bookingId) {
+    if (!authToken || !isOwnerPortal || !bookingId) {
       return
     }
 
@@ -476,16 +423,12 @@ export const useAdminFieldsController = ({ authToken, currentUser }) => {
   return {
     authToken,
     currentUser,
-    isAdmin,
+    canAccessFieldDashboard,
+    isAdminPortal,
+    isOwnerPortal,
     fields,
-    contacts,
     stats,
-    recentBookings,
     managedBookings,
-    dailyAvailability,
-    customerMonthlyStats,
-    customerSummaries,
-    selectedDate,
     loading,
     submitting,
     uploadingCover,
@@ -493,20 +436,29 @@ export const useAdminFieldsController = ({ authToken, currentUser }) => {
     processingBookingId,
     processingBookingAction,
     deletingFieldId,
-    deletingContactId,
     error,
     noticeMessage,
     successMessage,
     form,
     isEditingField: Boolean(editingFieldId),
     loginPath: ROUTES.login,
+    fieldsPath: ROUTES.fields,
+    manualBookingPath: ROUTES.booking,
+    adminUsersPath: ROUTES.adminUsers,
+    manageFieldsSectionId: STAFF_DASHBOARD_SECTIONS.manageFields,
+    fieldListSectionId: STAFF_DASHBOARD_SECTIONS.fieldList,
+    ownerBookingsSectionId: STAFF_DASHBOARD_SECTIONS.ownerBookings,
+    manageFieldsSectionPath: createAdminFieldsSectionRoute(STAFF_DASHBOARD_SECTIONS.manageFields),
+    fieldListSectionPath: createAdminFieldsSectionRoute(STAFF_DASHBOARD_SECTIONS.fieldList),
+    ownerBookingsSectionPath: createAdminFieldsSectionRoute(
+      STAFF_DASHBOARD_SECTIONS.ownerBookings
+    ),
     publicOrigin,
     createPublicBookingUrl,
     handleFieldChange,
     handleSubFieldChange,
     handleAddSubField,
     handleRemoveSubField,
-    handleDashboardDateChange,
     handleCoverImageUpload,
     handleGalleryImagesUpload,
     handleRemoveCoverImage,
@@ -514,7 +466,6 @@ export const useAdminFieldsController = ({ authToken, currentUser }) => {
     handleEditField,
     handleCancelFieldEdit,
     handleDeleteField,
-    handleDeleteContact,
     handleSubmit,
     handleConfirmBooking: (bookingId) => handleBookingAction(bookingId, "confirm"),
     handleConfirmDeposit: (bookingId) => handleBookingAction(bookingId, "deposit"),

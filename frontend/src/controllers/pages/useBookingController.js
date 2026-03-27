@@ -352,6 +352,7 @@ export const useBookingController = ({ authToken }) => {
     loginPath: ROUTES.login,
     fieldsPath: ROUTES.fields,
     adminFieldsPath: ROUTES.adminFields,
+    adminUsersPath: ROUTES.adminUsers,
     minBookingDate,
     formatDateTime: formatBookingDateTime,
     formatStatus: formatBookingStatusVi,
