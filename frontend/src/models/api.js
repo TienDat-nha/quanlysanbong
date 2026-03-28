@@ -879,7 +879,67 @@ const getArrayFromResponse = (response, paths = []) => {
   }
 
   const unwrapped = unwrapResponseData(response)
-  return Array.isArray(unwrapped) ? unwrapped : []
+  if (Array.isArray(unwrapped)) {
+    return unwrapped
+  }
+
+  const seen = new Set()
+  const findFirstArray = (value, depth = 0) => {
+    if (depth > 4 || value == null) {
+      return []
+    }
+
+    if (Array.isArray(value)) {
+      if (value.length === 0) {
+        return value
+      }
+
+      return typeof value[0] === "object" ? value : []
+    }
+
+    if (typeof value !== "object") {
+      return []
+    }
+
+    if (seen.has(value)) {
+      return []
+    }
+    seen.add(value)
+
+    const preferredKeys = [
+      "fields",
+      "items",
+      "docs",
+      "rows",
+      "results",
+      "records",
+      "list",
+      "fieldList",
+      "subFields",
+      "subfields",
+      "requests",
+    ]
+
+    for (const key of preferredKeys) {
+      if (key in value) {
+        const nestedArray = findFirstArray(value[key], depth + 1)
+        if (Array.isArray(nestedArray) && (nestedArray.length > 0 || Array.isArray(value[key]))) {
+          return nestedArray
+        }
+      }
+    }
+
+    for (const nestedValue of Object.values(value)) {
+      const nestedArray = findFirstArray(nestedValue, depth + 1)
+      if (Array.isArray(nestedArray) && nestedArray.length > 0) {
+        return nestedArray
+      }
+    }
+
+    return []
+  }
+
+  return findFirstArray(unwrapped)
 }
 
 const getObjectFromResponse = (response, paths = []) => {
@@ -1374,7 +1434,18 @@ export const getSubFieldsByField = async (fieldId, token = "") => {
   } : {})
 
   return {
-    subFields: getArrayFromResponse(response, ["subFields", "items"])
+    subFields: getArrayFromResponse(response, [
+      "subFields",
+      "subfields",
+      "items",
+      "docs",
+      "rows",
+      "records",
+      "results",
+      "list",
+      "field.subFields",
+      "field.subfields",
+    ])
       .map((item, index) => normalizeSubFieldItem(item, index))
       .filter(Boolean),
     message: String(response?.message || "").trim(),
@@ -1469,7 +1540,19 @@ export const getFields = async (token = "") => {
   }
 
   const fields = await attachSubFieldsToFields(
-    getArrayFromResponse(response, ["fields", "items"])
+    getArrayFromResponse(response, [
+      "fields",
+      "items",
+      "docs",
+      "rows",
+      "records",
+      "results",
+      "list",
+      "fieldList",
+      "fields.docs",
+      "fields.items",
+      "result",
+    ])
       .map((item) => mergeStoredFieldSnapshot(item))
       .filter(Boolean),
     token
@@ -1504,7 +1587,7 @@ export const getFieldById = async (fieldId, token = "") => {
   )
 
   const baseField =
-    mergeStoredFieldSnapshot(getObjectFromResponse(response, ["field", "item"]))
+    mergeStoredFieldSnapshot(getObjectFromResponse(response, ["field", "item", "record", "result"]))
     || mergeStoredFieldSnapshot(unwrapResponseData(response))
   const field = await attachSubFieldsToField(baseField, token)
 
@@ -1722,19 +1805,28 @@ export const createAdminField = async (token, payload) => {
     body: JSON.stringify(buildFieldMutationPayload(payload)),
   })
 
+  const responseField =
+    getObjectFromResponse(response, ["field", "item", "record", "result"])
+    || unwrapResponseData(response)
+  const resolvedFieldId = normalizeId(
+    responseField?.id,
+    responseField?._id,
+    responseField?.fieldId,
+    responseField?.field?.id,
+    responseField?.field?._id,
+    responseField?.field?.fieldId
+  )
   const baseField =
-    mergeFieldSources(getObjectFromResponse(response, ["field", "item"]), payload)
-    || mergeFieldSources(unwrapResponseData(response), payload)
+    mergeFieldSources(responseField?.field || responseField, payload)
     || mergeFieldSources(payload, {})
-  const resolvedFieldId = String(baseField?.id || baseField?._id || "").trim()
 
   if (resolvedFieldId) {
     rememberKnownFieldIds(resolvedFieldId)
   }
 
-  if (baseField?.id || resolvedFieldId) {
+  if (resolvedFieldId) {
     rememberFieldSnapshot(
-      baseField?.id ? baseField : { ...payload, id: resolvedFieldId, _id: resolvedFieldId, fieldId: resolvedFieldId }
+      { ...baseField, id: resolvedFieldId, _id: resolvedFieldId, fieldId: resolvedFieldId }
     )
   }
 
