@@ -45,6 +45,7 @@ const getFieldStatusLabel = (field) => {
 const getFieldStatusTone = (field) => {
   const state = getFieldModerationState(field)
   if (state === "PENDING") return "warning"
+  if (state === "REJECTED") return "danger"
   if (state === "LOCKED") return "danger"
   return "success"
 }
@@ -426,6 +427,7 @@ const FieldListSection = ({
   createPublicBookingUrl,
   getFieldDeletionState,
   handleFieldModeration,
+  handleRejectField,
   handleEditField,
   handleDeleteField,
 }) => {
@@ -473,6 +475,9 @@ const FieldListSection = ({
             const deletionState = getFieldDeletionState
               ? getFieldDeletionState(field)
               : { canDelete: true, reason: "" }
+            const showRejectAction = isAdminPortal && moderationState === "PENDING"
+            const showDeleteAction =
+              !isAdminPortal || moderationState === "APPROVED" || moderationState === "LOCKED"
             const statusActionLabel =
               moderationState === "APPROVED"
                 ? "Khóa sân"
@@ -570,20 +575,37 @@ const FieldListSection = ({
                     )}
 
                     {isAdminPortal && (
-                      <button
-                        type="button"
-                        className="outlineBtnInline"
-                        onClick={() => handleFieldModeration(field)}
-                        disabled={isDeleting || isStatusProcessing}
-                      >
-                        {isStatusProcessing
-                          ? fieldStatusActionMode === "approve"
-                            ? "Đang duyệt..."
-                            : fieldStatusActionMode === "unlock"
-                              ? "Đang mở khóa..."
-                              : "Đang khóa..."
-                          : statusActionLabel}
-                      </button>
+                      <>
+                        <button
+                          type="button"
+                          className="outlineBtnInline"
+                          onClick={() => handleFieldModeration(field)}
+                          disabled={isDeleting || isStatusProcessing}
+                        >
+                          {isStatusProcessing
+                            ? fieldStatusActionMode === "approve"
+                              ? "Đang duyệt..."
+                              : fieldStatusActionMode === "unlock"
+                                ? "Đang mở khóa..."
+                                : fieldStatusActionMode === "reject"
+                                  ? "Đang từ chối..."
+                                  : "Đang khóa..."
+                            : statusActionLabel}
+                        </button>
+
+                        {showRejectAction && (
+                          <button
+                            type="button"
+                            className="outlineBtnInline adminDangerBtn"
+                            onClick={() => handleRejectField(field)}
+                            disabled={isDeleting || isStatusProcessing}
+                          >
+                            {isStatusProcessing && fieldStatusActionMode === "reject"
+                              ? "Đang từ chối..."
+                              : "Từ chối duyệt"}
+                          </button>
+                        )}
+                      </>
                     )}
 
                     {isOwnerPortal && (
@@ -597,15 +619,17 @@ const FieldListSection = ({
                       </button>
                     )}
 
-                    <button
-                      type="button"
-                      className="outlineBtnInline adminDangerBtn"
-                      onClick={() => handleDeleteField(field)}
-                      disabled={!deletionState.canDelete || isDeleting || isStatusProcessing}
-                      title={deletionState.reason || ""}
-                    >
-                      {isDeleting ? "Đang xóa..." : "Xóa sân"}
-                    </button>
+                    {showDeleteAction && (
+                      <button
+                        type="button"
+                        className="outlineBtnInline adminDangerBtn"
+                        onClick={() => handleDeleteField(field)}
+                        disabled={!deletionState.canDelete || isDeleting || isStatusProcessing}
+                        title={deletionState.reason || ""}
+                      >
+                        {isDeleting ? "Đang xóa..." : "Xóa sân"}
+                      </button>
+                    )}
                   </div>
 
                   {(manualHint || deletionState.reason) && (
@@ -812,6 +836,7 @@ const AdminFieldsView = (props) => {
     handleEditField,
     handleCancelFieldEdit,
     handleDeleteField,
+    handleRejectField,
     handleFieldModeration,
     handleSubmit,
     handleConfirmBooking,
@@ -927,6 +952,7 @@ const AdminFieldsView = (props) => {
             createPublicBookingUrl={createPublicBookingUrl}
             getFieldDeletionState={getFieldDeletionState}
             handleFieldModeration={handleFieldModeration}
+            handleRejectField={handleRejectField}
             handleEditField={handleEditField}
             handleDeleteField={handleDeleteField}
           />
@@ -994,6 +1020,7 @@ const AdminFieldsView = (props) => {
           createPublicBookingUrl={createPublicBookingUrl}
           getFieldDeletionState={getFieldDeletionState}
           handleFieldModeration={handleFieldModeration}
+          handleRejectField={handleRejectField}
           handleEditField={handleEditField}
           handleDeleteField={handleDeleteField}
         />

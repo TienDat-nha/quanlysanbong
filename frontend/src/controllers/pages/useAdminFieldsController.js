@@ -10,6 +10,7 @@ import {
   getAdminDashboard,
   getAdminFields,
   lockAdminField,
+  rejectAdminField,
   unlockAdminField,
   updateAdminField,
   uploadAdminImage,
@@ -254,12 +255,20 @@ export const useAdminFieldsController = ({ authToken, currentUser }) => {
       }
     }
 
+    const moderationState = getFieldModerationState(field)
+    if (isAdminPortal && (moderationState === "PENDING" || moderationState === "REJECTED")) {
+      return {
+        canDelete: false,
+        reason:
+          moderationState === "PENDING"
+            ? "Yêu cầu này cần được duyệt hoặc từ chối, không xóa trực tiếp."
+            : "Sân đang ở trạng thái bị từ chối, không xóa ở bước xét duyệt.",
+      }
+    }
+
     return {
       canDelete: true,
-      reason:
-        getFieldModerationState(field) === "PENDING"
-          ? "Sân đang chờ admin duyệt."
-          : "",
+      reason: moderationState === "PENDING" ? "Sân đang chờ admin duyệt." : "",
     }
   }
 
@@ -669,6 +678,42 @@ export const useAdminFieldsController = ({ authToken, currentUser }) => {
     }
   }
 
+  const handleRejectField = async (field) => {
+    if (!authToken || !isAdminPortal || !field?.id) {
+      return
+    }
+
+    const moderationState = getFieldModerationState(field)
+    if (moderationState !== "PENDING") {
+      return
+    }
+
+    const rejectReason = window.prompt(
+      `Lý do từ chối duyệt sân "${field.name}" (có thể bỏ trống):`,
+      ""
+    )
+
+    if (rejectReason === null) {
+      return
+    }
+
+    setFieldStatusActionId(String(field.id))
+    setFieldStatusActionMode("reject")
+    setError("")
+    setSuccessMessage("")
+
+    try {
+      const response = await rejectAdminField(authToken, field.id, rejectReason)
+      setSuccessMessage(String(response?.message || "").trim() || "Đã từ chối duyệt sân.")
+      setRefreshKey((currentValue) => currentValue + 1)
+    } catch (apiError) {
+      setError(apiError.message)
+    } finally {
+      setFieldStatusActionId("")
+      setFieldStatusActionMode("")
+    }
+  }
+
   const handleFieldModeration = async (field) => {
     if (!authToken || !isAdminPortal || !field?.id) {
       return
@@ -818,6 +863,7 @@ export const useAdminFieldsController = ({ authToken, currentUser }) => {
     handleEditField,
     handleCancelFieldEdit,
     handleDeleteField,
+    handleRejectField,
     handleFieldModeration,
     handleSubmit,
     handleConfirmBooking: (bookingId) => handleBookingAction(bookingId, "confirm"),
