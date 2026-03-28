@@ -1475,6 +1475,18 @@ export const getFields = async (token = "") => {
     token
   )
 
+  if (fields.length === 0 && knownFieldIds.length > 0) {
+    const rememberedFields = await getFieldByConfiguredIds(knownFieldIds, token)
+    if (rememberedFields.length > 0) {
+      return {
+        fields: rememberedFields,
+        message:
+          String(response?.message || "").trim()
+          || "Dang hien thi cac san da ghi nho trong khi API danh sach chua tra du lieu.",
+      }
+    }
+  }
+
   rememberKnownFieldIds(fields.map((field) => field?.id))
 
   return {
@@ -1717,20 +1729,43 @@ export const createAdminField = async (token, payload) => {
   const resolvedFieldId = String(baseField?.id || baseField?._id || "").trim()
 
   if (resolvedFieldId) {
-    await syncAdminFieldSubFields(token, resolvedFieldId, payload, [])
+    rememberKnownFieldIds(resolvedFieldId)
   }
 
-  const { field } = resolvedFieldId
-    ? await getFieldById(resolvedFieldId, token)
-    : { field: baseField }
+  if (baseField?.id || resolvedFieldId) {
+    rememberFieldSnapshot(
+      baseField?.id ? baseField : { ...payload, id: resolvedFieldId, _id: resolvedFieldId, fieldId: resolvedFieldId }
+    )
+  }
 
-  if (field?.id) {
-    rememberKnownFieldIds(field.id)
-    rememberFieldSnapshot(field)
+  let hydratedField = baseField
+
+  if (resolvedFieldId) {
+    try {
+      await syncAdminFieldSubFields(token, resolvedFieldId, payload, [])
+    } catch (_error) {
+      // Field itself may already be created successfully even if syncing subfields fails.
+    }
+  }
+
+  if (resolvedFieldId) {
+    try {
+      const { field } = await getFieldById(resolvedFieldId, token)
+      hydratedField = field || hydratedField
+    } catch (_error) {
+      hydratedField = mergeStoredFieldSnapshot(hydratedField)
+    }
+  }
+
+  if (hydratedField?.id || resolvedFieldId) {
+    rememberKnownFieldIds(hydratedField?.id || resolvedFieldId)
+    rememberFieldSnapshot(
+      hydratedField || { ...payload, id: resolvedFieldId, _id: resolvedFieldId, fieldId: resolvedFieldId }
+    )
   }
 
   return {
-    field,
+    field: hydratedField,
     message: String(response?.message || "").trim(),
   }
 }
@@ -1751,7 +1786,11 @@ export const updateAdminField = async (token, fieldId, payload) => {
     currentSubFields = []
   }
 
-  await syncAdminFieldSubFields(token, normalizedFieldId, payload, currentSubFields)
+  try {
+    await syncAdminFieldSubFields(token, normalizedFieldId, payload, currentSubFields)
+  } catch (_error) {
+    // Preserve the field update success even if syncing subfields fails afterward.
+  }
 
   const baseField =
     mergeFieldSources(getObjectFromResponse(response, ["field", "item"]), {
@@ -1775,17 +1814,24 @@ export const updateAdminField = async (token, fieldId, payload) => {
       },
       {}
     )
-  const { field } = normalizedFieldId
-    ? await getFieldById(normalizedFieldId, token)
-    : { field: baseField }
+  let hydratedField = baseField
 
-  if (field?.id || fieldId) {
-    rememberKnownFieldIds(field?.id || fieldId)
-    rememberFieldSnapshot(field || { ...payload, id: fieldId, _id: fieldId, fieldId })
+  if (normalizedFieldId) {
+    try {
+      const { field } = await getFieldById(normalizedFieldId, token)
+      hydratedField = field || hydratedField
+    } catch (_error) {
+      hydratedField = mergeStoredFieldSnapshot(hydratedField)
+    }
+  }
+
+  if (hydratedField?.id || fieldId) {
+    rememberKnownFieldIds(hydratedField?.id || fieldId)
+    rememberFieldSnapshot(hydratedField || { ...payload, id: fieldId, _id: fieldId, fieldId })
   }
 
   return {
-    field,
+    field: hydratedField,
     message: String(response?.message || "").trim(),
   }
 }

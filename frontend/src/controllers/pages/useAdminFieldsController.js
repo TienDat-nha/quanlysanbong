@@ -631,6 +631,19 @@ export const useAdminFieldsController = ({ authToken, currentUser }) => {
         ...apiErrorState.fieldErrors,
       }))
       setError(apiErrorState.message || apiError.message)
+
+      const normalizedApiMessage = String(apiError.message || "")
+        .toLowerCase()
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+
+      if (
+        normalizedApiMessage.includes("field already exists")
+        || normalizedApiMessage.includes("ton tai")
+      ) {
+        setNoticeMessage("Sân này có thể đã được tạo trước đó. Đang tải lại danh sách để kiểm tra.")
+        setRefreshKey((currentValue) => currentValue + 1)
+      }
     } finally {
       setSubmitting(false)
     }
