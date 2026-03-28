@@ -70,24 +70,21 @@ const QuickActionGrid = ({ manualBookingPath }) => (
   </section>
 )
 
-const AdminToolsSection = ({ adminUsersPath, manageFieldsSectionPath }) => (
+const AdminToolsSection = () => (
   <section className="usersPanel adminDashboardPanel adminDashboardTools">
     <div className="usersPanelHeader">
       <div>
-        <h2>Công cụ Admin</h2>
+        <h2>Thao tác quản lý sân</h2>
         <p className="helperText">
-          Xác nhận yêu cầu tạo hoặc sửa sân từ Chủ sân trước, sau đó mới cập nhật thủ công nếu cần.
+          Admin không tạo sân trong màn này. Admin chỉ xử lý các sân Chủ sân đã gửi lên.
         </p>
       </div>
-      <span>2 mục chính</span>
+      <span>3 thao tác</span>
     </div>
-    <div className="adminToolsActions">
-      <Link className="btn smallBtn adminToolsAction" to={adminUsersPath}>
-        Quản lý tài khoản
-      </Link>
-      <Link className="outlineBtnLink adminToolsAction" to={manageFieldsSectionPath}>
-        Quản lý sân
-      </Link>
+    <div className="ownerAdminMiniCard">
+      <span>Xác nhận tạo sân hoặc cập nhật sân của Chủ sân.</span>
+      <span>Khóa hoặc mở khóa sân khi cần.</span>
+      <span>Xóa sân nếu không còn hợp lệ.</span>
     </div>
   </section>
 )
@@ -578,14 +575,16 @@ const FieldListSection = ({
                       </button>
                     )}
 
-                    <button
-                      type="button"
-                      className="outlineBtnInline"
-                      onClick={() => handleEditField(field)}
-                      disabled={isDeleting || isStatusProcessing}
-                    >
-                      Sửa sân
-                    </button>
+                    {isOwnerPortal && (
+                      <button
+                        type="button"
+                        className="outlineBtnInline"
+                        onClick={() => handleEditField(field)}
+                        disabled={isDeleting || isStatusProcessing}
+                      >
+                        Sửa sân
+                      </button>
+                    )}
 
                     <button
                       type="button"
@@ -785,11 +784,9 @@ const AdminFieldsView = (props) => {
     loginPath,
     fieldsPath,
     manualBookingPath,
-    adminUsersPath,
     manageFieldsSectionId,
     fieldListSectionId,
     ownerBookingsSectionId,
-    manageFieldsSectionPath,
     publicOrigin,
     createPublicBookingUrl,
     getFieldDeletionState,
@@ -969,6 +966,8 @@ const AdminFieldsView = (props) => {
       )}
 
       <div className="container adminFieldManagementStack">
+        <AdminToolsSection />
+
         <FieldListSection
           isAdminPortal={isAdminPortal}
           isOwnerPortal={isOwnerPortal}
@@ -987,34 +986,6 @@ const AdminFieldsView = (props) => {
           handleEditField={handleEditField}
           handleDeleteField={handleDeleteField}
         />
-
-        <div className="adminDashboardGrid adminDashboardGrid--management">
-          <AdminToolsSection
-            adminUsersPath={adminUsersPath}
-            manageFieldsSectionPath={manageFieldsSectionPath}
-          />
-          <FormPanel
-            isAdminPortal={isAdminPortal}
-            isOwnerPortal={isOwnerPortal}
-            form={form}
-            formErrors={formErrors}
-            isEditingField={isEditingField}
-            submitting={submitting}
-            uploadingCover={uploadingCover}
-            uploadingGallery={uploadingGallery}
-            manageFieldsSectionId={manageFieldsSectionId}
-            handleFieldChange={handleFieldChange}
-            handleSubFieldChange={handleSubFieldChange}
-            handleAddSubField={handleAddSubField}
-            handleRemoveSubField={handleRemoveSubField}
-            handleCoverImageUpload={handleCoverImageUpload}
-            handleGalleryImagesUpload={handleGalleryImagesUpload}
-            handleRemoveCoverImage={handleRemoveCoverImage}
-            handleRemoveGalleryImage={handleRemoveGalleryImage}
-            handleCancelFieldEdit={handleCancelFieldEdit}
-            handleSubmit={handleSubmit}
-          />
-        </div>
       </div>
     </section>
   )
