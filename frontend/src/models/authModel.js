@@ -4,6 +4,7 @@ const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
 export const USER_ROLES = Object.freeze({
   customer: "customer",
+  owner: "owner",
   admin: "admin",
 })
 
@@ -14,6 +15,11 @@ export const LOGIN_ACCOUNT_TYPES = Object.freeze({
 })
 
 const LOGIN_ACCOUNT_TYPE_VALUES = Object.values(LOGIN_ACCOUNT_TYPES)
+export const PRIMARY_ADMIN_EMAIL = "tiendat82282@gmail.com"
+
+const normalizeEmailValue = (value) => String(value || "").trim().toLowerCase()
+
+export const isPrimaryAdminEmail = (value) => normalizeEmailValue(value) === PRIMARY_ADMIN_EMAIL
 
 export const createLoginForm = () => ({
   email: "",
@@ -29,7 +35,7 @@ export const createRegisterForm = () => ({
   confirmPassword: "",
 })
 
-export const isValidEmail = (value) => EMAIL_PATTERN.test(String(value || "").trim().toLowerCase())
+export const isValidEmail = (value) => EMAIL_PATTERN.test(normalizeEmailValue(value))
 
 export const normalizeLoginAccountType = (value, fallback = LOGIN_ACCOUNT_TYPES.customer) => {
   const normalizedValue = String(value || "")
@@ -39,9 +45,7 @@ export const normalizeLoginAccountType = (value, fallback = LOGIN_ACCOUNT_TYPES.
   return LOGIN_ACCOUNT_TYPE_VALUES.includes(normalizedValue) ? normalizedValue : fallback
 }
 
-export const getStoredAuthToken = () => {
-  return localStorage.getItem(TOKEN_STORAGE_KEY) || ""
-}
+export const getStoredAuthToken = () => localStorage.getItem(TOKEN_STORAGE_KEY) || ""
 
 export const getStoredLoginAccountType = () => {
   const storedValue = String(localStorage.getItem(LOGIN_TYPE_STORAGE_KEY) || "")
@@ -76,26 +80,26 @@ export const clearStoredLoginAccountType = () => {
 
 export const getAuthCheckingMessage = () => "Đang xác thực tài khoản..."
 
-export const isStaffAccount = (user) => {
-  const normalizedRole = String(user?.role || "").trim().toLowerCase()
-  return ["admin", "owner", "field_owner", "field-owner"].includes(normalizedRole)
-}
-
 export const getRoleBasedLoginAccountType = (user) => {
   const normalizedRole = String(user?.role || "").trim().toLowerCase()
+  const normalizedEmail = normalizeEmailValue(user?.email || user?.username)
 
-  if (normalizedRole === "admin") {
+  if (isPrimaryAdminEmail(normalizedEmail)) {
     return LOGIN_ACCOUNT_TYPES.admin
   }
 
-  if (["owner", "field_owner", "field-owner"].includes(normalizedRole)) {
+  if (["admin", "owner", "field_owner", "field-owner"].includes(normalizedRole)) {
     return LOGIN_ACCOUNT_TYPES.owner
   }
 
   return LOGIN_ACCOUNT_TYPES.customer
 }
 
-export const isOwnerAccount = (user) => getRoleBasedLoginAccountType(user) === LOGIN_ACCOUNT_TYPES.owner
+export const isStaffAccount = (user) =>
+  getRoleBasedLoginAccountType(user) !== LOGIN_ACCOUNT_TYPES.customer
+
+export const isOwnerAccount = (user) =>
+  getRoleBasedLoginAccountType(user) === LOGIN_ACCOUNT_TYPES.owner
 
 export const getUserLoginAccountType = (user) =>
   normalizeLoginAccountType(user?.loginAccountType || user?.accountType || user?.portalType, "")
@@ -143,12 +147,23 @@ export const matchesLoginAccountType = (user, accountType) => {
   return normalizedType === getRoleBasedLoginAccountType(user)
 }
 
-export const getUserRoleLabel = (role) =>
-  isStaffAccount({ role }) ? "Chủ sân / quản trị" : "Người đặt sân"
+export const getUserRoleLabel = (role, email = "") => {
+  const accountType = getRoleBasedLoginAccountType({ role, email })
+
+  if (accountType === LOGIN_ACCOUNT_TYPES.admin) {
+    return "Quản trị"
+  }
+
+  if (accountType === LOGIN_ACCOUNT_TYPES.owner) {
+    return "Chủ sân"
+  }
+
+  return "Người dùng"
+}
 
 export const validateRegisterDetails = (form) => {
   const fullName = String(form.fullName || "").trim()
-  const email = String(form.email || "").trim().toLowerCase()
+  const email = normalizeEmailValue(form.email)
   const phone = String(form.phone || "").replace(/\D/g, "")
   const password = String(form.password || "")
   const confirmPassword = String(form.confirmPassword || "")

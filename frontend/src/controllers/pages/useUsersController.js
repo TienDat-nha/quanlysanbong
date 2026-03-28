@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react"
-import { isAdminUser, isValidEmail } from "../../models/authModel"
+import { isAdminUser, isPrimaryAdminEmail, isValidEmail } from "../../models/authModel"
 import {
   canSendManagedUserOtp,
   createPublicUser,
@@ -40,7 +40,6 @@ const getFirstManagedUserFormError = (fieldErrors = {}) =>
 const ROLE_OPTIONS = Object.freeze([
   { value: "USER", label: "Ng??i d?ng" },
   { value: "OWNER", label: "Ch? s?n" },
-  { value: "ADMIN", label: "Qu?n tr?" },
 ])
 
 const OTP_RESEND_SECONDS = 45
@@ -325,7 +324,7 @@ export const useUsersController = ({ authToken, currentUser }) => {
       return "Vui lòng nhập mật khẩu cho tài khoản mới."
     }
 
-    if (!["USER", "OWNER", "ADMIN"].includes(String(formValues.role || "").trim().toUpperCase())) {
+    if (!["USER", "OWNER"].includes(String(formValues.role || "").trim().toUpperCase())) {
       return "Vai trò tài khoản không hợp lệ."
     }
 
@@ -383,7 +382,7 @@ export const useUsersController = ({ authToken, currentUser }) => {
       nextFormErrors.password = "Mật khẩu tối thiểu 6 ký tự."
     }
 
-    if (!["USER", "OWNER", "ADMIN"].includes(normalizedRole)) {
+    if (!["USER", "OWNER"].includes(normalizedRole)) {
       nextFormErrors.role = "Vai trò tài khoản không hợp lệ."
     }
 
@@ -635,7 +634,12 @@ export const useUsersController = ({ authToken, currentUser }) => {
 
   const handleEditUser = (user) => {
     if (!canManageUsers) {
-      setError("Chỉ tài khoản admin mới được sửa tài khoản.")
+      setError("Ch? t?i kho?n admin m?i ???c s?a t?i kho?n.")
+      return
+    }
+
+    if (isPrimaryAdminEmail(user?.email) || getApiRoleValue(user?.role, user?.email) === "ADMIN") {
+      setError("T?i kho?n admin ch?nh kh?ng ch?nh s?a ? m?n n?y.")
       return
     }
 
@@ -645,7 +649,7 @@ export const useUsersController = ({ authToken, currentUser }) => {
       email: user.email,
       phone: user.phone,
       password: "",
-      role: getApiRoleValue(user.role),
+      role: getApiRoleValue(user.role, user.email),
     })
     setFormErrors(createManagedUserFormErrors())
     resetOtpState()
@@ -727,7 +731,7 @@ export const useUsersController = ({ authToken, currentUser }) => {
         name: user.name,
         email: user.email,
         phone: user.phone,
-        role: getApiRoleValue(user.role),
+        role: getApiRoleValue(user.role, user.email),
         isDeleted: nextLocked,
         isActive: !nextLocked,
         locked: nextLocked,

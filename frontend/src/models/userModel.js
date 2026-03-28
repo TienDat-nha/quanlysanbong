@@ -1,16 +1,19 @@
-const normalizeManagedUserRole = (value) => {
+import { isPrimaryAdminEmail } from "./authModel"
+
+const normalizeManagedUserRole = (value, email = "") => {
   const normalized = String(value || "USER").trim().toUpperCase()
+  const normalizedEmail = String(email || "").trim().toLowerCase()
 
-  if (normalized === "ADMIN") {
+  if (isPrimaryAdminEmail(normalizedEmail)) {
     return "ADMIN"
-  }
-
-  if (normalized === "OWNER") {
-    return "OWNER"
   }
 
   if (normalized === "CLIENT" || normalized === "CUSTOMER" || normalized === "USER") {
     return "USER"
+  }
+
+  if (["OWNER", "FIELD_OWNER", "FIELD-OWNER", "ADMIN"].includes(normalized)) {
+    return "OWNER"
   }
 
   return normalized || "USER"
@@ -35,7 +38,7 @@ const normalizeUser = (user) => {
   const name = String(user?.name || user?.fullName || "").trim()
   const email = String(user?.email || "").trim().toLowerCase()
   const phone = String(user?.phone || "").trim()
-  const role = normalizeManagedUserRole(user?.role)
+  const role = normalizeManagedUserRole(user?.role, email)
   const isLocked = getUserLockState(user)
 
   if (!id || !name) {
@@ -55,10 +58,10 @@ const normalizeUser = (user) => {
   }
 }
 
-export const getApiRoleValue = (value) => normalizeManagedUserRole(value)
+export const getApiRoleValue = (value, email = "") => normalizeManagedUserRole(value, email)
 
-export const getManagedUserRoleLabel = (role) => {
-  const normalizedRole = getApiRoleValue(role)
+export const getManagedUserRoleLabel = (role, email = "") => {
+  const normalizedRole = getApiRoleValue(role, email)
 
   if (normalizedRole === "ADMIN") {
     return "Quản trị"
@@ -79,9 +82,9 @@ export const getUserSummary = (users) => {
 
   return {
     total: list.length,
-    customers: list.filter((user) => getApiRoleValue(user?.role) === "USER").length,
-    owners: list.filter((user) => getApiRoleValue(user?.role) === "OWNER").length,
-    admins: list.filter((user) => getApiRoleValue(user?.role) === "ADMIN").length,
+    customers: list.filter((user) => getApiRoleValue(user?.role, user?.email) === "USER").length,
+    owners: list.filter((user) => getApiRoleValue(user?.role, user?.email) === "OWNER").length,
+    admins: list.filter((user) => getApiRoleValue(user?.role, user?.email) === "ADMIN").length,
     locked: list.filter((user) => user?.isLocked).length,
   }
 }

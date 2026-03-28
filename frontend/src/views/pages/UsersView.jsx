@@ -19,8 +19,8 @@ const controlClass = (error, baseClass = "") =>
 
 const ErrorText = ({ text }) => (text ? <p className="ownerFieldError">{text}</p> : null)
 
-const getRoleBadgeClass = (role) => {
-  const normalizedRole = getApiRoleValue(role)
+const getRoleBadgeClass = (role, email) => {
+  const normalizedRole = getApiRoleValue(role, email)
 
   if (normalizedRole === "ADMIN") {
     return "isAdmin"
@@ -120,7 +120,9 @@ const UsersView = ({
         <div>
           <p className="usersEyebrow">Khu quản trị tài khoản</p>
           <h1>Quản lý người dùng và chủ sân</h1>
-          <p>Admin có thể tạo, cập nhật, khóa hoặc xóa tài khoản theo quyền của backend.</p>
+          <p>
+            Chỉ có một tài khoản admin chính. Màn này chỉ tạo thêm tài khoản người dùng hoặc chủ sân.
+          </p>
         </div>
 
         <div className="usersHighlight">
@@ -357,7 +359,9 @@ const UsersView = ({
 
                     <tbody>
                       {users.map((user) => {
-                        const roleBadgeClass = getRoleBadgeClass(user.role)
+                        const normalizedRole = getApiRoleValue(user.role, user.email)
+                        const roleBadgeClass = getRoleBadgeClass(user.role, user.email)
+                        const isPrimaryAdmin = normalizedRole === "ADMIN"
                         const isSelf =
                           String(user.id || "").trim()
                             === String(currentUser?.id || currentUser?._id || "").trim()
@@ -378,7 +382,7 @@ const UsersView = ({
                             <td>{user.phone || "-"}</td>
                             <td>
                               <span className={`usersRoleBadge ${roleBadgeClass}`}>
-                                {getManagedUserRoleLabel(user.role)}
+                                {getManagedUserRoleLabel(user.role, user.email)}
                               </span>
                             </td>
                             <td>
@@ -392,7 +396,7 @@ const UsersView = ({
                                   className="outlineBtnInline"
                                   type="button"
                                   onClick={() => onEditUser(user)}
-                                  disabled={submitting || isDeleting || isStatusLoading}
+                                  disabled={submitting || isDeleting || isStatusLoading || isPrimaryAdmin}
                                 >
                                   Sửa
                                 </button>
@@ -400,7 +404,7 @@ const UsersView = ({
                                   className="outlineBtnInline"
                                   type="button"
                                   onClick={() => onToggleUserStatus(user)}
-                                  disabled={submitting || isDeleting || isStatusLoading || isSelf}
+                                  disabled={submitting || isDeleting || isStatusLoading || isSelf || isPrimaryAdmin}
                                 >
                                   {isStatusLoading
                                     ? statusActionMode === "unlock"
@@ -414,7 +418,7 @@ const UsersView = ({
                                   className="outlineBtnInline usersDeleteBtn"
                                   type="button"
                                   onClick={() => onDeleteUser(user)}
-                                  disabled={submitting || isDeleting || isStatusLoading || isSelf}
+                                  disabled={submitting || isDeleting || isStatusLoading || isSelf || isPrimaryAdmin}
                                 >
                                   {isDeleting ? "Đang xóa..." : "Xóa"}
                                 </button>
