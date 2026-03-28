@@ -20,6 +20,7 @@ import {
   createAdminFieldFormErrors,
   createAdminFieldFormFromField,
   createAdminSubFieldDraft,
+  getAdminFieldApiErrorState,
   getAdminFieldList,
   validateAdminFieldForm,
 } from "../../models/adminFieldModel"
@@ -585,7 +586,12 @@ export const useAdminFieldsController = ({ authToken, currentUser }) => {
       )
       setRefreshKey((currentValue) => currentValue + 1)
     } catch (apiError) {
-      setError(apiError.message)
+      const apiErrorState = getAdminFieldApiErrorState(apiError.message, form)
+      setFormErrors((currentErrors) => ({
+        ...currentErrors,
+        ...apiErrorState.fieldErrors,
+      }))
+      setError(apiErrorState.message || apiError.message)
     } finally {
       setSubmitting(false)
     }

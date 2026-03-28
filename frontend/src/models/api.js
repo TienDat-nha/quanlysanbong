@@ -225,6 +225,22 @@ const getRouteErrorFromHtml = (value) => {
 const buildApiUnavailableMessage = (requestPath) =>
   `Không thể kết nối đến API (${API_BASE_URL}). Vui lòng kiểm tra backend đang chạy (${requestPath}).`
 
+const normalizeApiErrorMessageKey = (value) =>
+  String(value || "")
+    .trim()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+
+const isGenericInvalidApiMessage = (value) => {
+  const normalizedMessage = normalizeApiErrorMessageKey(value)
+  return (
+    normalizedMessage === "du lieu gui len khong hop le"
+    || normalizedMessage === "data invalid"
+    || normalizedMessage === "request data invalid"
+  )
+}
+
 const getNestedValue = (source, path) =>
   String(path || "")
     .split(".")
@@ -261,9 +277,28 @@ const getMessageFromBody = (bodyData, rawBodyText) => {
       "normalizedBody.error.message",
     ]
   )
+  const detail = pickFirstValue(
+    { bodyData, normalizedBody },
+    [
+      "bodyData.data",
+      "bodyData.error.data",
+      "normalizedBody.data",
+      "normalizedBody.error.data",
+    ]
+  )
+
+  if (typeof detail === "string" && detail.trim()) {
+    if (!(typeof message === "string" && message.trim()) || isGenericInvalidApiMessage(message)) {
+      return detail.trim()
+    }
+  }
 
   if (typeof message === "string" && message.trim()) {
     return message.trim()
+  }
+
+  if (typeof detail === "string" && detail.trim()) {
+    return detail.trim()
   }
 
   const routeErrorMessage = getRouteErrorFromHtml(rawBodyText)

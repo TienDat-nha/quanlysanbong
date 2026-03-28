@@ -23,6 +23,13 @@ const normalizeOptionalCoordinate = (value) => {
   return Number.isFinite(coordinate) ? Number(coordinate.toFixed(6)) : null
 }
 
+const normalizeAdminFieldErrorKey = (value) =>
+  String(value || "")
+    .trim()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+
 export const createAdminSubFieldDraft = (index = 1, defaults = {}) => ({
   id: nextAdminSubFieldDraftId(),
   key: String(defaults.key || "").trim(),
@@ -126,6 +133,78 @@ const getFirstAdminFieldErrorMessage = (fieldErrors) => {
   }
 
   return ""
+}
+
+export const getAdminFieldApiErrorState = (message, form) => {
+  const rawMessage = String(message || "").trim()
+  const normalizedMessage = normalizeAdminFieldErrorKey(rawMessage)
+  const fieldErrors = createAdminFieldFormErrors(form)
+
+  if (!rawMessage) {
+    return {
+      message: "",
+      fieldErrors,
+    }
+  }
+
+  if (
+    normalizedMessage.includes("field already exists")
+    || normalizedMessage.includes("san da ton tai")
+    || normalizedMessage.includes("ten san da ton tai")
+  ) {
+    fieldErrors.name = "Tên sân đã tồn tại."
+  }
+
+  if (
+    normalizedMessage.includes("name, address, district required")
+    || normalizedMessage.includes("name address district required")
+  ) {
+    if (!String(form?.name || "").trim()) {
+      fieldErrors.name = "Vui lòng nhập tên sân."
+    }
+
+    if (!String(form?.address || "").trim()) {
+      fieldErrors.address = "Vui lòng nhập địa chỉ sân."
+    }
+
+    if (!String(form?.district || "").trim()) {
+      fieldErrors.district = "Vui lòng nhập khu vực."
+    }
+
+    if (!fieldErrors.name && !fieldErrors.address && !fieldErrors.district) {
+      fieldErrors.name = "Backend đang báo thiếu thông tin tên sân."
+      fieldErrors.address = "Backend đang báo thiếu thông tin địa chỉ."
+      fieldErrors.district = "Backend đang báo thiếu thông tin khu vực."
+    }
+  }
+
+  if (
+    normalizedMessage.includes("name required")
+    || normalizedMessage.includes("thieu ten san")
+  ) {
+    fieldErrors.name = fieldErrors.name || "Vui lòng nhập tên sân."
+  }
+
+  if (
+    normalizedMessage.includes("address required")
+    || normalizedMessage.includes("thieu dia chi")
+  ) {
+    fieldErrors.address = fieldErrors.address || "Vui lòng nhập địa chỉ sân."
+  }
+
+  if (
+    normalizedMessage.includes("district required")
+    || normalizedMessage.includes("thieu khu vuc")
+  ) {
+    fieldErrors.district = fieldErrors.district || "Vui lòng nhập khu vực."
+  }
+
+  const resolvedMessage = getFirstAdminFieldErrorMessage(fieldErrors) || rawMessage
+
+  return {
+    message: resolvedMessage,
+    fieldErrors,
+  }
 }
 
 export const validateAdminFieldForm = (form) => {
