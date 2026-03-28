@@ -5,6 +5,10 @@ const normalizeManagedUserRole = (value) => {
     return "ADMIN"
   }
 
+  if (normalized === "OWNER") {
+    return "OWNER"
+  }
+
   if (normalized === "CLIENT" || normalized === "CUSTOMER" || normalized === "USER") {
     return "USER"
   }
@@ -52,10 +56,14 @@ const normalizeUser = (user) => {
 }
 
 export const getApiRoleValue = (value) =>
-  normalizeManagedUserRole(value) === "ADMIN" ? "ADMIN" : "USER"
+  normalizeManagedUserRole(value)
 
 export const getManagedUserRoleLabel = (role) =>
-  getApiRoleValue(role) === "ADMIN" ? "Chủ sân / Admin" : "Người dùng"
+  getApiRoleValue(role) === "ADMIN"
+    ? "Qu?n tr?"
+    : getApiRoleValue(role) === "OWNER"
+      ? "Ch? s?n"
+      : "Ng??i d?ng"
 
 export const getManagedUserStatusLabel = (user) =>
   user?.isLocked ? "Đã khóa" : "Đang hoạt động"
@@ -65,8 +73,9 @@ export const getUserSummary = (users) => {
 
   return {
     total: list.length,
-    customers: list.filter((user) => getApiRoleValue(user?.role) !== "ADMIN").length,
-    owners: list.filter((user) => getApiRoleValue(user?.role) === "ADMIN").length,
+    customers: list.filter((user) => getApiRoleValue(user?.role) === "USER").length,
+    owners: list.filter((user) => getApiRoleValue(user?.role) === "OWNER").length,
+    admins: list.filter((user) => getApiRoleValue(user?.role) === "ADMIN").length,
     locked: list.filter((user) => user?.isLocked).length,
   }
 }

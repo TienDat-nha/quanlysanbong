@@ -7,10 +7,11 @@ import {
 } from "../../models/userModel"
 
 const createSummaryCards = (summary) => [
-  { key: "total", label: "Tổng tài khoản", value: summary.total, tone: "primary" },
-  { key: "users", label: "Người dùng", value: summary.customers, tone: "neutral" },
-  { key: "owners", label: "Chủ sân", value: summary.owners, tone: "warning" },
-  { key: "locked", label: "Đang khóa", value: summary.locked, tone: "success" },
+  { key: "total", label: "T???ng t??i kho???n", value: summary.total, tone: "primary" },
+  { key: "users", label: "Ng?????i d??ng", value: summary.customers, tone: "neutral" },
+  { key: "admins", label: "Qu?n tr?", value: summary.admins, tone: "primary" },
+  { key: "owners", label: "Ch??? s??n", value: summary.owners, tone: "warning" },
+  { key: "locked", label: "??ang kh??a", value: summary.locked, tone: "success" },
 ]
 
 const controlClass = (error, baseClass = "") =>
