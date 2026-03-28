@@ -38,8 +38,9 @@ const getFirstManagedUserFormError = (fieldErrors = {}) =>
   Object.values(fieldErrors).find((value) => String(value || "").trim()) || ""
 
 const ROLE_OPTIONS = Object.freeze([
-  { value: "USER", label: "Người dùng" },
+  { value: "USER", label: "Ng??i d?ng" },
   { value: "OWNER", label: "Ch? s?n" },
+  { value: "ADMIN", label: "Qu?n tr?" },
 ])
 
 const OTP_RESEND_SECONDS = 45
@@ -324,7 +325,7 @@ export const useUsersController = ({ authToken, currentUser }) => {
       return "Vui lòng nhập mật khẩu cho tài khoản mới."
     }
 
-    if (!["USER", "OWNER"].includes(String(formValues.role || "").trim().toUpperCase())) {
+    if (!["USER", "OWNER", "ADMIN"].includes(String(formValues.role || "").trim().toUpperCase())) {
       return "Vai trò tài khoản không hợp lệ."
     }
 
@@ -382,7 +383,7 @@ export const useUsersController = ({ authToken, currentUser }) => {
       nextFormErrors.password = "Mật khẩu tối thiểu 6 ký tự."
     }
 
-    if (!["USER", "OWNER"].includes(normalizedRole)) {
+    if (!["USER", "OWNER", "ADMIN"].includes(normalizedRole)) {
       nextFormErrors.role = "Vai trò tài khoản không hợp lệ."
     }
 

@@ -595,6 +595,12 @@ button {
   color: #205f3d;
 }
 
+.usersRoleBadge.isAdmin {
+  background: rgba(9, 96, 124, 0.12);
+  border: 1px solid rgba(9, 96, 124, 0.2);
+  color: #0d5f7d;
+}
+
 .usersRoleBadge.isOwner {
   background: rgba(223, 177, 43, 0.18);
   border: 1px solid rgba(172, 119, 16, 0.2);

@@ -55,15 +55,21 @@ const normalizeUser = (user) => {
   }
 }
 
-export const getApiRoleValue = (value) =>
-  normalizeManagedUserRole(value)
+export const getApiRoleValue = (value) => normalizeManagedUserRole(value)
 
-export const getManagedUserRoleLabel = (role) =>
-  getApiRoleValue(role) === "ADMIN"
-    ? "Qu?n tr?"
-    : getApiRoleValue(role) === "OWNER"
-      ? "Ch? s?n"
-      : "Ng??i d?ng"
+export const getManagedUserRoleLabel = (role) => {
+  const normalizedRole = getApiRoleValue(role)
+
+  if (normalizedRole === "ADMIN") {
+    return "Quản trị"
+  }
+
+  if (normalizedRole === "OWNER") {
+    return "Chủ sân"
+  }
+
+  return "Người dùng"
+}
 
 export const getManagedUserStatusLabel = (user) =>
   user?.isLocked ? "Đã khóa" : "Đang hoạt động"
@@ -88,6 +94,4 @@ export const getUserList = (payload) => {
     .filter(Boolean)
 }
 
-export const getUserItem = (payload) => {
-  return normalizeUser(payload?.user || payload)
-}
+export const getUserItem = (payload) => normalizeUser(payload?.user || payload)

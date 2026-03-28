@@ -7,17 +7,31 @@ import {
 } from "../../models/userModel"
 
 const createSummaryCards = (summary) => [
-  { key: "total", label: "T???ng t??i kho???n", value: summary.total, tone: "primary" },
-  { key: "users", label: "Ng?????i d??ng", value: summary.customers, tone: "neutral" },
-  { key: "admins", label: "Qu?n tr?", value: summary.admins, tone: "primary" },
-  { key: "owners", label: "Ch??? s??n", value: summary.owners, tone: "warning" },
-  { key: "locked", label: "??ang kh??a", value: summary.locked, tone: "success" },
+  { key: "total", label: "Tổng tài khoản", value: summary.total, tone: "primary" },
+  { key: "users", label: "Người dùng", value: summary.customers, tone: "neutral" },
+  { key: "owners", label: "Chủ sân", value: summary.owners, tone: "warning" },
+  { key: "admins", label: "Quản trị", value: summary.admins, tone: "primary" },
+  { key: "locked", label: "Đang khóa", value: summary.locked, tone: "success" },
 ]
 
 const controlClass = (error, baseClass = "") =>
   `${baseClass}${error ? `${baseClass ? " " : ""}ownerFormControl--error` : ""}`.trim()
 
 const ErrorText = ({ text }) => (text ? <p className="ownerFieldError">{text}</p> : null)
+
+const getRoleBadgeClass = (role) => {
+  const normalizedRole = getApiRoleValue(role)
+
+  if (normalizedRole === "ADMIN") {
+    return "isAdmin"
+  }
+
+  if (normalizedRole === "OWNER") {
+    return "isOwner"
+  }
+
+  return "isUser"
+}
 
 const UsersView = ({
   users,
@@ -76,10 +90,9 @@ const UsersView = ({
         <div className="container pageHeader usersPageHeader">
           <div>
             <p className="usersEyebrow">Khu quản trị</p>
-            <h1>Quản Lý Người Dùng Và Chủ Sân</h1>
+            <h1>Quản lý người dùng và chủ sân</h1>
             <p>
-              Vui lòng <Link to={loginPath}>đăng nhập</Link> bằng tài khoản admin do DB cấp để quản
-              lý tài khoản.
+              Vui lòng <Link to={loginPath}>đăng nhập</Link> bằng tài khoản admin để quản lý tài khoản.
             </p>
           </div>
         </div>
@@ -93,7 +106,7 @@ const UsersView = ({
         <div className="container pageHeader usersPageHeader">
           <div>
             <p className="usersEyebrow">Khu quản trị</p>
-            <h1>Quản Lý Người Dùng Và Chủ Sân</h1>
+            <h1>Quản lý người dùng và chủ sân</h1>
             <p>Tài khoản {currentUser?.email} không có quyền truy cập khu quản trị tài khoản.</p>
           </div>
         </div>
@@ -106,11 +119,8 @@ const UsersView = ({
       <div className="container pageHeader usersPageHeader">
         <div>
           <p className="usersEyebrow">Khu quản trị tài khoản</p>
-          <h1>Quản Lý Người Dùng Và Chủ Sân</h1>
-          <p>
-            Tài khoản admin cấp từ DB có thể tạo user/chủ sân, xóa tài khoản và khóa hoặc mở khóa
-            bằng chính backend hiện tại.
-          </p>
+          <h1>Quản lý người dùng và chủ sân</h1>
+          <p>Admin có thể tạo, cập nhật, khóa hoặc xóa tài khoản theo quyền của backend.</p>
         </div>
 
         <div className="usersHighlight">
@@ -213,8 +223,7 @@ const UsersView = ({
                 </div>
 
                 <p className="usersFormHint">
-                  Admin chỉ có thể tạo tài khoản sau khi người nhận cung cấp đúng mã OTP đã gửi về
-                  email.
+                  Admin chỉ có thể tạo tài khoản sau khi người nhận cung cấp đúng mã OTP gửi về email.
                 </p>
 
                 {!otpEnabled && <p className="message warning">{otpSetupMessage}</p>}
@@ -348,7 +357,7 @@ const UsersView = ({
 
                     <tbody>
                       {users.map((user) => {
-                        const isOwner = getApiRoleValue(user.role) === "ADMIN"
+                        const roleBadgeClass = getRoleBadgeClass(user.role)
                         const isSelf =
                           String(user.id || "").trim()
                             === String(currentUser?.id || currentUser?._id || "").trim()
@@ -368,7 +377,7 @@ const UsersView = ({
                             <td>{user.email || "-"}</td>
                             <td>{user.phone || "-"}</td>
                             <td>
-                              <span className={`usersRoleBadge ${isOwner ? "isOwner" : "isUser"}`}>
+                              <span className={`usersRoleBadge ${roleBadgeClass}`}>
                                 {getManagedUserRoleLabel(user.role)}
                               </span>
                             </td>
