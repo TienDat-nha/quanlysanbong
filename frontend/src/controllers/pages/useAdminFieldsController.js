@@ -90,7 +90,7 @@ const filterFieldsForPortal = (fields, currentUser, isOwnerPortal) => {
     ownerIds.includes(String(field?.ownerUserId || field?.userId || field?.ownerEmail || "").trim().toLowerCase())
   )
 
-  return ownedFields.length > 0 ? ownedFields : nextFields
+  return ownedFields
 }
 
 const OWNER_MANUAL_BOOKINGS_STORAGE_PREFIX = "sanbong_owner_manual_bookings"

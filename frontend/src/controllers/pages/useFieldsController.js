@@ -5,6 +5,7 @@ import {
   filterFieldListBySearch,
   getFieldList,
   getFieldSearchOptions,
+  isFieldApprovedForPublic,
 } from "../../models/fieldModel"
 
 export const useFieldsController = () => {
@@ -20,7 +21,7 @@ export const useFieldsController = () => {
       try {
         const data = await getFields()
         if (mounted) {
-          setFields(getFieldList(data))
+          setFields(getFieldList(data).filter((field) => isFieldApprovedForPublic(field)))
         }
       } catch (apiError) {
         if (mounted) {

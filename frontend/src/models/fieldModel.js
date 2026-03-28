@@ -134,9 +134,42 @@ const normalizeField = (field) => {
         ? [coverImage]
         : [],
     subFields,
-    ownerUserId: field?.ownerUserId || field?.userId || null,
-    ownerFullName: field?.ownerFullName || field?.ownerName || "",
-    managedByAdmin: Boolean(field?.managedByAdmin || field?.ownerUserId || field?.userId),
+    ownerUserId:
+      field?.ownerUserId
+      || field?.userId
+      || field?.owner?._id
+      || field?.owner?.id
+      || field?.user?._id
+      || field?.user?.id
+      || null,
+    ownerEmail: String(
+      field?.ownerEmail
+      || field?.userEmail
+      || field?.owner?.email
+      || field?.user?.email
+      || ""
+    )
+      .trim()
+      .toLowerCase(),
+    ownerFullName:
+      field?.ownerFullName
+      || field?.ownerName
+      || field?.owner?.name
+      || field?.owner?.fullName
+      || "",
+    approvalStatus: String(field?.approvalStatus || "").trim(),
+    status: String(field?.status || field?.fieldStatus || "").trim(),
+    isLocked: Boolean(field?.isLocked || field?.locked),
+    locked: Boolean(field?.locked || field?.isLocked),
+    managedByAdmin: Boolean(
+      field?.managedByAdmin
+      || field?.ownerUserId
+      || field?.userId
+      || field?.owner?._id
+      || field?.owner?.id
+      || field?.user?._id
+      || field?.user?.id
+    ),
   }
 
   return {
@@ -146,6 +179,29 @@ const normalizeField = (field) => {
     searchIndex: buildFieldSearchIndex(normalizedField),
   }
 }
+
+export const getFieldModerationState = (field) => {
+  const rawStatus = String(field?.approvalStatus || field?.status || field?.fieldStatus || "")
+    .trim()
+    .toUpperCase()
+  const isLocked = Boolean(field?.isLocked || field?.locked)
+
+  if (rawStatus === "REJECTED") {
+    return "REJECTED"
+  }
+
+  if (isLocked || rawStatus === "LOCKED") {
+    return "LOCKED"
+  }
+
+  if (rawStatus === "PENDING") {
+    return "PENDING"
+  }
+
+  return "APPROVED"
+}
+
+export const isFieldApprovedForPublic = (field) => getFieldModerationState(field) === "APPROVED"
 
 export const createFieldSearchState = () => ({
   keyword: "",

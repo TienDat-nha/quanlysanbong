@@ -24,7 +24,7 @@ import {
   normalizeSubFieldKey,
 } from "../../models/bookingModel"
 import { formatBookingStatusVi, validateBookingFormVi } from "../../models/bookingTextModel"
-import { getFieldList } from "../../models/fieldModel"
+import { getFieldList, isFieldApprovedForPublic } from "../../models/fieldModel"
 import { createDepositPaymentRoute, ROUTES } from "../../models/routeModel"
 
 const OWNER_MANUAL_BOOKINGS_STORAGE_PREFIX = "sanbong_owner_manual_bookings"
@@ -60,28 +60,7 @@ const filterFieldsForOwnerPortal = (fields, currentUser, isOwnerPortal) => {
   )
 }
 
-const getFieldModerationState = (field) => {
-  const rawStatus = String(field?.approvalStatus || field?.status || field?.fieldStatus || "")
-    .trim()
-    .toUpperCase()
-  const isLocked = Boolean(field?.isLocked || field?.locked)
-
-  if (rawStatus === "REJECTED") {
-    return "REJECTED"
-  }
-
-  if (isLocked || rawStatus === "LOCKED") {
-    return "LOCKED"
-  }
-
-  if (rawStatus === "PENDING") {
-    return "PENDING"
-  }
-
-  return "APPROVED"
-}
-
-const isFieldApprovedForBooking = (field) => getFieldModerationState(field) === "APPROVED"
+const isFieldApprovedForBooking = (field) => isFieldApprovedForPublic(field)
 
 const getManualBookingStorageKey = (currentUser) => {
   const ownerKey = getPortalOwnerKeys(currentUser)[0]
@@ -253,7 +232,7 @@ export const useBookingController = ({ authToken, currentUser }) => {
         const ownedFields = filterFieldsForOwnerPortal(allFields, currentUser, isOwnerPortal)
         const nextFields = isOwnerPortal
           ? ownedFields.filter((field) => isFieldApprovedForBooking(field))
-          : allFields
+          : allFields.filter((field) => isFieldApprovedForBooking(field))
 
         setFields(nextFields)
         setTimeSlots(timeSlotsData.timeSlots || [])

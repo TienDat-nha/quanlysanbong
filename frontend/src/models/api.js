@@ -1509,10 +1509,20 @@ const getFieldByConfiguredIds = async (fieldIds = [], token = "") => {
     .filter((result) => result.status === "fulfilled")
     .map((result) => result.value?.field || result.value)
     .filter(Boolean)
+  const resolvedFieldIds = new Set(
+    fields
+      .map((field) => String(field?.id || "").trim())
+      .filter(Boolean)
+  )
+  const snapshotFields = nextFieldIds
+    .filter((fieldId) => !resolvedFieldIds.has(String(fieldId || "").trim()))
+    .map((fieldId) => mergeStoredFieldSnapshot(getStoredFieldSnapshots()[String(fieldId || "").trim()]))
+    .filter(Boolean)
+  const mergedFields = [...fields, ...snapshotFields]
 
-  rememberKnownFieldIds(fields.map((field) => field?.id))
+  rememberKnownFieldIds(mergedFields.map((field) => field?.id))
 
-  return fields
+  return mergedFields
 }
 
 export const getFields = async (token = "") => {
