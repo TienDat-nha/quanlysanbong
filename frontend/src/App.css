@@ -2815,6 +2815,14 @@ button {
 .ownerFormField {
   display: grid;
   gap: 0.4rem;
+  min-width: 0;
+}
+
+.ownerFormField input,
+.ownerFormField select,
+.ownerFormField textarea {
+  width: 100%;
+  min-width: 0;
 }
 
 .ownerFormControl--error {
@@ -2885,7 +2893,8 @@ button {
 }
 
 .ownerSubFieldGrid {
-  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  align-items: start;
 }
 
 .ownerSubFieldCard,
@@ -2900,6 +2909,8 @@ button {
   padding: 0.95rem;
   display: grid;
   gap: 0.9rem;
+  min-width: 0;
+  overflow: hidden;
 }
 
 .ownerSubFieldHeader p,

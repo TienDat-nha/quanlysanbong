@@ -227,6 +227,11 @@ const getRouteErrorFromHtml = (value) => {
 const buildApiUnavailableMessage = (requestPath) =>
   `Không thể kết nối đến API (${API_BASE_URL}). Vui lòng kiểm tra backend đang chạy (${requestPath}).`
 
+const isRouteMissingResponse = (status, rawBodyText = "") =>
+  Number(status) === 404
+  || Number(status) === 405
+  || Boolean(getRouteErrorFromHtml(rawBodyText))
+
 const normalizeApiErrorMessageKey = (value) =>
   String(value || "")
     .trim()
@@ -996,7 +1001,11 @@ const request = async (path, options = {}) => {
       headers,
     })
   } catch (_error) {
-    throw new Error(buildApiUnavailableMessage(requestPath))
+    const networkError = new Error(buildApiUnavailableMessage(requestPath))
+    networkError.requestPath = requestPath
+    networkError.status = 0
+    networkError.isRouteMissing = false
+    throw networkError
   }
 
   let rawBodyText = ""
@@ -1019,7 +1028,11 @@ const request = async (path, options = {}) => {
     const errorMessage =
       getMessageFromBody(data, rawBodyText)
       || `Yeu cau that bai (${response.status}) tai ${requestPath}.`
-    throw new Error(errorMessage)
+    const apiError = new Error(errorMessage)
+    apiError.requestPath = requestPath
+    apiError.status = response.status
+    apiError.isRouteMissing = isRouteMissingResponse(response.status, rawBodyText)
+    throw apiError
   }
 
   return data || {}
@@ -1033,6 +1046,10 @@ const requestFirstSuccess = async (paths, options = {}) => {
       return await request(path, options)
     } catch (error) {
       lastError = error
+
+      if (!error?.isRouteMissing) {
+        throw error
+      }
     }
   }
 
