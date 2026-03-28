@@ -2068,6 +2068,16 @@ button {
   margin-bottom: 1rem;
 }
 
+.adminFieldManagementStack {
+  display: grid;
+  gap: 1rem;
+}
+
+.adminDashboardGrid--management {
+  grid-template-columns: minmax(260px, 0.74fr) minmax(0, 1.26fr);
+  margin-bottom: 0;
+}
+
 .adminDashboardTwinGrid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -2079,6 +2089,21 @@ button {
 .adminDashboardPanel,
 .adminCreateFieldForm {
   height: 100%;
+}
+
+.adminDashboardTools {
+  display: grid;
+  gap: 1rem;
+}
+
+.adminToolsActions {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.adminToolsAction {
+  width: 100%;
+  justify-content: center;
 }
 
 .adminPanelToolbar {
@@ -3040,6 +3065,10 @@ button {
 }
 
 @media screen and (max-width: 1024px) {
+  .adminDashboardGrid--management {
+    grid-template-columns: 1fr;
+  }
+
   .ownerHeroCard {
     grid-template-columns: 1fr;
   }
