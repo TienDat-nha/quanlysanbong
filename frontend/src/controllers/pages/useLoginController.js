@@ -2,6 +2,7 @@ import { useState } from "react"
 import { useLocation, useNavigate } from "react-router-dom"
 import {
   createLoginForm,
+  getRoleBasedLoginAccountType,
   isStaffAccount,
   LOGIN_ACCOUNT_TYPES,
   matchesLoginAccountType,
@@ -39,10 +40,15 @@ export const useLoginController = ({ onLoginSuccess }) => {
       const requestedAccountType = normalizeLoginAccountType(form.accountType)
 
       if (!matchesLoginAccountType(data.user, requestedAccountType)) {
+        const actualAccountType = getRoleBasedLoginAccountType(data.user)
         setError(
-          isStaffAccount(data.user)
-            ? "Tài khoản này thuộc nhóm quản lý sân."
-            : "Tài khoản này là người dùng đặt sân."
+          actualAccountType === LOGIN_ACCOUNT_TYPES.admin
+            ? "T?i kho?n n?y l? Qu?n tr?, kh?ng ph?i Ch? s?n."
+            : actualAccountType === LOGIN_ACCOUNT_TYPES.owner
+              ? "T?i kho?n n?y l? Ch? s?n, kh?ng ph?i Qu?n tr?."
+              : isStaffAccount(data.user)
+                ? "T?i kho?n n?y thu?c nh?m qu?n l? s?n."
+                : "T?i kho?n n?y l? ng??i d?ng ??t s?n."
         )
         return
       }

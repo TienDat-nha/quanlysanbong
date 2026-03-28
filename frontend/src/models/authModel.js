@@ -81,33 +81,38 @@ export const isStaffAccount = (user) => {
   return ["admin", "owner", "field_owner", "field-owner"].includes(normalizedRole)
 }
 
-export const isOwnerAccount = (user) => isStaffAccount(user)
+export const getRoleBasedLoginAccountType = (user) => {
+  const normalizedRole = String(user?.role || "").trim().toLowerCase()
+
+  if (normalizedRole === "admin") {
+    return LOGIN_ACCOUNT_TYPES.admin
+  }
+
+  if (["owner", "field_owner", "field-owner"].includes(normalizedRole)) {
+    return LOGIN_ACCOUNT_TYPES.owner
+  }
+
+  return LOGIN_ACCOUNT_TYPES.customer
+}
+
+export const isOwnerAccount = (user) => getRoleBasedLoginAccountType(user) === LOGIN_ACCOUNT_TYPES.owner
 
 export const getUserLoginAccountType = (user) =>
   normalizeLoginAccountType(user?.loginAccountType || user?.accountType || user?.portalType, "")
 
 export const resolveUserLoginAccountType = (user, preferredAccountType = "") => {
-  if (isStaffAccount(user)) {
-    const normalizedPreferred = normalizeLoginAccountType(preferredAccountType, "")
-    if (
-      normalizedPreferred === LOGIN_ACCOUNT_TYPES.admin
-      || normalizedPreferred === LOGIN_ACCOUNT_TYPES.owner
-    ) {
-      return normalizedPreferred
-    }
-
-    const existingAccountType = getUserLoginAccountType(user)
-    if (
-      existingAccountType === LOGIN_ACCOUNT_TYPES.admin
-      || existingAccountType === LOGIN_ACCOUNT_TYPES.owner
-    ) {
-      return existingAccountType
-    }
-
-    return LOGIN_ACCOUNT_TYPES.admin
+  const roleBasedAccountType = getRoleBasedLoginAccountType(user)
+  if (roleBasedAccountType !== LOGIN_ACCOUNT_TYPES.customer) {
+    return roleBasedAccountType
   }
 
-  return LOGIN_ACCOUNT_TYPES.customer
+  const normalizedPreferred = normalizeLoginAccountType(preferredAccountType, "")
+  if (normalizedPreferred === LOGIN_ACCOUNT_TYPES.customer) {
+    return LOGIN_ACCOUNT_TYPES.customer
+  }
+
+  const existingAccountType = getUserLoginAccountType(user)
+  return existingAccountType || LOGIN_ACCOUNT_TYPES.customer
 }
 
 export const attachLoginAccountType = (user, preferredAccountType = "") => {
@@ -135,9 +140,7 @@ export const canManageFields = (user) => isStaffAccount(user)
 
 export const matchesLoginAccountType = (user, accountType) => {
   const normalizedType = normalizeLoginAccountType(accountType)
-  return normalizedType === LOGIN_ACCOUNT_TYPES.customer
-    ? !isStaffAccount(user)
-    : isStaffAccount(user)
+  return normalizedType === getRoleBasedLoginAccountType(user)
 }
 
 export const getUserRoleLabel = (role) =>
