@@ -1,3 +1,5 @@
+import { normalizeFieldType } from "./fieldTypeModel"
+
 const normalizeApiBaseUrl = (value) => String(value || "").trim().replace(/\/+$/g, "")
 
 const ensureApiBaseUrl = (value) => {
@@ -386,9 +388,9 @@ const normalizeSubFieldItem = (subField, index = 0) => {
     ...subField,
     id: id || key || `sub-field-${index + 1}`,
     _id: id || key || `sub-field-${index + 1}`,
-    key: key || `sub-field-${index + 1}`,
+    key: normalizeSubFieldKeyValue(key, `sub-field-${index + 1}`) || `sub-field-${index + 1}`,
     name,
-    type: String(subField.type || subField.fieldType || subField.subFieldType || "").trim(),
+    type: normalizeFieldType(subField.type || subField.fieldType || subField.subFieldType || ""),
     pricePerHour: Number(
       subField.pricePerHour
       || subField.price
@@ -396,12 +398,13 @@ const normalizeSubFieldItem = (subField, index = 0) => {
       || subField.basePrice
       || 0
     ),
-    openHours: String(
+    openHours: normalizeOpenHoursValue(
       subField.openHours
       || subField.timeRange
       || subField.openingHours
-      || ""
-    ).trim(),
+      || "",
+      ""
+    ),
   }
 }
 
@@ -434,14 +437,15 @@ const normalizeFieldItem = (field) => {
     district: String(field.district || field.area || "").trim(),
     city: String(field.city || field.province || "").trim(),
     ward: String(field.ward || "").trim(),
-    type: String(field.type || field.fieldType || field.category || "").trim(),
-    openHours: String(
+    type: normalizeFieldType(field.type || field.fieldType || field.category || ""),
+    openHours: normalizeOpenHoursValue(
       field.openHours
       || field.timeRange
       || field.openingHours
       || field.hours
-      || ""
-    ).trim(),
+      || "",
+      ""
+    ),
     pricePerHour: Number(
       field.pricePerHour
       || field.price
@@ -695,31 +699,28 @@ const forgetStoredFieldSnapshot = (fieldId) => {
   setStoredFieldSnapshots(nextSnapshots)
 }
 
-const readFileAsDataUrl = (file) =>
-  new Promise((resolve, reject) => {
-    if (typeof FileReader === "undefined") {
-      reject(new Error("Trình duyệt hiện tại không hỗ trợ đọc tệp ảnh."))
-      return
-    }
+const normalizeSubFieldKeyValue = (value, fallback = "") =>
+  String(value || fallback || "")
+    .trim()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[\u0111\u0110]/g, "d")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
 
-    const reader = new FileReader()
+const normalizeOpenHoursValue = (value, fallback = "") => {
+  const normalizedValue = String(value || "").trim()
+  const match = normalizedValue.match(
+    /^([01]?\d|2[0-3]):([0-5]\d)\s*-\s*([01]?\d|2[0-3]):([0-5]\d)$/
+  )
 
-    reader.onload = () => {
-      const result = String(reader.result || "").trim()
-      if (!result) {
-        reject(new Error("Không đọc được dữ liệu ảnh đã chọn."))
-        return
-      }
+  if (!match) {
+    return String(fallback || "").trim()
+  }
 
-      resolve(result)
-    }
-
-    reader.onerror = () => {
-      reject(new Error("Không đọc được dữ liệu ảnh đã chọn."))
-    }
-
-    reader.readAsDataURL(file)
-  })
+  return `${String(match[1]).padStart(2, "0")}:${match[2]}-${String(match[3]).padStart(2, "0")}:${match[4]}`
+}
 
 const normalizeTimeString = (value) => {
   const normalized = String(value || "").trim()
@@ -1066,12 +1067,21 @@ const buildFieldMutationPayload = (payload = {}) => {
     address: String(payload.address || "").trim(),
     district: String(payload.district || "").trim(),
     article: String(payload.article || payload.description || "").trim(),
-    image: !isDataImageUrl(coverImage) ? coverImage : "",
     coverImage: !isDataImageUrl(coverImage) ? coverImage : "",
     images,
-    managedByAdmin: Boolean(payload.managedByAdmin),
+    type: normalizeFieldType(payload.type || "", ""),
+    openHours: normalizeOpenHoursValue(payload.openHours || "", ""),
+    pricePerHour: Math.max(Math.round(Number(payload.pricePerHour || 0)), 0),
   }
 }
+
+const buildSubFieldMutationPayload = (payload = {}, fieldOpenHours = "") => ({
+  key: normalizeSubFieldKeyValue(payload.key, payload.name || ""),
+  name: String(payload.name || "").trim(),
+  type: normalizeFieldType(payload.type || "", ""),
+  pricePerHour: Math.max(Math.round(Number(payload.pricePerHour || 0)), 0),
+  openHours: normalizeOpenHoursValue(payload.openHours || fieldOpenHours, ""),
+})
 
 export const requestRegisterOtp = async () => ({
   message: "Backend hien tai khong su dung OTP trong quy trinh dang ky.",
@@ -1357,6 +1367,53 @@ export const getTimeSlots = async () => {
   }
 }
 
+export const getSubFieldsByField = async (fieldId, token = "") => {
+  const encodedFieldId = encodeURIComponent(String(fieldId || "").trim())
+  const response = await request(`/subField/getByField/${encodedFieldId}`, token ? {
+    headers: createTokenHeaders(token),
+  } : {})
+
+  return {
+    subFields: getArrayFromResponse(response, ["subFields", "items"])
+      .map((item, index) => normalizeSubFieldItem(item, index))
+      .filter(Boolean),
+    message: String(response?.message || "").trim(),
+  }
+}
+
+const attachSubFieldsToField = async (field, token = "") => {
+  const normalizedField = normalizeFieldItem(field)
+  if (!normalizedField?.id) {
+    return normalizedField
+  }
+
+  try {
+    const { subFields } = await getSubFieldsByField(normalizedField.id, token)
+    return mergeStoredFieldSnapshot({
+      ...normalizedField,
+      subFields,
+    })
+  } catch (_error) {
+    return normalizedField
+  }
+}
+
+const attachSubFieldsToFields = async (fields = [], token = "") => {
+  const normalizedFields = (Array.isArray(fields) ? fields : [])
+    .map((field) => normalizeFieldItem(field))
+    .filter(Boolean)
+
+  const results = await Promise.allSettled(
+    normalizedFields.map((field) => attachSubFieldsToField(field, token))
+  )
+
+  return results
+    .map((result, index) =>
+      result.status === "fulfilled" ? result.value : normalizedFields[index]
+    )
+    .filter(Boolean)
+}
+
 const getFieldByConfiguredIds = async (fieldIds = [], token = "") => {
   const nextFieldIds = buildUniqueStringList(fieldIds)
   const results = await Promise.allSettled(nextFieldIds.map((fieldId) => getFieldById(fieldId, token)))
@@ -1411,9 +1468,12 @@ export const getFields = async (token = "") => {
     }
   }
 
-  const fields = getArrayFromResponse(response, ["fields", "items"])
-    .map((item) => mergeStoredFieldSnapshot(item))
-    .filter(Boolean)
+  const fields = await attachSubFieldsToFields(
+    getArrayFromResponse(response, ["fields", "items"])
+      .map((item) => mergeStoredFieldSnapshot(item))
+      .filter(Boolean),
+    token
+  )
 
   rememberKnownFieldIds(fields.map((field) => field?.id))
 
@@ -1431,9 +1491,10 @@ export const getFieldById = async (fieldId, token = "") => {
     token ? { headers: createTokenHeaders(token) } : {}
   )
 
-  const field =
+  const baseField =
     mergeStoredFieldSnapshot(getObjectFromResponse(response, ["field", "item"]))
     || mergeStoredFieldSnapshot(unwrapResponseData(response))
+  const field = await attachSubFieldsToField(baseField, token)
 
   if (field?.id) {
     rememberKnownFieldIds(field.id)
@@ -1499,12 +1560,28 @@ export const confirmAdminBookingPayment = async (token, bookingId) =>
     }),
   })
 
-export const uploadAdminImage = async (_token, file) => {
+export const uploadAdminImage = async (token, file) => {
   if (!file) {
     throw new Error("Vui lòng chọn tệp ảnh.")
   }
 
-  const imageUrl = await readFileAsDataUrl(file)
+  const formData = new FormData()
+  formData.append("file", file)
+
+  const response = await request("/upload/image", {
+    method: "POST",
+    headers: createTokenHeaders(token),
+    body: formData,
+  })
+
+  const imageUrl = String(
+    pickFirstValue(response, ["url", "data.url", "file.url", "data.file.url"])
+    || ""
+  ).trim()
+
+  if (!imageUrl) {
+    throw new Error("Khong nhan duoc URL anh tu backend.")
+  }
 
   return {
     file: {
@@ -1516,6 +1593,116 @@ export const uploadAdminImage = async (_token, file) => {
   }
 }
 
+export const createAdminSubField = async (token, payload) => {
+  const response = await request("/subField/createSubField", {
+    method: "POST",
+    headers: createTokenHeaders(token),
+    body: JSON.stringify(payload),
+  })
+
+  return {
+    subField:
+      normalizeSubFieldItem(getObjectFromResponse(response, ["subField", "item"]))
+      || normalizeSubFieldItem(unwrapResponseData(response)),
+    message: String(response?.message || "").trim(),
+  }
+}
+
+export const updateAdminSubField = async (token, subFieldId, payload) => {
+  const response = await request(`/subField/updateSubField/${encodeURIComponent(String(subFieldId || "").trim())}`, {
+    method: "POST",
+    headers: createTokenHeaders(token),
+    body: JSON.stringify(payload),
+  })
+
+  return {
+    subField:
+      normalizeSubFieldItem(getObjectFromResponse(response, ["subField", "item"]))
+      || normalizeSubFieldItem(unwrapResponseData(response)),
+    message: String(response?.message || "").trim(),
+  }
+}
+
+export const deleteAdminSubField = async (token, subFieldId) =>
+  request(`/subField/deleteSubField/${encodeURIComponent(String(subFieldId || "").trim())}`, {
+    method: "POST",
+    headers: createTokenHeaders(token),
+  })
+
+const syncAdminFieldSubFields = async (token, fieldId, payload = {}, currentSubFields = []) => {
+  const desiredSubFields = (Array.isArray(payload?.subFields) ? payload.subFields : [])
+    .map((subField, index) => ({
+      id: String(subField?.id || "").trim(),
+      ...buildSubFieldMutationPayload(
+        {
+          ...subField,
+          key: subField?.key || `san-${index + 1}`,
+        },
+        payload?.openHours
+      ),
+    }))
+    .filter((subField) => subField.key && subField.name && subField.type)
+
+  const existingSubFields = (Array.isArray(currentSubFields) ? currentSubFields : [])
+    .map((subField, index) => normalizeSubFieldItem(subField, index))
+    .filter(Boolean)
+
+  const existingById = new Map(
+    existingSubFields
+      .filter((subField) => subField?.id)
+      .map((subField) => [String(subField.id), subField])
+  )
+  const existingByKey = new Map(
+    existingSubFields
+      .filter((subField) => subField?.key)
+      .map((subField) => [String(subField.key), subField])
+  )
+
+  const retainedIds = new Set()
+
+  for (const subField of desiredSubFields) {
+    const matchedSubField =
+      (subField.id && existingById.get(String(subField.id)))
+      || existingByKey.get(String(subField.key))
+
+    if (matchedSubField?.id) {
+      retainedIds.add(String(matchedSubField.id))
+      await updateAdminSubField(token, matchedSubField.id, {
+        key: subField.key,
+        name: subField.name,
+        type: subField.type,
+        pricePerHour: subField.pricePerHour,
+        openHours: subField.openHours,
+      })
+      continue
+    }
+
+    const createdSubField = await createAdminSubField(token, {
+      fieldId: String(fieldId || "").trim(),
+      key: subField.key,
+      name: subField.name,
+      type: subField.type,
+      pricePerHour: subField.pricePerHour,
+      openHours: subField.openHours,
+    })
+
+    if (createdSubField?.subField?.id) {
+      retainedIds.add(String(createdSubField.subField.id))
+    }
+  }
+
+  const removableSubFields = existingSubFields.filter((subField) => {
+    const normalizedId = String(subField?.id || "").trim()
+    return normalizedId && !retainedIds.has(normalizedId)
+  })
+
+  for (const subField of removableSubFields) {
+    await deleteAdminSubField(token, subField.id)
+  }
+
+  return getSubFieldsByField(fieldId, token)
+}
+
 export const createAdminField = async (token, payload) => {
   const response = await request("/field/createField", {
     method: "POST",
@@ -1523,10 +1710,19 @@ export const createAdminField = async (token, payload) => {
     body: JSON.stringify(buildFieldMutationPayload(payload)),
   })
 
-  const field =
+  const baseField =
     mergeFieldSources(getObjectFromResponse(response, ["field", "item"]), payload)
     || mergeFieldSources(unwrapResponseData(response), payload)
     || mergeFieldSources(payload, {})
+  const resolvedFieldId = String(baseField?.id || baseField?._id || "").trim()
+
+  if (resolvedFieldId) {
+    await syncAdminFieldSubFields(token, resolvedFieldId, payload, [])
+  }
+
+  const { field } = resolvedFieldId
+    ? await getFieldById(resolvedFieldId, token)
+    : { field: baseField }
 
   if (field?.id) {
     rememberKnownFieldIds(field.id)
@@ -1546,7 +1742,18 @@ export const updateAdminField = async (token, fieldId, payload) => {
     body: JSON.stringify(buildFieldMutationPayload(payload)),
   })
 
-  const field =
+  const normalizedFieldId = String(fieldId || "").trim()
+  let currentSubFields = []
+  try {
+    const subFieldData = await getSubFieldsByField(normalizedFieldId, token)
+    currentSubFields = Array.isArray(subFieldData?.subFields) ? subFieldData.subFields : []
+  } catch (_error) {
+    currentSubFields = []
+  }
+
+  await syncAdminFieldSubFields(token, normalizedFieldId, payload, currentSubFields)
+
+  const baseField =
     mergeFieldSources(getObjectFromResponse(response, ["field", "item"]), {
       ...payload,
       id: fieldId,
@@ -1568,6 +1775,9 @@ export const updateAdminField = async (token, fieldId, payload) => {
       },
       {}
     )
+  const { field } = normalizedFieldId
+    ? await getFieldById(normalizedFieldId, token)
+    : { field: baseField }
 
   if (field?.id || fieldId) {
     rememberKnownFieldIds(field?.id || fieldId)
@@ -1591,25 +1801,33 @@ export const deleteAdminField = async (token, fieldId) =>
   })
 
 export const approveAdminField = async (token, fieldId) =>
-  requestFirstSuccess([
-    `/approveField/${encodeURIComponent(String(fieldId || "").trim())}`,
-    `/field/approveField/${encodeURIComponent(String(fieldId || "").trim())}`,
-  ], {
+  request(`/field/approveField/${encodeURIComponent(String(fieldId || "").trim())}`, {
     method: "POST",
     headers: createTokenHeaders(token),
     body: JSON.stringify({}),
   })
 
 export const rejectAdminField = async (token, fieldId, reason = "") =>
-  requestFirstSuccess([
-    `/rejectField/${encodeURIComponent(String(fieldId || "").trim())}`,
-    `/field/rejectField/${encodeURIComponent(String(fieldId || "").trim())}`,
-  ], {
+  request(`/field/rejectField/${encodeURIComponent(String(fieldId || "").trim())}`, {
     method: "POST",
     headers: createTokenHeaders(token),
     body: JSON.stringify({
       reason: String(reason || "").trim(),
     }),
+  })
+
+export const lockAdminField = async (token, fieldId) =>
+  request(`/field/lockField/${encodeURIComponent(String(fieldId || "").trim())}`, {
+    method: "POST",
+    headers: createTokenHeaders(token),
+    body: JSON.stringify({}),
+  })
+
+export const unlockAdminField = async (token, fieldId) =>
+  request(`/field/unlockField/${encodeURIComponent(String(fieldId || "").trim())}`, {
+    method: "POST",
+    headers: createTokenHeaders(token),
+    body: JSON.stringify({}),
   })
 
 export const createBooking = async (token, payload) => {

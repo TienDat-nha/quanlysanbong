@@ -22,8 +22,12 @@ export const createRouteWithHash = (path, hash = "") => {
   return normalizedHash ? `${path}#${normalizedHash}` : path
 }
 
-export const createAdminFieldsSectionRoute = (section = "") =>
-  createRouteWithHash(ROUTES.adminFields, section)
+export const createAdminFieldsSectionRoute = (section = "") => {
+  const normalizedSection = String(section || "").replace(/^#+/g, "").trim()
+  return !normalizedSection || normalizedSection === STAFF_DASHBOARD_SECTIONS.manageFields
+    ? ROUTES.adminFields
+    : createRouteWithHash(ROUTES.adminFields, normalizedSection)
+}
 
 export const createFieldDetailRoute = (fieldId) => `${ROUTES.fields}/${fieldId}`
 export const createBookingRoute = (fieldSlug = "") =>

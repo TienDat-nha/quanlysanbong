@@ -1,4 +1,4 @@
-import { getUniqueFieldTypes, normalizeFieldType } from "./fieldTypeModel"
+import { getFieldTypeLabel, getUniqueFieldTypes, normalizeFieldType } from "./fieldTypeModel"
 
 export const formatPrice = (value) => new Intl.NumberFormat("vi-VN").format(Number(value || 0))
 
@@ -60,6 +60,7 @@ const normalizeSubFields = (value, field = null) => {
               key: buildFallbackSlug(name, `san-${index + 1}`),
               name,
               type: normalizeFieldType(field?.type, String(field?.type || "").trim()),
+              typeLabel: getFieldTypeLabel(field?.type),
               pricePerHour: Number(field?.pricePerHour || 0),
               openHours: String(field?.openHours || "").trim(),
             }
@@ -79,6 +80,10 @@ const normalizeSubFields = (value, field = null) => {
               type: normalizeFieldType(
                 subField.type,
                 normalizeFieldType(field?.type, String(field?.type || "").trim())
+              ),
+              typeLabel: getFieldTypeLabel(
+                subField.type,
+                getFieldTypeLabel(field?.type, String(field?.type || "").trim())
               ),
               pricePerHour: Number(subField.pricePerHour || field?.pricePerHour || 0),
               openHours: String(subField.openHours || field?.openHours || "").trim(),
@@ -117,6 +122,7 @@ const normalizeField = (field) => {
     latitude: Number.isFinite(Number(field?.latitude)) ? Number(field.latitude) : null,
     longitude: Number.isFinite(Number(field?.longitude)) ? Number(field.longitude) : null,
     type: normalizeFieldType(field?.type, String(field?.type || "").trim()),
+    typeLabel: getFieldTypeLabel(field?.type, String(field?.type || "").trim()),
     openHours: String(field?.openHours || field?.timeRange || "").trim(),
     pricePerHour: Number(field?.pricePerHour || field?.price || field?.hourlyPrice || 0),
     rating: Number(field?.rating || 0),
@@ -163,8 +169,7 @@ export const getFieldTypeSummary = (field) => {
     ? field.subFields.map((subField) => subField?.type)
     : []
   const uniqueTypes = getUniqueFieldTypes(subFieldTypes.length > 0 ? subFieldTypes : [field.type])
-
-  return uniqueTypes.join(", ")
+  return uniqueTypes.map((type) => getFieldTypeLabel(type, type)).filter(Boolean).join(", ")
 }
 
 export const filterFieldListBySearch = (fields, filters = {}) => {

@@ -9,7 +9,8 @@ import {
   deleteAdminField,
   getAdminDashboard,
   getAdminFields,
-  rejectAdminField,
+  lockAdminField,
+  unlockAdminField,
   updateAdminField,
   uploadAdminImage,
 } from "../../models/api"
@@ -45,7 +46,11 @@ const getFieldModerationState = (field) => {
     .toUpperCase()
   const isLocked = Boolean(field?.isLocked || field?.locked)
 
-  if (isLocked || rawStatus === "LOCKED" || rawStatus === "REJECTED") {
+  if (rawStatus === "REJECTED") {
+    return "REJECTED"
+  }
+
+  if (isLocked || rawStatus === "LOCKED") {
     return "LOCKED"
   }
 
@@ -162,6 +167,24 @@ export const useAdminFieldsController = ({ authToken, currentUser }) => {
     () => (typeof window !== "undefined" ? window.location.origin : ""),
     []
   )
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return
+    }
+
+    const legacyManageFieldsHash = `#${STAFF_DASHBOARD_SECTIONS.manageFields}`
+    if (
+      window.location.pathname === ROUTES.adminFields
+      && window.location.hash === legacyManageFieldsHash
+    ) {
+      window.history.replaceState(
+        null,
+        document.title,
+        `${window.location.pathname}${window.location.search}`
+      )
+    }
+  }, [])
 
   const resetForm = () => {
     const nextForm = createAdminFieldForm()
@@ -644,38 +667,6 @@ export const useAdminFieldsController = ({ authToken, currentUser }) => {
     } finally {
       setDeletingFieldId("")
     }
-
-    return
-
-    // eslint-disable-next-line no-unreachable
-    const shouldDelete = window.confirm(
-      `Xóa sân "${field.name}"? Tất cả booking liên quan sẽ bị xóa.`
-    )
-
-    if (!shouldDelete) {
-      return
-    }
-
-    setDeletingFieldId(String(field.id))
-    setError("")
-    setSuccessMessage("")
-
-    try {
-      const response = await deleteAdminField(authToken, field.id)
-
-      setFields((currentFields) => currentFields.filter((item) => item.id !== field.id))
-
-      if (String(editingFieldId || "").trim() === String(field.id || "").trim()) {
-        resetForm()
-      }
-
-      setSuccessMessage(String(response?.message || "").trim() || "Đã xóa sân thành công.")
-      setRefreshKey((currentValue) => currentValue + 1)
-    } catch (apiError) {
-      setError(apiError.message)
-    } finally {
-      setDeletingFieldId("")
-    }
   }
 
   const handleFieldModeration = async (field) => {
@@ -684,45 +675,48 @@ export const useAdminFieldsController = ({ authToken, currentUser }) => {
     }
 
     const moderationState = getFieldModerationState(field)
-    const isApproveAction = moderationState !== "APPROVED"
-    const confirmMessage = isApproveAction
-      ? moderationState === "LOCKED"
-        ? `Mở khóa và duyệt sân "${field.name}"?`
-        : `Duyệt sân "${field.name}"?`
-      : `Khóa sân "${field.name}"?`
+    const action =
+      moderationState === "APPROVED"
+        ? "lock"
+        : moderationState === "LOCKED"
+          ? "unlock"
+          : "approve"
+    const confirmMessage =
+      action === "lock"
+        ? `Khóa sân "${field.name}"?`
+        : action === "unlock"
+          ? `Mở khóa sân "${field.name}"?`
+          : moderationState === "REJECTED"
+            ? `Duyệt lại sân "${field.name}"?`
+            : `Duyệt sân "${field.name}"?`
 
     const shouldContinue = window.confirm(confirmMessage)
     if (!shouldContinue) {
       return
     }
 
-    let reason = ""
-    if (!isApproveAction) {
-      const promptedReason = window.prompt(
-        "Nhập lý do khóa/từ chối sân",
-        "Khóa sân bởi admin."
-      )
-
-      if (promptedReason === null) {
-        return
-      }
-
-      reason = String(promptedReason || "").trim() || "Khóa sân bởi admin."
-    }
-
     setFieldStatusActionId(String(field.id))
-    setFieldStatusActionMode(isApproveAction ? "approve" : "lock")
+    setFieldStatusActionMode(action)
     setError("")
     setSuccessMessage("")
 
     try {
-      const response = isApproveAction
-        ? await approveAdminField(authToken, field.id)
-        : await rejectAdminField(authToken, field.id, reason)
+      const response =
+        action === "lock"
+          ? await lockAdminField(authToken, field.id)
+          : action === "unlock"
+            ? await unlockAdminField(authToken, field.id)
+            : await approveAdminField(authToken, field.id)
 
       setSuccessMessage(
         String(response?.message || "").trim()
-        || (isApproveAction ? "Đã duyệt sân." : "Đã khóa sân.")
+        || (
+          action === "lock"
+            ? "Đã khóa sân."
+            : action === "unlock"
+              ? "Đã mở khóa sân."
+              : "Đã duyệt sân."
+        )
       )
       setRefreshKey((currentValue) => currentValue + 1)
     } catch (apiError) {
@@ -757,7 +751,13 @@ export const useAdminFieldsController = ({ authToken, currentUser }) => {
 
       setSuccessMessage(
         String(response?.message || "").trim()
-        || (action === "confirm" ? "Đã xác nhận đơn đặt." : "Đã hủy đơn đặt.")
+        || (
+          action === "lock"
+            ? "Đã khóa sân."
+            : action === "unlock"
+              ? "Đã mở khóa sân."
+              : "Đã duyệt sân."
+        )
       )
       setRefreshKey((currentValue) => currentValue + 1)
     } catch (apiError) {

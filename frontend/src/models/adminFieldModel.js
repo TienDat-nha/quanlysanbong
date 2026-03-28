@@ -30,12 +30,41 @@ const normalizeAdminFieldErrorKey = (value) =>
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
 
+const normalizeAdminSubFieldKey = (value) =>
+  String(value || "")
+    .trim()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[\u0111\u0110]/g, "d")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+
+const buildAdminSubFieldKey = (index = 1, defaults = {}) =>
+  normalizeAdminSubFieldKey(defaults.key || defaults.name || "") || `san-${index}`
+
+const normalizeOpenHoursValue = (value, fallback = "") => {
+  const normalizedValue = String(value || "").trim()
+  const match = normalizedValue.match(
+    /^([01]?\d|2[0-3]):([0-5]\d)\s*-\s*([01]?\d|2[0-3]):([0-5]\d)$/
+  )
+
+  if (!match) {
+    return String(fallback || "").trim()
+  }
+
+  return `${String(match[1]).padStart(2, "0")}:${match[2]}-${String(match[3]).padStart(2, "0")}:${match[4]}`
+}
+
 export const createAdminSubFieldDraft = (index = 1, defaults = {}) => ({
-  id: nextAdminSubFieldDraftId(),
-  key: String(defaults.key || "").trim(),
+  id:
+    String(defaults.id || defaults._id || defaults.subFieldId || "").trim()
+    || nextAdminSubFieldDraftId(),
+  key: buildAdminSubFieldKey(index, defaults),
   name: String(defaults.name || `Sân ${index}`).trim(),
   type: normalizeFieldType(defaults.type, DEFAULT_FIELD_TYPE),
   pricePerHour: String(defaults.pricePerHour || "").trim(),
+  openHours: normalizeOpenHoursValue(defaults.openHours, ""),
 })
 
 export const createAdminFieldForm = () => ({
@@ -45,7 +74,7 @@ export const createAdminFieldForm = () => ({
   latitude: "",
   longitude: "",
   type: DEFAULT_FIELD_TYPE,
-  openHours: "06:00 - 22:00",
+  openHours: "06:00-22:00",
   pricePerHour: "",
   rating: "5",
   coverImage: "",
@@ -82,7 +111,7 @@ export const createAdminFieldFormFromField = (field) => ({
       ? String(field.longitude)
       : "",
   type: normalizeFieldType(field?.type, DEFAULT_FIELD_TYPE),
-  openHours: String(field?.openHours || "06:00 - 22:00").trim(),
+  openHours: normalizeOpenHoursValue(field?.openHours, "06:00-22:00"),
   pricePerHour: String(field?.pricePerHour || "").trim(),
   rating: String(field?.rating || "5").trim(),
   coverImage: String(field?.coverImage || "").trim(),
@@ -91,10 +120,12 @@ export const createAdminFieldFormFromField = (field) => ({
     Array.isArray(field?.subFields) && field.subFields.length > 0
       ? field.subFields.map((subField, index) =>
           createAdminSubFieldDraft(index + 1, {
+            id: subField?.id || subField?._id || subField?.subFieldId,
             key: subField?.key,
             name: subField?.name,
             type: subField?.type,
             pricePerHour: subField?.pricePerHour,
+            openHours: subField?.openHours || field?.openHours,
           })
         )
       : [createAdminSubFieldDraft(1), createAdminSubFieldDraft(2)],
@@ -170,18 +201,9 @@ export const getAdminFieldApiErrorState = (message, form) => {
     if (!String(form?.district || "").trim()) {
       fieldErrors.district = "Vui lòng nhập khu vực."
     }
-
-    if (!fieldErrors.name && !fieldErrors.address && !fieldErrors.district) {
-      fieldErrors.name = "Backend đang báo thiếu thông tin tên sân."
-      fieldErrors.address = "Backend đang báo thiếu thông tin địa chỉ."
-      fieldErrors.district = "Backend đang báo thiếu thông tin khu vực."
-    }
   }
 
-  if (
-    normalizedMessage.includes("name required")
-    || normalizedMessage.includes("thieu ten san")
-  ) {
+  if (normalizedMessage.includes("name required") || normalizedMessage.includes("thieu ten san")) {
     fieldErrors.name = fieldErrors.name || "Vui lòng nhập tên sân."
   }
 
@@ -199,6 +221,31 @@ export const getAdminFieldApiErrorState = (message, form) => {
     fieldErrors.district = fieldErrors.district || "Vui lòng nhập khu vực."
   }
 
+  if (
+    normalizedMessage.includes("loai san khong hop le")
+    || normalizedMessage.includes("type invalid")
+  ) {
+    fieldErrors.type = fieldErrors.type || "Loại sân không hợp lệ."
+  }
+
+  if (
+    normalizedMessage.includes("gia")
+    || normalizedMessage.includes("priceperhour")
+  ) {
+    fieldErrors.pricePerHour =
+      fieldErrors.pricePerHour || "Giá sân phải lớn hơn hoặc bằng 0."
+  }
+
+  if (
+    normalizedMessage.includes("san con da ton tai")
+    || normalizedMessage.includes("trung key")
+    || normalizedMessage.includes("key san con da ton tai")
+    || normalizedMessage.includes("missing required fields")
+  ) {
+    fieldErrors.subFieldsMessage =
+      fieldErrors.subFieldsMessage || "Thông tin sân con chưa hợp lệ hoặc đang bị trùng mã sân con."
+  }
+
   const resolvedMessage = getFirstAdminFieldErrorMessage(fieldErrors) || rawMessage
 
   return {
@@ -213,7 +260,7 @@ export const validateAdminFieldForm = (form) => {
   const normalizedName = String(form.name || "").trim()
   const normalizedAddress = String(form.address || "").trim()
   const normalizedDistrict = String(form.district || "").trim()
-  const normalizedOpenHours = String(form.openHours || "").trim()
+  const normalizedOpenHours = normalizeOpenHoursValue(form.openHours, "")
   const normalizedPricePerHour = String(form.pricePerHour || "").trim()
 
   if (!normalizedName) {
@@ -234,10 +281,6 @@ export const validateAdminFieldForm = (form) => {
 
   if (!normalizedOpenHours) {
     fieldErrors.openHours = "Vui lòng nhập giờ mở cửa."
-  } else if (
-    !/^([01]\d|2[0-3]):([0-5]\d)\s*-\s*([01]\d|2[0-3]):([0-5]\d)$/.test(normalizedOpenHours)
-  ) {
-    fieldErrors.openHours = "Giờ mở cửa phải theo định dạng HH:mm - HH:mm."
   }
 
   if (!normalizedPricePerHour) {
@@ -252,7 +295,8 @@ export const validateAdminFieldForm = (form) => {
     fieldErrors.subFieldsMessage = "Vui lòng tạo ít nhất 1 sân con."
   }
 
-  fieldErrors.subFields = subFields.map((subField) => {
+  const generatedKeys = new Set()
+  fieldErrors.subFields = subFields.map((subField, index) => {
     const subFieldErrors = {
       name: "",
       type: "",
@@ -262,6 +306,7 @@ export const validateAdminFieldForm = (form) => {
     const type = normalizeFieldType(subField?.type, normalizedType)
     const rawPricePerHour = String(subField?.pricePerHour || "").trim()
     const effectivePricePerHour = rawPricePerHour || normalizedPricePerHour
+    const generatedKey = buildAdminSubFieldKey(index + 1, subField)
 
     if (!name) {
       subFieldErrors.name = "Vui lòng nhập tên sân con."
@@ -275,6 +320,12 @@ export const validateAdminFieldForm = (form) => {
       subFieldErrors.pricePerHour = "Vui lòng nhập giá theo giờ cho sân con."
     } else if (!isValidFieldPrice(effectivePricePerHour)) {
       subFieldErrors.pricePerHour = "Giá sân con phải là bội số hợp lệ của 1.000."
+    }
+
+    if (generatedKeys.has(generatedKey)) {
+      fieldErrors.subFieldsMessage = "Các sân con đang bị trùng mã định danh."
+    } else {
+      generatedKeys.add(generatedKey)
     }
 
     return subFieldErrors
@@ -296,17 +347,19 @@ export const buildAdminFieldPayload = (form) => ({
   latitude: normalizeOptionalCoordinate(form.latitude),
   longitude: normalizeOptionalCoordinate(form.longitude),
   type: normalizeFieldType(form.type, DEFAULT_FIELD_TYPE),
-  openHours: String(form.openHours || "").trim(),
+  openHours: normalizeOpenHoursValue(form.openHours, ""),
   pricePerHour: Math.round(Number(form.pricePerHour || 0)),
   rating: Math.max(Number(form.rating || 5), 0),
   coverImage: String(form.coverImage || "").trim(),
   article: String(form.article || "").trim(),
   subFields: (Array.isArray(form.subFields) ? form.subFields : [])
-    .map((subField) => ({
-      key: String(subField?.key || "").trim(),
+    .map((subField, index) => ({
+      id: String(subField?.id || "").trim(),
+      key: buildAdminSubFieldKey(index + 1, subField),
       name: String(subField?.name || "").trim(),
       type: normalizeFieldType(subField?.type, normalizeFieldType(form.type, DEFAULT_FIELD_TYPE)),
       pricePerHour: Math.round(Number(subField?.pricePerHour || form.pricePerHour || 0)),
+      openHours: normalizeOpenHoursValue(subField?.openHours || form.openHours, ""),
     }))
     .filter((subField) => subField.name),
   images: (Array.isArray(form.galleryImages) ? form.galleryImages : [])

@@ -19,7 +19,11 @@ const getFieldModerationState = (field) => {
     .trim()
     .toUpperCase()
 
-  if (field?.isLocked || field?.locked || status === "LOCKED" || status === "REJECTED") {
+  if (status === "REJECTED") {
+    return "REJECTED"
+  }
+
+  if (field?.isLocked || field?.locked || status === "LOCKED") {
     return "LOCKED"
   }
 
@@ -33,7 +37,8 @@ const getFieldModerationState = (field) => {
 const getFieldStatusLabel = (field) => {
   const state = getFieldModerationState(field)
   if (state === "PENDING") return "Chờ admin duyệt"
-  if (state === "LOCKED") return "Đã khóa / từ chối"
+  if (state === "REJECTED") return "Bị từ chối"
+  if (state === "LOCKED") return "Đã khóa"
   return "Đã duyệt"
 }
 
@@ -473,11 +478,15 @@ const FieldListSection = ({
                 ? "Khóa sân"
                 : moderationState === "LOCKED"
                   ? "Mở khóa"
-                  : "Duyệt sân"
+                  : moderationState === "REJECTED"
+                    ? "Duyệt lại sân"
+                    : "Duyệt sân"
             const manualHint =
               !canManualBook && isOwnerPortal
                 ? moderationState === "PENDING"
                   ? "Sân đang chờ admin duyệt, chưa thể đặt thủ công."
+                  : moderationState === "REJECTED"
+                    ? "Sân đã bị admin từ chối, chưa thể đặt thủ công."
                   : "Sân đang bị khóa, chưa thể đặt thủ công."
                 : ""
             const publicBookingUrl = createPublicBookingUrl(publicOrigin, field.slug)
@@ -570,7 +579,9 @@ const FieldListSection = ({
                         {isStatusProcessing
                           ? fieldStatusActionMode === "approve"
                             ? "Đang duyệt..."
-                            : "Đang khóa..."
+                            : fieldStatusActionMode === "unlock"
+                              ? "Đang mở khóa..."
+                              : "Đang khóa..."
                           : statusActionLabel}
                       </button>
                     )}

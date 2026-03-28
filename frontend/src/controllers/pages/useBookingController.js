@@ -66,7 +66,11 @@ const getFieldModerationState = (field) => {
     .toUpperCase()
   const isLocked = Boolean(field?.isLocked || field?.locked)
 
-  if (isLocked || rawStatus === "LOCKED" || rawStatus === "REJECTED") {
+  if (rawStatus === "REJECTED") {
+    return "REJECTED"
+  }
+
+  if (isLocked || rawStatus === "LOCKED") {
     return "LOCKED"
   }
 

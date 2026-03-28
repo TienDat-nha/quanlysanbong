@@ -9,6 +9,7 @@ import {
   getBookingDurationMinutes,
 } from "../../models/bookingModel"
 import { formatPrice } from "../../models/fieldModel"
+import { getFieldTypeLabel } from "../../models/fieldTypeModel"
 import { formatPaymentStatusVi } from "../../models/bookingTextModel"
 import { createDepositPaymentRoute } from "../../models/routeModel"
 
@@ -566,7 +567,7 @@ const BookingView = ({
               {(selectedField.subFields || []).map((subField) => (
                 <span key={subField.key} className="bookingSubFieldTag">
                   {subField.name}
-                  {subField.type ? ` | ${subField.type}` : ""}
+                  {subField.type ? ` | ${getFieldTypeLabel(subField.type, subField.type)}` : ""}
                   {subField.pricePerHour
                     ? ` | ${formatPrice(subField.pricePerHour)} VND/giờ`
                     : ""}
@@ -625,7 +626,10 @@ const BookingView = ({
                     <div className="bookingBoardField">
                       <strong>{row.subField.name}</strong>
                       <span>
-                        {row.subField.type || selectedField.type}
+                        {getFieldTypeLabel(
+                          row.subField.type || selectedField.type,
+                          row.subField.type || selectedField.type
+                        )}
                         {row.subField.pricePerHour
                           ? ` | ${formatPrice(row.subField.pricePerHour)} VND/giờ`
                           : ""}
