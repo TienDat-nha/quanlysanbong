@@ -87,7 +87,7 @@ const FormPanel = ({
       <div className="ownerSectionHeading">
         <div className="ownerSectionTitle">
           <p className="ownerSectionEyebrow">{isAdminPortal ? "Quản lý hồ sơ sân" : "Không gian gửi sân"}</p>
-          <h2>{isEditingField ? "Cập nhật sân" : isOwnerPortal ? "Gửi yêu cầu tạo sân" : "Tạo sân mới"}</h2>
+          <h2>{isEditingField ? (isOwnerPortal ? "Gửi yêu cầu sửa sân" : "Cập nhật sân") : isOwnerPortal ? "Gửi yêu cầu tạo sân" : "Tạo sân mới"}</h2>
         </div>
       </div>
       <section className="ownerFormSection">
@@ -127,7 +127,7 @@ const FormPanel = ({
           })}
         </div>
       </section>
-      <div className="ownerFormActions"><button className="btn" type="submit" disabled={submitting || uploadingCover || uploadingGallery}>{submitting ? "Đang xử lý..." : isEditingField ? "Lưu cập nhật" : isOwnerPortal ? "Gửi yêu cầu tạo sân" : "Tạo sân mới"}</button>{isEditingField && <button className="outlineBtnInline" type="button" onClick={handleCancelFieldEdit}>Hủy chỉnh sửa</button>}</div>
+      <div className="ownerFormActions"><button className="btn" type="submit" disabled={submitting || uploadingCover || uploadingGallery}>{submitting ? "Đang xử lý..." : isEditingField ? (isOwnerPortal ? "Xác nhận sửa sân" : "Lưu cập nhật") : isOwnerPortal ? "Gửi yêu cầu tạo sân" : "Tạo sân mới"}</button>{isEditingField && <button className="outlineBtnInline" type="button" onClick={handleCancelFieldEdit}>Hủy chỉnh sửa</button>}</div>
     </form>
   </section>
 )

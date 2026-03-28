@@ -60,6 +60,10 @@ const getFieldModerationState = (field) => {
   return "APPROVED"
 }
 
+const normalizeManagedFieldId = (field) =>
+  String(field?.id || field?._id || field?.fieldId || "")
+    .trim()
+
 const filterFieldsForPortal = (fields, currentUser, isOwnerPortal) => {
   const nextFields = Array.isArray(fields) ? fields : []
 
@@ -526,7 +530,7 @@ export const useAdminFieldsController = ({ authToken, currentUser }) => {
   }
 
   const handleEditField = (field) => {
-    setEditingFieldId(Number(field?.id || 0) || null)
+    setEditingFieldId(normalizeManagedFieldId(field) || null)
     const nextForm = createAdminFieldFormFromField(field)
     setForm(nextForm)
     setFormErrors(createAdminFieldFormErrors(nextForm))
@@ -567,23 +571,26 @@ export const useAdminFieldsController = ({ authToken, currentUser }) => {
     setSubmitting(true)
     try {
       const payload = buildAdminFieldPayload(form)
+      const isEditingMode = Boolean(editingFieldId)
       const response = editingFieldId
         ? await updateAdminField(authToken, editingFieldId, payload)
         : await createAdminField(authToken, payload)
 
       resetForm()
-      const fallbackMessage = editingFieldId
+      const fallbackMessage = isEditingMode
         ? isOwnerPortal
-          ? "Đã cập nhật sân. Admin có thể cần kiểm tra lại thay đổi."
+          ? "Đã gửi yêu cầu sửa sân tới admin."
           : "Đã cập nhật sân."
         : isOwnerPortal
           ? "Đã gửi yêu cầu tạo sân tới admin."
           : "Đã tạo sân mới."
       const responseMessage = String(response?.message || "").trim()
+      const resolvedSuccessMessage =
+        isOwnerPortal && (!responseMessage || responseMessage.toLowerCase() === "success")
+          ? fallbackMessage
+          : responseMessage || fallbackMessage
 
-      setSuccessMessage(
-        !editingFieldId && isOwnerPortal ? fallbackMessage : responseMessage || fallbackMessage
-      )
+      setSuccessMessage(resolvedSuccessMessage)
       setRefreshKey((currentValue) => currentValue + 1)
     } catch (apiError) {
       const apiErrorState = getAdminFieldApiErrorState(apiError.message, form)
@@ -626,7 +633,7 @@ export const useAdminFieldsController = ({ authToken, currentUser }) => {
 
       setFields((currentFields) => currentFields.filter((item) => item.id !== field.id))
 
-      if (Number(editingFieldId) === Number(field.id)) {
+      if (String(editingFieldId || "").trim() === String(field.id || "").trim()) {
         resetForm()
       }
 
@@ -658,7 +665,7 @@ export const useAdminFieldsController = ({ authToken, currentUser }) => {
 
       setFields((currentFields) => currentFields.filter((item) => item.id !== field.id))
 
-      if (Number(editingFieldId) === Number(field.id)) {
+      if (String(editingFieldId || "").trim() === String(field.id || "").trim()) {
         resetForm()
       }
 
