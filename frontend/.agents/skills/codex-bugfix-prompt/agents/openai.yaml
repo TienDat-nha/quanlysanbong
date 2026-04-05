@@ -1,0 +1,8 @@
+interface:
+  display_name: "Codex Bugfix Prompt"
+  short_description: "Viet prompt fix bug sat repo sanbong"
+  brand_color: "#0F766E"
+  default_prompt: "Use $codex-bugfix-prompt to draft a Codex prompt that fixes a bug cleanly in this sanbong frontend repo."
+
+policy:
+  allow_implicit_invocation: true

@@ -36,16 +36,26 @@ const OWNER_NAV_ITEMS = Object.freeze([
 ])
 
 export const createNavbarModel = (currentUser) => {
-  const navItems = isAdminUser(currentUser)
+  const baseItems = [...BASE_NAV_ITEMS]
+  const isAdmin = isAdminUser(currentUser)
+  const isOwner = isOwnerUser(currentUser)
+  const isAuthenticated = Boolean(currentUser)
+
+  // Thêm link thanh toán cho user login
+  if (isAuthenticated && !isAdmin && !isOwner) {
+    baseItems.push({ key: "myPayments", to: ROUTES.myPayments, label: "Thanh toán" })
+  }
+
+  const navItems = isAdmin
     ? [...ADMIN_NAV_ITEMS]
-    : isOwnerUser(currentUser)
+    : isOwner
       ? [...OWNER_NAV_ITEMS]
-      : [...BASE_NAV_ITEMS]
+      : baseItems
 
   return {
     navItems,
     guestActions: GUEST_ACTIONS,
-    isAuthenticated: Boolean(currentUser),
+    isAuthenticated,
     currentUserName: String(
       currentUser?.name || currentUser?.fullName || currentUser?.email || ""
     ).trim(),

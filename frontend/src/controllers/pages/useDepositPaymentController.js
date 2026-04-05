@@ -81,6 +81,9 @@ const formatCountdownLabel = (totalSeconds = 0) => {
   return `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`
 }
 
+const HOLD_EXPIRED_BOOKING_MESSAGE =
+  "Đơn đặt sân đã hết thời gian chờ. Vui lòng chọn lại khung giờ khác."
+
 const getExpiryTimestamp = (value) => {
   if (!value) {
     return 0
@@ -223,6 +226,31 @@ const aggregatePaymentBookings = (bookings = [], fallbackBooking = null) => {
   }
 }
 
+const isBookingPaymentConfirmed = (booking) => {
+  if (!booking || typeof booking !== "object") {
+    return false
+  }
+
+  const bookingStatusKey = String(booking.status || "").trim().toLowerCase()
+  const depositStatusKey = String(booking.depositStatus || booking.paymentStatus || "").trim().toLowerCase()
+  const remainingAmount = Number(booking.remainingAmount || 0)
+
+  return Boolean(
+    booking.depositPaid
+    || booking.fullyPaid
+    || depositStatusKey === "paid"
+    || bookingStatusKey === "confirmed"
+    || bookingStatusKey === "completed"
+    || (
+      remainingAmount <= 0
+      && (
+        booking.depositPaid
+        || depositStatusKey === "paid"
+      )
+    )
+  )
+}
+
 export const useDepositPaymentController = ({ authToken }) => {
   const navigate = useNavigate()
   const location = useLocation()
@@ -361,7 +389,19 @@ export const useDepositPaymentController = ({ authToken }) => {
   )
 
   const depositAmount = useMemo(
-    () => Number(booking?.depositAmount || location.state?.depositAmount || totalPrice || 0),
+    () => {
+      const bookingDepositAmount = Number(booking?.depositAmount)
+      if (Number.isFinite(bookingDepositAmount) && bookingDepositAmount > 0) {
+        return bookingDepositAmount
+      }
+
+      const stateDepositAmount = Number(location.state?.depositAmount)
+      if (Number.isFinite(stateDepositAmount) && stateDepositAmount > 0) {
+        return stateDepositAmount
+      }
+
+      return calculateBookingDepositAmount(totalPrice)
+    },
     [booking?.depositAmount, location.state?.depositAmount, totalPrice]
   )
 
@@ -406,7 +446,7 @@ export const useDepositPaymentController = ({ authToken }) => {
   const secondsRemaining = paymentConfirmed || !holdExpiryTimestamp
     ? 0
     : Math.max(0, Math.ceil((holdExpiryTimestamp - nowTimestamp) / 1000))
-  const holdExpired = !paymentConfirmed && bookingStatusKey === "pending" && holdExpiryTimestamp > 0 && secondsRemaining <= 0
+  const holdExpired = !paymentConfirmed && holdExpiryTimestamp > 0 && secondsRemaining <= 0
   const countdownLabel = formatCountdownLabel(secondsRemaining)
 
   useEffect(() => {
@@ -419,8 +459,77 @@ export const useDepositPaymentController = ({ authToken }) => {
     }
 
     setLastAutoExpiredHold(holdExpiresAt)
-    setRefreshKey((value) => value + 1)
-  }, [holdExpired, holdExpiresAt, lastAutoExpiredHold, paymentConfirmed])
+
+    let cancelled = false
+
+    const redirectExpiredPaymentFlow = async () => {
+      const targetBookingIds =
+        Array.isArray(booking?.bookingIds) && booking.bookingIds.length > 0
+          ? booking.bookingIds.map((item) => String(item || "").trim()).filter(Boolean)
+          : paymentBookingIds
+
+      let latestBooking = booking || null
+
+      try {
+        if (authToken && targetBookingIds.length > 0) {
+          if (targetBookingIds.length > 1) {
+            const bookingData = await getMyBookings(authToken)
+            const liveBookings = Array.isArray(bookingData?.bookings) ? bookingData.bookings : []
+            const liveBookingMap = new Map(
+              liveBookings.map((item) => [String(item?.id || item?._id || "").trim(), item])
+            )
+            const matchedBookings = targetBookingIds
+              .map((id) => liveBookingMap.get(String(id || "").trim()))
+              .filter(Boolean)
+
+            latestBooking = aggregatePaymentBookings(matchedBookings, booking || null)
+          } else {
+            const bookingData = await getBookingById(targetBookingIds[0], authToken)
+            latestBooking = bookingData?.booking || latestBooking
+          }
+        }
+      } catch (_error) {
+        latestBooking = booking || latestBooking
+      }
+
+      if (cancelled) {
+        return
+      }
+
+      if (isBookingPaymentConfirmed(latestBooking)) {
+        setBooking(latestBooking)
+        if (latestBooking?.groupedBookings?.length) {
+          latestBooking.groupedBookings.forEach((item) => persistKnownBooking(item))
+        } else {
+          persistKnownBooking(latestBooking)
+        }
+        return
+      }
+
+      navigate(ROUTES.booking, {
+        replace: true,
+        state: {
+          bookingMessage: HOLD_EXPIRED_BOOKING_MESSAGE,
+          bookingMessageType: "error",
+        },
+      })
+    }
+
+    redirectExpiredPaymentFlow()
+
+    return () => {
+      cancelled = true
+    }
+  }, [
+    authToken,
+    booking,
+    holdExpired,
+    holdExpiresAt,
+    lastAutoExpiredHold,
+    navigate,
+    paymentBookingIds,
+    paymentConfirmed,
+  ])
 
   useEffect(() => {
     if (fullyPaid) {
@@ -558,7 +667,8 @@ export const useDepositPaymentController = ({ authToken }) => {
         authToken,
         bookingId,
         "CASH",
-        paymentOption === "full" ? "FULL" : "DEPOSIT"
+        paymentOption === "full" ? "FULL" : "DEPOSIT",
+        selectedPaymentAmount
       )
       const paymentId = String(paymentData?.payment?.id || paymentData?.payment?._id || "").trim()
 
@@ -631,7 +741,8 @@ export const useDepositPaymentController = ({ authToken }) => {
             authToken,
             targetBookingId,
             "CASH",
-            paymentOption === "full" ? "FULL" : "DEPOSIT"
+            paymentOption === "full" ? "FULL" : "DEPOSIT",
+            targetBookingIds.length === 1 ? selectedPaymentAmount : null
           )
           const paymentId = String(paymentData?.payment?.id || paymentData?.payment?._id || "").trim()
 

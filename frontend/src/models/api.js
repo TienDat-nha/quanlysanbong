@@ -1067,12 +1067,21 @@ const normalizePaymentItem = (payment) => {
     id: id || normalizeId(payment.bookingId),
     _id: id || normalizeId(payment.bookingId),
     bookingId: normalizeId(payment.bookingId, payment.booking?._id, payment.booking?.id),
+    bookingIds: Array.isArray(payment.bookingIds)
+      ? payment.bookingIds.map((item) => normalizeId(item)).filter(Boolean)
+      : [],
     amount: Number(payment.amount || payment.price || 0),
     method: String(payment.method || payment.paymentMethod || "").trim().toUpperCase(),
+    paymentType: String(payment.paymentType || payment.type || "").trim().toUpperCase(),
     status: String(payment.status || payment.paymentStatus || "").trim().toUpperCase(),
+    transactionCode: String(payment.transactionCode || "").trim(),
     qrCode: String(payment.qrCode || payment.qr || payment.qrUrl || "").trim(),
     qrImage: String(payment.qrImage || payment.qrImageUrl || "").trim(),
     qrText: String(payment.qrText || payment.content || "").trim(),
+    payUrl: String(payment.payUrl || payment.paymentUrl || "").trim(),
+    deeplink: String(payment.deeplink || payment.deepLink || "").trim(),
+    expiredAt: payment.expiredAt ? new Date(payment.expiredAt) : null,
+    createdAt: payment.createdAt ? new Date(payment.createdAt) : null,
   }
 }
 
@@ -2854,14 +2863,40 @@ export const confirmBookingStatus = async (token, bookingId) => {
   }
 }
 
-export const createBookingPayment = async (token, bookingId, method = "CASH", paymentType = "DEPOSIT") => {
+export const createBookingPayment = async (
+  token,
+  bookingId,
+  method = "CASH",
+  paymentType = "DEPOSIT",
+  amount = null,
+  bookingIds = []
+) => {
+  const normalizedAmount = Number(amount)
+  const hasExplicitAmount = Number.isFinite(normalizedAmount) && normalizedAmount > 0
+  const normalizedBookingIds = Array.from(
+    new Set(
+      (Array.isArray(bookingIds) ? bookingIds : [])
+        .map((item) => String(item || "").trim())
+        .filter(Boolean)
+    )
+  )
+
   const response = await request("/payment/createPayment", {
     method: "POST",
     headers: createTokenHeaders(token),
     body: JSON.stringify({
       bookingId: String(bookingId || "").trim(),
+      ...(normalizedBookingIds.length > 0 ? { bookingIds: normalizedBookingIds } : {}),
       method: String(method || "CASH").trim().toUpperCase(),
       paymentType: String(paymentType || "DEPOSIT").trim().toUpperCase(),
+      type: String(paymentType || "DEPOSIT").trim().toUpperCase(),
+      ...(hasExplicitAmount
+        ? {
+            amount: normalizedAmount,
+            price: normalizedAmount,
+            paymentAmount: normalizedAmount,
+          }
+        : {}),
     }),
   })
 
@@ -2901,6 +2936,23 @@ export const confirmPayment = async (token, paymentId) =>
     }),
   })
 
+export const checkPaymentStatus = async (token, paymentId) => {
+  const response = await request(`/payment/checkStatus/${encodeURIComponent(String(paymentId || "").trim())}`, {
+    headers: createTokenHeaders(token),
+  })
+
+  return {
+    payment:
+      normalizePaymentItem(getObjectFromResponse(response, ["payment", "item"]))
+      || normalizePaymentItem(unwrapResponseData(response)),
+    momoStatus:
+      getObjectFromResponse(response, ["momoStatus"])
+      || pickFirstValue(response, ["data.momoStatus"])
+      || null,
+    message: String(response?.message || "").trim(),
+  }
+}
+
 export const cancelBookingPayment = async (token, paymentId) =>
   request(`/payment/cancelPayment/${encodeURIComponent(paymentId)}`, {
     headers: createTokenHeaders(token),
@@ -2912,15 +2964,41 @@ export const getPaymentQr = async (token, paymentId) => {
   })
 
   const payloadData = unwrapResponseData(response)
-  const qrValue = String(
-    pickFirstValue(payloadData, ["qrCode", "qr", "qrImage", "qrImageUrl", "url", "paymentUrl"])
-    || pickFirstValue(response, ["qrCode", "data.qrCode", "qr", "data.qr"])
+  const qrImage = String(
+    pickFirstValue(payloadData, ["qrImage", "qrImageUrl", "url"])
+    || pickFirstValue(response, ["data.qrImage", "data.qrImageUrl", "qrImage", "qrImageUrl"])
+    || ""
+  ).trim()
+  const qrText = String(
+    pickFirstValue(payloadData, ["qrText", "qrCode", "content", "qr"])
+    || pickFirstValue(response, ["data.qrText", "data.qrCode", "qrText", "qrCode", "data.qr", "qr"])
+    || ""
+  ).trim()
+  const payUrl = String(
+    pickFirstValue(payloadData, ["payUrl", "paymentUrl"])
+    || pickFirstValue(response, ["data.payUrl", "payUrl", "data.paymentUrl", "paymentUrl"])
+    || ""
+  ).trim()
+  const deeplink = String(
+    pickFirstValue(payloadData, ["deeplink", "deepLink"])
+    || pickFirstValue(response, ["data.deeplink", "deeplink", "data.deepLink", "deepLink"])
     || ""
   ).trim()
 
   return {
-    qrCode: qrValue,
-    qrImage: qrValue,
+    qrCode: qrText || qrImage,
+    qrImage,
+    qrText,
+    payUrl,
+    deeplink,
+    expiredAt:
+      pickFirstValue(payloadData, ["expiredAt"])
+      || pickFirstValue(response, ["data.expiredAt", "expiredAt"])
+      || null,
+    createdAt:
+      pickFirstValue(payloadData, ["createdAt"])
+      || pickFirstValue(response, ["data.createdAt", "createdAt"])
+      || null,
     raw: response,
   }
 }

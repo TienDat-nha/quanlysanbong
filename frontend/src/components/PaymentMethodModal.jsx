@@ -1,0 +1,491 @@
+import React, { useCallback, useEffect, useRef, useState } from 'react'
+import { usePaymentFlow } from '../hooks/usePaymentFlow'
+import PaymentMethodForm from './PaymentMethodForm'
+import PaymentQRModal from './PaymentQRModal'
+import { cancelPayment, checkPaymentStatus, confirmPayment, getPaymentByBooking, getQR } from '../services/paymentService'
+import { getBookingById, getMyBookings } from '../models/api'
+import './PaymentMethodModal.scss'
+
+const normalizePaymentType = (value, fallback = 'DEPOSIT') =>
+  String(value || fallback || 'DEPOSIT').trim().toUpperCase()
+
+const normalizeAmount = (value) => {
+  const amount = Number(value || 0)
+  return Number.isFinite(amount) ? amount : 0
+}
+
+const isPendingPayment = (payment) => {
+  const status = String(payment?.status || '').trim().toUpperCase()
+  return status === '' || status === 'PENDING' || status === 'WAITING' || status === 'PROCESSING'
+}
+
+const doesPaymentMatchSelection = (payment, expectedType, expectedAmount) => {
+  if (!payment || typeof payment !== 'object') {
+    return false
+  }
+
+  const paymentAmount = normalizeAmount(payment.amount)
+  const paymentType = normalizePaymentType(payment.paymentType, '')
+  const amountMatches = Math.round(paymentAmount) === Math.round(normalizeAmount(expectedAmount))
+  const typeMatches = !paymentType || paymentType === normalizePaymentType(expectedType)
+
+  return amountMatches && typeMatches
+}
+
+const withExpectedPaymentShape = (payment, expectedType, expectedAmount) => ({
+  ...payment,
+  amount: normalizeAmount(payment?.amount || expectedAmount),
+  paymentType: normalizePaymentType(payment?.paymentType, expectedType),
+})
+
+const isBookingPaymentConfirmed = (booking) => {
+  if (!booking || typeof booking !== 'object') {
+    return false
+  }
+
+  const bookingStatusKey = String(booking.status || '').trim().toUpperCase()
+  const depositStatusKey = String(booking.depositStatus || booking.paymentStatus || '').trim().toUpperCase()
+  const remainingAmount = Number(booking.remainingAmount || 0)
+
+  return Boolean(
+    booking.depositPaid
+    || booking.fullyPaid
+    || depositStatusKey === 'PAID'
+    || bookingStatusKey === 'CONFIRMED'
+    || bookingStatusKey === 'COMPLETED'
+    || (
+      remainingAmount <= 0
+      && (
+        booking.depositPaid
+        || depositStatusKey === 'PAID'
+      )
+    )
+  )
+}
+
+const PaymentMethodModal = ({
+  bookingId,
+  bookingIds = [],
+  totalPrice,
+  depositAmount,
+  onPaymentSuccess,
+  onClose,
+  authToken,
+  paymentType = 'DEPOSIT',
+  isFullPayment = false,
+}) => {
+  const [step, setStep] = useState('form')
+  const [selectedPayment, setSelectedPayment] = useState(null)
+  const [qrData, setQrData] = useState(null)
+  const [pollInterval, setPollInterval] = useState(null)
+  const [qrRefreshing, setQrRefreshing] = useState(false)
+  const [localError, setLocalError] = useState('')
+  const successTimerRef = useRef(null)
+  const successSettledRef = useRef(false)
+  const { loading, error, handleCreatePayment, resetPayment } = usePaymentFlow(authToken)
+
+  const effectivePaymentType = isFullPayment ? 'FULL' : normalizePaymentType(paymentType)
+  const effectiveBookingIds = Array.from(
+    new Set(
+      [bookingId, ...(Array.isArray(bookingIds) ? bookingIds : [])]
+        .map((item) => String(item || '').trim())
+        .filter(Boolean)
+    )
+  )
+  const primaryBookingId = effectiveBookingIds[0] || String(bookingId || '').trim()
+
+  const applyQrState = (payment, qr) => {
+    const nextPayment = payment || null
+    const nextQr = qr || null
+
+    setSelectedPayment(
+      nextPayment
+        ? {
+            ...nextPayment,
+            qrImage: nextQr?.qrImage || nextPayment?.qrImage || '',
+            qrText: nextQr?.qrText || nextPayment?.qrText || '',
+            payUrl: nextQr?.payUrl || nextPayment?.payUrl || '',
+            deeplink: nextQr?.deeplink || nextPayment?.deeplink || '',
+            createdAt: nextQr?.createdAt || nextPayment?.createdAt || null,
+            expiredAt: nextQr?.expiredAt || nextPayment?.expiredAt || null,
+          }
+        : nextPayment
+    )
+    setQrData(nextQr)
+  }
+
+  const settleSuccessfulPayment = useCallback((payment = null) => {
+    if (successSettledRef.current) {
+      return
+    }
+
+    successSettledRef.current = true
+
+    if (successTimerRef.current) {
+      clearTimeout(successTimerRef.current)
+    }
+
+    if (payment?.id) {
+      setSelectedPayment((currentPayment) => ({
+        ...(currentPayment || {}),
+        ...payment,
+      }))
+    }
+
+    setLocalError('')
+    setStep('success')
+
+    successTimerRef.current = setTimeout(() => {
+      successTimerRef.current = null
+      successSettledRef.current = false
+      onPaymentSuccess?.()
+      onClose?.()
+    }, 1500)
+  }, [onClose, onPaymentSuccess])
+
+  useEffect(() => () => {
+    if (successTimerRef.current) {
+      clearTimeout(successTimerRef.current)
+      successTimerRef.current = null
+    }
+  }, [])
+
+  useEffect(() => {
+    if (step !== 'qr' || !selectedPayment?.id || !authToken) {
+      return undefined
+    }
+
+    let active = true
+
+    const interval = setInterval(async () => {
+      try {
+        const paymentMethod = String(selectedPayment?.method || '').trim().toUpperCase()
+
+        if (paymentMethod === 'MOMO' && primaryBookingId) {
+          const latestPayment = await getPaymentByBooking(authToken, primaryBookingId).catch(() => null)
+
+          if (!active) {
+            return
+          }
+
+          if (
+            latestPayment?.id
+            && String(latestPayment.id).trim() === String(selectedPayment?.id || '').trim()
+          ) {
+            setSelectedPayment((currentPayment) => (
+              currentPayment
+                ? {
+                    ...currentPayment,
+                    ...latestPayment,
+                  }
+                : currentPayment
+            ))
+
+            if (String(latestPayment?.status || '').trim().toUpperCase() === 'PAID') {
+              clearInterval(interval)
+              setPollInterval(null)
+              settleSuccessfulPayment(latestPayment)
+              return
+            }
+          }
+        }
+
+        const qr = await getQR(authToken, selectedPayment.id)
+        if (!active) {
+          return
+        }
+
+        if (qr?.qrImage || qr?.qrText || qr?.payUrl || qr?.deeplink) {
+          setQrData(qr)
+        }
+        if (qr?.expiredAt || qr?.qrImage || qr?.qrText || qr?.payUrl || qr?.deeplink) {
+          setSelectedPayment((currentPayment) => (
+            currentPayment
+              ? {
+                  ...currentPayment,
+                  qrImage: qr?.qrImage || currentPayment.qrImage || '',
+                  qrText: qr?.qrText || currentPayment.qrText || '',
+                  payUrl: qr?.payUrl || currentPayment.payUrl || '',
+                  deeplink: qr?.deeplink || currentPayment.deeplink || '',
+                  createdAt: qr?.createdAt || currentPayment.createdAt || null,
+                  expiredAt: qr?.expiredAt || currentPayment.expiredAt || null,
+                }
+              : currentPayment
+          ))
+        }
+      } catch (err) {
+        console.error('Polling error:', err)
+      }
+    }, 3000)
+
+    setPollInterval(interval)
+    return () => {
+      active = false
+      clearInterval(interval)
+    }
+  }, [authToken, primaryBookingId, selectedPayment?.id, selectedPayment?.method, settleSuccessfulPayment, step])
+
+  const clearPaymentFlow = () => {
+    if (pollInterval) {
+      clearInterval(pollInterval)
+      setPollInterval(null)
+    }
+
+    if (successTimerRef.current) {
+      clearTimeout(successTimerRef.current)
+      successTimerRef.current = null
+    }
+
+    successSettledRef.current = false
+    setSelectedPayment(null)
+    setQrData(null)
+    setStep('form')
+    setQrRefreshing(false)
+    setLocalError('')
+    resetPayment()
+  }
+
+  const handleFormSubmit = async (_bkId, method, paymentFormType) => {
+    try {
+      setLocalError('')
+
+      const finalPaymentType = isFullPayment ? 'FULL' : normalizePaymentType(paymentFormType)
+      const expectedAmount =
+        finalPaymentType === 'FULL'
+          ? normalizeAmount(totalPrice)
+          : normalizeAmount(depositAmount)
+
+      const existingPayment = primaryBookingId
+        ? await getPaymentByBooking(authToken, primaryBookingId).catch(() => null)
+        : null
+      if (
+        existingPayment?.id
+        && isPendingPayment(existingPayment)
+        && !doesPaymentMatchSelection(existingPayment, finalPaymentType, expectedAmount)
+      ) {
+        await cancelPayment(authToken, existingPayment.id).catch(() => null)
+      }
+
+      let payment = await handleCreatePayment(
+        primaryBookingId,
+        method,
+        finalPaymentType,
+        expectedAmount,
+        effectiveBookingIds
+      )
+      payment = withExpectedPaymentShape(payment, finalPaymentType, expectedAmount)
+
+      if (!doesPaymentMatchSelection(payment, finalPaymentType, expectedAmount) && payment?.id) {
+        if (isPendingPayment(payment)) {
+          await cancelPayment(authToken, payment.id).catch(() => null)
+        }
+
+        payment = await handleCreatePayment(
+          primaryBookingId,
+          method,
+          finalPaymentType,
+          expectedAmount,
+          effectiveBookingIds
+        )
+        payment = withExpectedPaymentShape(payment, finalPaymentType, expectedAmount)
+      }
+
+      if (!doesPaymentMatchSelection(payment, finalPaymentType, expectedAmount)) {
+        throw new Error(
+          `Yêu cầu thanh toán trả về ${normalizeAmount(payment?.amount).toLocaleString('vi-VN')}đ thay vì ${expectedAmount.toLocaleString('vi-VN')}đ.`
+        )
+      }
+
+      const qr = await getQR(authToken, payment.id)
+      applyQrState(payment, qr)
+      setStep('qr')
+    } catch (err) {
+      setLocalError(err?.message || 'Lỗi tạo thanh toán')
+      console.error('Error creating payment:', err)
+    }
+  }
+
+  const handleConfirmPayment = async (paymentId) => {
+    try {
+      if (pollInterval) {
+        clearInterval(pollInterval)
+        setPollInterval(null)
+      }
+
+      setLocalError('')
+
+      if (String(selectedPayment?.method || '').trim().toUpperCase() === 'CASH') {
+        await confirmPayment(authToken, paymentId)
+        settleSuccessfulPayment()
+        return
+      }
+
+      if (String(selectedPayment?.method || '').trim().toUpperCase() === 'MOMO') {
+        const statusResult = await checkPaymentStatus(authToken, paymentId)
+        const checkedPayment = statusResult?.payment || null
+
+        if (checkedPayment?.id) {
+          setSelectedPayment((currentPayment) => ({
+            ...(currentPayment || {}),
+            ...checkedPayment,
+          }))
+        }
+
+        if (String(checkedPayment?.status || '').trim().toUpperCase() === 'PAID') {
+          settleSuccessfulPayment(checkedPayment)
+          return
+        }
+
+        setLocalError(
+          statusResult?.message
+          || 'He thong chua nhan duoc thanh toan MoMo. Vui long hoan tat giao dich roi kiem tra lai.'
+        )
+        return
+      }
+
+      const latestPayment = primaryBookingId
+        ? await getPaymentByBooking(authToken, primaryBookingId).catch(() => null)
+        : null
+
+      if (latestPayment?.id && String(latestPayment.id).trim() === String(paymentId || '').trim()) {
+        setSelectedPayment((currentPayment) => ({
+          ...(currentPayment || {}),
+          ...latestPayment,
+        }))
+      }
+
+      if (String(latestPayment?.status || '').trim().toUpperCase() === 'PAID') {
+        settleSuccessfulPayment(latestPayment)
+        return
+      }
+
+      let paymentReceived = false
+
+      if (effectiveBookingIds.length > 1) {
+        const bookingData = await getMyBookings(authToken)
+        const liveBookings = Array.isArray(bookingData?.bookings) ? bookingData.bookings : []
+        const liveBookingMap = new Map(
+          liveBookings.map((item) => [String(item?.id || item?._id || '').trim(), item])
+        )
+        paymentReceived = effectiveBookingIds.every((id) =>
+          isBookingPaymentConfirmed(liveBookingMap.get(String(id || '').trim()))
+        )
+      } else if (primaryBookingId) {
+        const bookingData = await getBookingById(primaryBookingId, authToken)
+        paymentReceived = isBookingPaymentConfirmed(bookingData?.booking)
+      }
+
+      if (!paymentReceived) {
+        setLocalError('Hệ thống chưa nhận được thanh toán. Vui lòng hoàn tất giao dịch và bấm "Kiểm tra thanh toán" lại sau.')
+        return
+      }
+
+      settleSuccessfulPayment()
+    } catch (err) {
+      setLocalError(err?.message || 'Lỗi xác nhận thanh toán')
+      console.error('Error confirming payment:', err)
+    }
+  }
+
+  const handleRefreshQr = async () => {
+    if (!selectedPayment?.id || qrRefreshing || loading) {
+      return
+    }
+
+    try {
+      setQrRefreshing(true)
+      setLocalError('')
+
+      if (isPendingPayment(selectedPayment)) {
+        await cancelPayment(authToken, selectedPayment.id).catch(() => null)
+      }
+
+      const refreshPaymentType = normalizePaymentType(selectedPayment?.paymentType, effectivePaymentType)
+      const refreshExpectedAmount =
+        refreshPaymentType === 'FULL'
+          ? normalizeAmount(totalPrice)
+          : normalizeAmount(depositAmount)
+
+      const refreshedPayment = withExpectedPaymentShape(
+        await handleCreatePayment(
+          primaryBookingId,
+          selectedPayment?.method || 'MOMO',
+          refreshPaymentType,
+          refreshExpectedAmount,
+          effectiveBookingIds
+        ),
+        refreshPaymentType,
+        refreshExpectedAmount
+      )
+
+      const qr = await getQR(authToken, refreshedPayment.id)
+      applyQrState(refreshedPayment, qr)
+    } catch (err) {
+      setLocalError(err?.message || 'Khong the lay lai QR')
+      console.error('Error refreshing QR:', err)
+    } finally {
+      setQrRefreshing(false)
+    }
+  }
+
+  const handleBackToForm = () => {
+    clearPaymentFlow()
+  }
+
+  if (step === 'success') {
+    return (
+      <div className="payment-method-modal">
+        <div className="modal-overlay" onClick={onClose} />
+        <div className="modal-content success-modal">
+          <div className="success-icon">✓</div>
+          <h2>Thanh toán thành công!</h2>
+          <p>Đơn đặt của bạn đã được xác nhận.</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (step === 'qr' && selectedPayment) {
+    return (
+      <PaymentQRModal
+        payment={selectedPayment}
+        qrImage={qrData?.qrImage}
+        onConfirmPayment={handleConfirmPayment}
+        onCancelPayment={handleBackToForm}
+        onRefreshQR={handleRefreshQr}
+        loading={loading || qrRefreshing}
+        error={localError || error}
+        onClose={handleBackToForm}
+      />
+    )
+  }
+
+  return (
+    <div className="payment-method-modal">
+      <div className="modal-overlay" onClick={onClose} />
+      <div className="modal-content">
+        <div className="modal-header">
+          <h2>Chọn phương thức thanh toán</h2>
+          <button className="close-btn" onClick={onClose} disabled={loading}>
+            ×
+          </button>
+        </div>
+        <div className="modal-body">
+          <PaymentMethodForm
+            bookingId={bookingId}
+            totalPrice={totalPrice}
+            depositAmount={depositAmount}
+            onSubmit={handleFormSubmit}
+            loading={loading}
+            error={localError || error}
+            defaultPaymentType={effectivePaymentType}
+            hideFullPaymentOption={!isFullPayment}
+            hideDepositOption={isFullPayment}
+          />
+        </div>
+      </div>
+    </div>
+  )
+}
+
+export default PaymentMethodModal

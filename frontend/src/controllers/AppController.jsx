@@ -21,6 +21,7 @@ import HomeController from "./pages/HomeController"
 import LoginController from "./pages/LoginController"
 import RegisterController from "./pages/RegisterController"
 import UsersController from "./pages/UsersController"
+import MyPaymentsController from "./pages/MyPaymentsController"
 
 const getRoleHomePath = (currentUser) => {
   if (isAdminUser(currentUser)) {
@@ -169,6 +170,23 @@ const AppController = () => {
             >
               <UsersController authToken={authToken} currentUser={currentUser} />
             </ProtectedPortalRoute>
+          }
+        />
+        <Route
+          path={ROUTES.myPayments}
+          element={
+            authToken ? (
+              <MyPaymentsController authToken={authToken} />
+            ) : (
+              <Navigate
+                to={ROUTES.login}
+                replace
+                state={{
+                  from: ROUTES.myPayments,
+                  message: "Đăng nhập để xem lịch sử thanh toán.",
+                }}
+              />
+            )
           }
         />
         <Route path="*" element={<Navigate to={ROUTES.home} replace />} />

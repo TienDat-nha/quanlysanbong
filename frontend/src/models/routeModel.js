@@ -13,6 +13,7 @@ export const ROUTES = Object.freeze({
   contact: "/lien-he",
   booking: "/dat-san",
   depositPayment: "/thanh-toan-dat-coc",
+  myPayments: "/thanh-toan-cua-toi",
 })
 
 export const STAFF_DASHBOARD_SECTIONS = Object.freeze({
