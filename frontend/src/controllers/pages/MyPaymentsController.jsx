@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useCallback, useEffect, useState } from 'react'
 import MyPaymentsView from '../../views/pages/MyPaymentsView'
 import PaymentQRModal from '../../components/PaymentQRModal'
 import { usePaymentFlow } from '../../hooks/usePaymentFlow'
@@ -17,21 +17,23 @@ const MyPaymentsController = ({ authToken }) => {
     setPayments,
   } = usePaymentFlow(authToken)
 
-  // Load payments on mount
-  useEffect(() => {
-    if (!authToken) return
-    loadPayments()
-  }, [authToken])
-
-  const loadPayments = async () => {
+  const loadPayments = useCallback(async () => {
     try {
       const list = await getMyPayments(authToken)
       setPayments(list)
       setLocalError('')
     } catch (err) {
-      setLocalError(err?.message || 'Lỗi tải danh sách thanh toán')
+      setLocalError(err?.message || 'Loi tai danh sach thanh toan')
     }
-  }
+  }, [authToken, setPayments])
+
+  useEffect(() => {
+    if (!authToken) {
+      return
+    }
+
+    loadPayments()
+  }, [authToken, loadPayments])
 
   const handleViewQR = async (payment) => {
     try {
@@ -40,7 +42,7 @@ const MyPaymentsController = ({ authToken }) => {
       const qr = await getQR(authToken, payment.id)
       setQrData(qr)
     } catch (err) {
-      setLocalError(err?.message || 'Lỗi lấy mã QR')
+      setLocalError(err?.message || 'Loi lay ma QR')
     }
   }
 
@@ -49,19 +51,19 @@ const MyPaymentsController = ({ authToken }) => {
       setConfirming(true)
       setLocalError('')
       await confirmPayment(authToken, paymentId)
-      await new Promise(resolve => setTimeout(resolve, 500))
+      await new Promise((resolve) => setTimeout(resolve, 500))
       setSelectedPayment(null)
       setQrData(null)
       await loadPayments()
     } catch (err) {
-      setLocalError(err?.message || 'Lỗi xác nhận thanh toán')
+      setLocalError(err?.message || 'Loi xac nhan thanh toan')
     } finally {
       setConfirming(false)
     }
   }
 
   const handleCancelPaymentClick = async (payment) => {
-    if (!window.confirm('Bạn chắc chắn muốn huỷ thanh toán này?')) {
+    if (!window.confirm('Ban chac chan muon huy thanh toan nay?')) {
       return
     }
 
@@ -71,20 +73,23 @@ const MyPaymentsController = ({ authToken }) => {
       await cancelPayment(authToken, payment.id)
       await loadPayments()
     } catch (err) {
-      setLocalError(err?.message || 'Lỗi huỷ thanh toán')
+      setLocalError(err?.message || 'Loi huy thanh toan')
     } finally {
       setCancelling((prev) => ({ ...prev, [payment.id]: false }))
     }
   }
 
   const handleRefreshQR = async () => {
-    if (!selectedPayment) return
+    if (!selectedPayment) {
+      return
+    }
+
     try {
       const qr = await getQR(authToken, selectedPayment.id)
       setQrData(qr)
       setLocalError('')
     } catch (err) {
-      setLocalError(err?.message || 'Lỗi làm mới QR')
+      setLocalError(err?.message || 'Loi lam moi QR')
     }
   }
 
