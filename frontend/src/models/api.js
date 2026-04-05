@@ -1079,8 +1079,7 @@ const normalizeBookingItem = (booking) => {
     paymentType,
     depositPaid: Boolean(booking.depositPaid || isPaidPaymentStatus),
     fullyPaid: Boolean(
-      booking.fullyPaid
-      || booking.fullyPaidAt
+      booking.fullyPaidAt
       || String(booking.status || booking.bookingStatus || "").trim().toUpperCase() === "COMPLETED"
       || (paymentType === "FULL" && isPaidPaymentStatus && remainingAmount !== null && remainingAmount <= 0)
     ),
@@ -2355,6 +2354,15 @@ const isPendingPaymentForConfirmation = (payment) =>
 const normalizeAdminPaymentType = (value, fallback = "DEPOSIT") =>
   String(value || fallback || "DEPOSIT").trim().toUpperCase()
 
+const normalizeAdminBookingIds = (bookingId, bookingIds = []) =>
+  Array.from(
+    new Set(
+      [bookingId, ...(Array.isArray(bookingIds) ? bookingIds : [])]
+        .map((item) => String(item || "").trim())
+        .filter(Boolean)
+    )
+  )
+
 const getLatestPaymentByBooking = async (token, bookingId, paymentType = "") => {
   const response = await request(`/payment/getPaymentByBooking/${encodeURIComponent(bookingId)}`, {
     headers: createTokenHeaders(token),
@@ -2377,14 +2385,19 @@ const getLatestPaymentByBooking = async (token, bookingId, paymentType = "") => 
 }
 
 const confirmBookingPaymentByBookingId = async (token, bookingId, options = {}) => {
-  const normalizedBookingId = String(bookingId || "").trim()
+  const normalizedBookingIds = normalizeAdminBookingIds(bookingId, options?.bookingIds)
+  const normalizedBookingId = normalizedBookingIds[0] || String(bookingId || "").trim()
   const normalizedPaymentType = normalizeAdminPaymentType(options?.paymentType)
   const normalizedAmount = Number(options?.amount)
   const hasExplicitAmount = Number.isFinite(normalizedAmount) && normalizedAmount > 0
-  let payment = await getLatestPaymentByBooking(token, normalizedBookingId, normalizedPaymentType).catch(() => null)
+  const isGroupedPayment = normalizedBookingIds.length > 1
+  let payment = isGroupedPayment
+    ? null
+    : await getLatestPaymentByBooking(token, normalizedBookingId, normalizedPaymentType).catch(() => null)
 
   const canReusePendingPayment =
-    Boolean(payment?.id)
+    !isGroupedPayment
+    && Boolean(payment?.id)
     && isPendingPaymentForConfirmation(payment)
     && (
       !normalizeAdminPaymentType(payment?.paymentType, "")
@@ -2397,7 +2410,8 @@ const confirmBookingPaymentByBookingId = async (token, bookingId, options = {}) 
       normalizedBookingId,
       "CASH",
       normalizedPaymentType,
-      hasExplicitAmount ? normalizedAmount : null
+      hasExplicitAmount ? normalizedAmount : null,
+      normalizedBookingIds
     )
     payment = createdPayment?.payment || null
   }
@@ -2414,13 +2428,17 @@ const confirmBookingPaymentByBookingId = async (token, bookingId, options = {}) 
   }
 }
 
-export const confirmAdminBookingDeposit = async (token, bookingId) =>
-  confirmBookingPaymentByBookingId(token, bookingId, { paymentType: "DEPOSIT" })
+export const confirmAdminBookingDeposit = async (token, bookingId, bookingIds = []) =>
+  confirmBookingPaymentByBookingId(token, bookingId, {
+    paymentType: "DEPOSIT",
+    bookingIds,
+  })
 
-export const confirmAdminBookingPayment = async (token, bookingId, amount = null) =>
+export const confirmAdminBookingPayment = async (token, bookingId, amount = null, bookingIds = []) =>
   confirmBookingPaymentByBookingId(token, bookingId, {
     paymentType: "FULL",
     amount,
+    bookingIds,
   })
 
 export const uploadAdminImage = async (token, file) => {

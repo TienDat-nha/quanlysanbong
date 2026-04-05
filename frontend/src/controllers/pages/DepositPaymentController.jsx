@@ -6,6 +6,7 @@ import {
   formatDepositMethodVi,
   formatDepositStatusVi,
   formatPaymentStatusVi,
+  getBookingPaymentSummaryVi,
 } from "../../models/bookingTextModel"
 import DepositPaymentView from "../../views/pages/DepositPaymentView"
 import { useDepositPaymentController } from "./useDepositPaymentController"
@@ -22,6 +23,12 @@ const DepositPaymentController = ({ authToken, currentUser }) => {
     feedback,
     actionLoading,
     paymentConfirmed,
+    paymentCompleted,
+    hasConfirmedDeposit,
+    outstandingAmount,
+    paidDepositAmount,
+    remainingPaidAmount,
+    paymentStatusLabel,
     holdExpiresAt,
     holdExpired,
     countdownLabel,
@@ -50,15 +57,17 @@ const DepositPaymentController = ({ authToken, currentUser }) => {
   } = useDepositPaymentController({ authToken })
 
   useEffect(() => {
-    if (!showPaymentModal || paymentConfirmed || !holdExpired) {
+    if (!showPaymentModal) {
       return
     }
 
-    setShowPaymentModal(false)
-  }, [holdExpired, paymentConfirmed, showPaymentModal])
+    if (paymentCompleted || (holdExpired && !hasConfirmedDeposit)) {
+      setShowPaymentModal(false)
+    }
+  }, [hasConfirmedDeposit, holdExpired, paymentCompleted, showPaymentModal])
 
   useEffect(() => {
-    if (!showPaymentModal || !authToken || !booking?.id || holdExpired || paymentConfirmed) {
+    if (!showPaymentModal || !authToken || !booking?.id || paymentCompleted || (holdExpired && !hasConfirmedDeposit)) {
       if (pollingIntervalRef.current) {
         clearInterval(pollingIntervalRef.current)
         pollingIntervalRef.current = null
@@ -70,7 +79,28 @@ const DepositPaymentController = ({ authToken, currentUser }) => {
     const pollInterval = setInterval(async () => {
       try {
         const bookingData = await getBookingById(booking.id, authToken)
-        const updatedBooking = bookingData?.booking
+        const rawUpdatedBooking = bookingData?.booking
+        const rawUpdatedPaymentSummary = getBookingPaymentSummaryVi(rawUpdatedBooking)
+        const shouldPreserveDepositState =
+          hasConfirmedDeposit
+          && !paymentCompleted
+          && rawUpdatedBooking
+          && !rawUpdatedPaymentSummary.isFullyPaid
+        const updatedBooking = shouldPreserveDepositState
+          ? {
+            ...rawUpdatedBooking,
+            paymentType: booking?.paymentType || booking?.type || rawUpdatedBooking?.paymentType,
+            type: booking?.paymentType || booking?.type || rawUpdatedBooking?.type,
+            depositAmount: booking?.depositAmount ?? rawUpdatedBooking?.depositAmount,
+            remainingAmount: booking?.remainingAmount ?? rawUpdatedBooking?.remainingAmount,
+            paidAmount: booking?.paidAmount ?? rawUpdatedBooking?.paidAmount,
+            depositPaid: true,
+            fullyPaid: false,
+            depositStatus: booking?.depositStatus || rawUpdatedBooking?.depositStatus || "PAID",
+            paymentStatus: booking?.paymentStatus || rawUpdatedBooking?.paymentStatus || "DEPOSIT_PAID",
+          }
+          : rawUpdatedBooking
+        const updatedPaymentSummary = getBookingPaymentSummaryVi(updatedBooking)
         const updatedStatus = String(updatedBooking?.status || "").trim().toUpperCase()
         const updatedHoldValue = String(updatedBooking?.expiredAt || updatedBooking?.holdExpiresAt || "").trim()
         const updatedHoldTimestamp = updatedHoldValue ? new Date(updatedHoldValue).getTime() : 0
@@ -79,7 +109,11 @@ const DepositPaymentController = ({ authToken, currentUser }) => {
           && !Number.isNaN(updatedHoldTimestamp)
           && Date.now() >= updatedHoldTimestamp
 
-        if (updatedBooking?.depositStatus === "PAID" || updatedBooking?.paymentStatus === "PAID") {
+        const paymentCompletedNow = paymentOption === "remaining" || paymentOption === "full"
+          ? updatedPaymentSummary.isFullyPaid
+          : updatedPaymentSummary.hasConfirmedDeposit || updatedPaymentSummary.isFullyPaid
+
+        if (paymentCompletedNow) {
           setShowPaymentModal(false)
           clearInterval(pollInterval)
           if (pollingIntervalRef.current === pollInterval) {
@@ -119,10 +153,10 @@ const DepositPaymentController = ({ authToken, currentUser }) => {
         pollingIntervalRef.current = null
       }
     }
-  }, [showPaymentModal, authToken, booking?.id, handleRefresh, holdExpired, paymentConfirmed])
+  }, [showPaymentModal, authToken, booking, handleRefresh, hasConfirmedDeposit, holdExpired, paymentCompleted, paymentOption])
 
   const handleOpenPaymentModal = () => {
-    if (!booking?.id || holdExpired || paymentConfirmed) {
+    if (!booking?.id || paymentCompleted || (holdExpired && !hasConfirmedDeposit)) {
       return
     }
 
@@ -155,6 +189,12 @@ const DepositPaymentController = ({ authToken, currentUser }) => {
         feedback={feedback}
         actionLoading={actionLoading}
         paymentConfirmed={paymentConfirmed}
+        paymentCompleted={paymentCompleted}
+        hasConfirmedDeposit={hasConfirmedDeposit}
+        outstandingAmount={outstandingAmount}
+        paidDepositAmount={paidDepositAmount}
+        remainingPaidAmount={remainingPaidAmount}
+        paymentStatusLabel={paymentStatusLabel}
         holdExpiresAt={holdExpiresAt}
         holdExpired={holdExpired}
         countdownLabel={countdownLabel}
@@ -191,11 +231,17 @@ const DepositPaymentController = ({ authToken, currentUser }) => {
         <PaymentMethodModal
           bookingId={booking?.id}
           bookingIds={Array.isArray(booking?.bookingIds) ? booking.bookingIds : []}
-          totalPrice={totalPrice}
+          totalPrice={selectedPaymentAmount}
           depositAmount={depositAmount}
           authToken={authToken}
-          paymentType={paymentOption === "full" ? "FULL" : "DEPOSIT"}
-          isFullPayment={paymentOption === "full"}
+          paymentType={paymentOption === "deposit" ? "DEPOSIT" : "FULL"}
+          isFullPayment={paymentOption !== "deposit"}
+          paymentTypeLabelOverride={paymentOption === "remaining" ? "Thanh toán phần còn lại" : ""}
+          fixedPaymentNotice={
+            paymentOption === "remaining"
+              ? "Bước này bắt buộc thanh toán toàn bộ số tiền còn nợ."
+              : ""
+          }
           onPaymentSuccess={handlePaymentSuccess}
           onClose={() => setShowPaymentModal(false)}
         />

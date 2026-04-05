@@ -8,11 +8,11 @@ import {
   cancelBookingPayment,
   getPaymentQr,
 } from '../models/api'
+import { getBookingPaymentSummaryVi } from '../models/bookingTextModel'
 import { normalizePaymentItem } from '../models/paymentModel'
 
 const PENDING_PAYMENT_STATUSES = new Set(['', 'PENDING', 'WAITING', 'PROCESSING', 'UNPAID'])
 const CANCELLED_BOOKING_STATUSES = new Set(['CANCELLED', 'CANCELED'])
-const PAID_BOOKING_STATUSES = new Set(['CONFIRMED', 'COMPLETED'])
 
 const getPaymentBookingIds = (payment) => {
   if (!payment || typeof payment !== 'object') {
@@ -37,23 +37,8 @@ const isBookingPaymentConfirmed = (booking) => {
     return false
   }
 
-  const bookingStatus = String(booking.status || '').trim().toUpperCase()
-  const paymentStatus = String(booking.paymentStatus || booking.depositStatus || '').trim().toUpperCase()
-  const remainingAmount = Number(booking.remainingAmount || 0)
-
-  return Boolean(
-    booking.depositPaid
-    || booking.fullyPaid
-    || paymentStatus === 'PAID'
-    || PAID_BOOKING_STATUSES.has(bookingStatus)
-    || (
-      remainingAmount <= 0
-      && (
-        booking.depositPaid
-        || paymentStatus === 'PAID'
-      )
-    )
-  )
+  const paymentSummary = getBookingPaymentSummaryVi(booking)
+  return paymentSummary.hasConfirmedDeposit || paymentSummary.isFullyPaid
 }
 
 const reconcilePaymentWithBookingStatuses = (payment, bookingMap) => {

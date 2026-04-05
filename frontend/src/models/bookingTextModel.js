@@ -8,8 +8,6 @@ const CANCELLED_STATUS_KEYS = new Set(["cancelled", "canceled"])
 const FAILED_PAYMENT_STATUS_KEYS = new Set(["failed", "expired"])
 const PENDING_PAYMENT_STATUS_KEYS = new Set(["pending", "waiting", "processing", "deposit_pending"])
 const PAID_PAYMENT_STATUS_KEYS = new Set(["paid", "success", "succeeded", "completed", "deposit_paid"])
-const CONFIRMED_BOOKING_STATUS_KEYS = new Set(["confirmed", "completed", "approved"])
-
 const normalizeMoney = (value) => {
   const amount = Number(value)
   return Number.isFinite(amount) ? Math.max(amount, 0) : 0
@@ -77,6 +75,16 @@ export const getBookingPaymentSummaryVi = (booking) => {
   const bookingStatusKey = normalizeStatusKey(booking?.status)
   const paymentStatusKey = normalizeStatusKey(booking?.paymentStatus)
   const depositStatusKey = normalizeStatusKey(booking?.depositStatus)
+  const paymentTypeKey = normalizeStatusKey(
+    booking?.paymentType
+    || booking?.payment?.paymentType
+    || booking?.payment?.type
+  )
+  const paymentMethodKey = normalizeStatusKey(
+    booking?.paymentMethod
+    || booking?.payment?.method
+    || booking?.depositMethod
+  )
   const totalAmount = normalizeMoney(booking?.totalPrice)
   const configuredDepositAmount = normalizeMoney(booking?.depositAmount)
   const depositAmount =
@@ -85,6 +93,11 @@ export const getBookingPaymentSummaryVi = (booking) => {
       : calculateBookingDepositAmount(totalAmount)
   const fallbackRemainingAmount = calculateRemainingPaymentAmount(totalAmount, depositAmount)
   const rawRemainingValue = booking?.remainingAmount
+  const paidAmount = normalizeMoney(
+    booking?.paidAmount
+    ?? booking?.payment?.amount
+    ?? 0
+  )
   const isCancelled =
     CANCELLED_STATUS_KEYS.has(bookingStatusKey)
     || CANCELLED_STATUS_KEYS.has(paymentStatusKey)
@@ -95,26 +108,72 @@ export const getBookingPaymentSummaryVi = (booking) => {
       FAILED_PAYMENT_STATUS_KEYS.has(paymentStatusKey)
       || FAILED_PAYMENT_STATUS_KEYS.has(depositStatusKey)
     )
-  const bookingConfirmed = CONFIRMED_BOOKING_STATUS_KEYS.has(bookingStatusKey)
-  const paymentMarkedPaid =
-    PAID_PAYMENT_STATUS_KEYS.has(paymentStatusKey)
+  const currentPaymentMarkedPaid = PAID_PAYMENT_STATUS_KEYS.has(paymentStatusKey)
+  const depositMarkedPaid =
+    currentPaymentMarkedPaid
     || PAID_PAYMENT_STATUS_KEYS.has(depositStatusKey)
-  const paymentTypeKey = normalizeStatusKey(
-    booking?.paymentType
-    || booking?.payment?.paymentType
-    || booking?.payment?.type
+  const hasExplicitDepositConfirmation = Boolean(
+    booking?.depositPaid
+    || booking?.depositPaidAt
+    || depositStatusKey === "paid"
+    || depositStatusKey === "deposit_paid"
+    || paymentStatusKey === "deposit_paid"
+    || (
+      currentPaymentMarkedPaid
+      && paymentTypeKey !== "full"
+    )
+  )
+  const isPaymentAwaitingOwnerConfirmation = Boolean(
+    !isCancelled
+    && !isFailed
+    && bookingStatusKey === "pending"
+    && !booking?.depositPaid
+    && !booking?.depositPaidAt
+    && !booking?.fullyPaidAt
+    && fallbackRemainingAmount > 0
+    && (
+      paymentMethodKey === "cash"
+      || (
+        !paymentMethodKey
+        && depositMarkedPaid
+      )
+    )
   )
   const hasExplicitZeroRemainingAmount =
     hasExplicitMoneyValue(rawRemainingValue)
     && Number(rawRemainingValue) <= 0
+  const hasExplicitRemainingSettlement = Boolean(
+    !isCancelled
+    && !isFailed
+    && currentPaymentMarkedPaid
+    && paidAmount > 0
+    && (
+      paidAmount >= fallbackRemainingAmount
+      || (
+        hasExplicitDepositConfirmation
+        && paidAmount + depositAmount >= totalAmount
+      )
+    )
+  )
   const hasExplicitFullPaymentSignal = Boolean(
     !isCancelled
     && !isFailed
+    && !isPaymentAwaitingOwnerConfirmation
     && (
-      booking?.fullyPaid
-      || booking?.fullyPaidAt
-      || bookingStatusKey === "completed"
-      || (paymentTypeKey === "full" && paymentMarkedPaid && hasExplicitZeroRemainingAmount)
+      bookingStatusKey === "completed"
+      || (
+        (
+          booking?.fullyPaidAt
+          || (
+            paymentTypeKey === "full"
+            && hasExplicitRemainingSettlement
+          )
+          || (
+            hasExplicitZeroRemainingAmount
+            && currentPaymentMarkedPaid
+          )
+        )
+      )
     )
   )
   const rawRemainingAmount = hasExplicitMoneyValue(rawRemainingValue)
@@ -133,29 +192,39 @@ export const getBookingPaymentSummaryVi = (booking) => {
   const hasConfirmedDeposit = Boolean(
     !isCancelled
     && !isFailed
+    && !isPaymentAwaitingOwnerConfirmation
     && (
-      booking?.depositPaid
-      || paymentMarkedPaid
-      || bookingConfirmed
+      hasExplicitFullPaymentSignal
+      || hasExplicitDepositConfirmation
+      || (
+        depositMarkedPaid
+        && paymentTypeKey !== "full"
+      )
     )
   )
   const isFullyPaid = Boolean(
     !isCancelled
     && !isFailed
-    && (
-      hasExplicitFullPaymentSignal
-      || (
-        remainingAmountFromData <= 0
-        && (
-          hasConfirmedDeposit
-          || paymentMarkedPaid
-        )
-      )
-    )
+    && hasExplicitFullPaymentSignal
   )
-  const remainingAmount = isFullyPaid ? 0 : remainingAmountFromData
+  const remainingAmount =
+    isFullyPaid
+      ? 0
+      : hasConfirmedDeposit
+        ? remainingAmountFromData
+        : totalAmount
   const paidDepositAmount = hasConfirmedDeposit ? Math.min(depositAmount || totalAmount, totalAmount) : 0
   const remainingPaidAmount = isFullyPaid ? Math.max(totalAmount - paidDepositAmount, 0) : 0
+  const isRemainingPaymentAwaitingOwnerConfirmation = Boolean(
+    !isCancelled
+    && !isFailed
+    && !isFullyPaid
+    && hasConfirmedDeposit
+    && paymentTypeKey === "full"
+    && paymentMethodKey === "cash"
+    && PENDING_PAYMENT_STATUS_KEYS.has(paymentStatusKey)
+    && remainingAmount > 0
+  )
 
   if (isCancelled) {
     return {
@@ -203,6 +272,23 @@ export const getBookingPaymentSummaryVi = (booking) => {
       remainingPaidAmount,
       hasConfirmedDeposit,
       isFullyPaid: true,
+      canShowPaymentAction: false,
+      actionLabel: "",
+    }
+  }
+
+  if (isRemainingPaymentAwaitingOwnerConfirmation) {
+    return {
+      statusKey: "remaining_pending",
+      label: "Chờ xác nhận thanh toán nốt",
+      tone: "warning",
+      totalAmount,
+      depositAmount,
+      remainingAmount,
+      paidDepositAmount,
+      remainingPaidAmount: 0,
+      hasConfirmedDeposit: true,
+      isFullyPaid: false,
       canShowPaymentAction: false,
       actionLabel: "",
     }

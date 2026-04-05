@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { usePaymentFlow } from '../hooks/usePaymentFlow'
 import PaymentMethodForm from './PaymentMethodForm'
 import PaymentQRModal from './PaymentQRModal'
+import { getBookingPaymentSummaryVi } from '../models/bookingTextModel'
 import { cancelPayment, checkPaymentStatus, getPaymentByBooking, getQR } from '../services/paymentService'
 import { getBookingById, getMyBookings } from '../models/api'
 import './PaymentMethodModal.scss'
@@ -46,24 +47,8 @@ const isBookingPaymentConfirmed = (booking) => {
     return false
   }
 
-  const bookingStatusKey = String(booking.status || '').trim().toUpperCase()
-  const depositStatusKey = String(booking.depositStatus || booking.paymentStatus || '').trim().toUpperCase()
-  const remainingAmount = Number(booking.remainingAmount || 0)
-
-  return Boolean(
-    booking.depositPaid
-    || booking.fullyPaid
-    || depositStatusKey === 'PAID'
-    || bookingStatusKey === 'CONFIRMED'
-    || bookingStatusKey === 'COMPLETED'
-    || (
-      remainingAmount <= 0
-      && (
-        booking.depositPaid
-        || depositStatusKey === 'PAID'
-      )
-    )
-  )
+  const paymentSummary = getBookingPaymentSummaryVi(booking)
+  return paymentSummary.hasConfirmedDeposit || paymentSummary.isFullyPaid
 }
 
 const PaymentMethodModal = ({
@@ -76,6 +61,8 @@ const PaymentMethodModal = ({
   authToken,
   paymentType = 'DEPOSIT',
   isFullPayment = false,
+  paymentTypeLabelOverride = '',
+  fixedPaymentNotice = '',
 }) => {
   const [step, setStep] = useState('form')
   const [selectedPayment, setSelectedPayment] = useState(null)
@@ -495,6 +482,9 @@ const PaymentMethodModal = ({
             defaultPaymentType={effectivePaymentType}
             hideFullPaymentOption={!isFullPayment}
             hideDepositOption={isFullPayment}
+            hidePaymentTypeSection={isFullPayment}
+            paymentTypeLabelOverride={paymentTypeLabelOverride}
+            fixedPaymentNotice={fixedPaymentNotice}
           />
         </div>
       </div>

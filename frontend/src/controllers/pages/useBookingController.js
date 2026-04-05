@@ -192,14 +192,17 @@ const mergeRemoteUserBookingWithStoredHint = (remoteBooking, storedBooking) => {
     return remoteBooking
   }
 
-  const remotePaymentType = String(remoteBooking?.paymentType || remoteBooking?.type || "").trim().toUpperCase()
   const remotePaymentSummary = getBookingPaymentSummaryVi(remoteBooking)
-  const remoteExplicitFullPayment =
-    remotePaymentType === "FULL"
-    || Boolean(remoteBooking?.fullyPaid)
-    || remotePaymentSummary.isFullyPaid
+  const remoteExplicitFullPayment = remotePaymentSummary.isFullyPaid
 
   if (storedPaymentType === "DEPOSIT" && remoteExplicitFullPayment) {
+    return remoteBooking
+  }
+  if (
+    storedPaymentType === "FULL"
+    && !remoteExplicitFullPayment
+    && Number(remotePaymentSummary.remainingAmount || 0) > 0
+  ) {
     return remoteBooking
   }
 
@@ -586,13 +589,10 @@ const groupUserBookings = (bookings = []) =>
       return nextBooking
     })
 
-const isPaidUserBooking = (booking) =>
-  Boolean(
-    booking?.depositPaid
-    || booking?.fullyPaid
-    || normalizeUserPaymentStatusKey(booking?.paymentStatus, booking?.depositStatus) === "PAID"
-    || normalizeUserBookingStatusKey(booking?.status) === "COMPLETED"
-  )
+const isPaidUserBooking = (booking) => {
+  const paymentSummary = getBookingPaymentSummaryVi(booking)
+  return Boolean(paymentSummary?.hasConfirmedDeposit || paymentSummary?.isFullyPaid)
+}
 
 const getUserBookingHoldExpiryTimestamp = (booking) => {
   const rawValue = String(booking?.holdExpiresAt || booking?.expiredAt || "").trim()

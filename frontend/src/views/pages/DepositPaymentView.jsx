@@ -23,6 +23,12 @@ const DepositPaymentView = ({
   feedback,
   actionLoading,
   paymentConfirmed,
+  paymentCompleted,
+  hasConfirmedDeposit,
+  outstandingAmount,
+  paidDepositAmount,
+  remainingPaidAmount,
+  paymentStatusLabel,
   holdExpiresAt,
   holdExpired,
   countdownLabel,
@@ -54,7 +60,21 @@ const DepositPaymentView = ({
 
   const fieldName = String(field?.name || booking?.fieldName || "").trim()
   const fieldAddress = String(field?.address || booking?.fieldAddress || "").trim()
-  const depositStatusLabel = formatDepositStatus(booking?.depositStatus || booking?.paymentStatus)
+  const depositStatusLabel = paymentStatusLabel || formatDepositStatus(booking?.depositStatus || booking?.paymentStatus)
+  const canShowPaymentActions = !paymentCompleted
+  const canShowHoldCountdown = !hasConfirmedDeposit && !paymentCompleted
+  const paymentActionLabel =
+    paymentOption === "remaining"
+      ? "phần còn lại"
+      : paymentOption === "full"
+        ? "toàn bộ"
+        : "đặt cọc 40%"
+  const actionTitle = hasConfirmedDeposit
+    ? "Thanh toán phần còn lại"
+    : "Xác nhận thanh toán"
+  const actionDescription = hasConfirmedDeposit
+    ? "Khách đã thanh toán tiền cọc. Bạn có thể tiếp tục thanh toán số tiền còn lại cho đơn đặt sân này."
+    : "Chọn thanh toán toàn bộ hoặc đặt cọc 40% tổng tiền. Nếu hết giờ giữ chỗ, slot sẽ mở lại cho người khác."
 
   if (loading) {
     return (
@@ -169,31 +189,72 @@ const DepositPaymentView = ({
             </div>
 
             <div className="depositAmountBox depositAmountBox--highlight">
-              <span>Đặt cọc 40%</span>
-              <strong>{formatPrice(depositAmount)} VND</strong>
+              <span>Đã cọc</span>
+              <strong>{formatPrice(paidDepositAmount)} VND</strong>
             </div>
 
             <div className="depositAmountBox">
-              <span>Còn lại</span>
-              <strong>{formatPrice(remainingAmount)} VND</strong>
+              <span>Đã thanh toán phần còn lại</span>
+              <strong>{formatPrice(remainingPaidAmount)} VND</strong>
             </div>
+
+            <div className="depositAmountBox">
+              <span>Còn nợ</span>
+              <strong>{formatPrice(outstandingAmount)} VND</strong>
+            </div>
+
+            {!hasConfirmedDeposit && (
+              <div className="depositAmountBox">
+                <span>Mức cọc 40%</span>
+                <strong>{formatPrice(depositAmount)} VND</strong>
+              </div>
+            )}
+
+            {!paymentCompleted && paymentOption === "remaining" && (
+              <div className="depositAmountBox depositAmountBox--highlight">
+                <span>Thanh toán phần còn lại</span>
+                <strong>{formatPrice(outstandingAmount)} VND</strong>
+              </div>
+            )}
           </div>
         </section>
 
-        {!paymentConfirmed && (
+        {hasConfirmedDeposit && !paymentCompleted && (
+          <section className="depositCard depositSuccessBox">
+            <p className="message warning">Đơn này đã xác nhận tiền cọc. Khách vẫn còn nợ tiền sân.</p>
+            <p>
+              <strong>Đã cọc:</strong> {formatPrice(paidDepositAmount)} VND
+            </p>
+            <p>
+              <strong>Còn nợ:</strong> {formatPrice(outstandingAmount)} VND
+            </p>
+          </section>
+        )}
+
+        {canShowPaymentActions && (
           <section className="depositCard depositCard--method">
             <div className="depositMethodHeader">
               <div>
-                <h2>Xác nhận thanh toán</h2>
-                <p>
-                  Chọn thanh toán toàn bộ hoặc đặt cọc 40% tổng tiền. Nếu hết giờ giữ chỗ, slot sẽ mở lại cho người khác.
-                </p>
+                <h2>{actionTitle}</h2>
+                <p>{actionDescription}</p>
               </div>
             </div>
 
             <div className="depositMethodGrid">
               {paymentOptions.map((option) => {
                 const isSelected = paymentOption === option.id
+                const optionLabel =
+                  option.id === "remaining"
+                    ? "Thanh toán phần còn lại"
+                    : option.id === "full"
+                      ? "Thanh toán toàn bộ"
+                      : "Đặt cọc 40%"
+                const optionDescription =
+                  option.id === "remaining"
+                    ? "Thanh toán số tiền còn nợ sau khi đã xác nhận tiền cọc."
+                    : option.id === "full"
+                      ? "Thanh toán đủ 100% tổng tiền sân đã đặt."
+                      : "Xác nhận sân với mức cọc 40% tổng tiền."
 
                 return (
                   <article
@@ -202,8 +263,8 @@ const DepositPaymentView = ({
                   >
                     <div className="depositMethodCardHeader">
                       <div>
-                        <h3>{option.label}</h3>
-                        <p>{option.description}</p>
+                        <h3>{optionLabel}</h3>
+                        <p>{optionDescription}</p>
                       </div>
                     </div>
                     <p>
@@ -225,32 +286,34 @@ const DepositPaymentView = ({
               })}
             </div>
 
-            <p className={holdExpired ? "message error" : "message warning"}>
-              {holdExpired
+            <p className={holdExpired && !hasConfirmedDeposit ? "message error" : "message warning"}>
+              {holdExpired && !hasConfirmedDeposit
                 ? "Hết thời gian giữ chỗ. Vui lòng quay lại chọn giờ khác."
-                : holdExpiresAt
+                : canShowHoldCountdown && holdExpiresAt
                   ? `Còn lại ${countdownLabel} để xác nhận thanh toán.`
-                  : "Đang đợi backend trả về thời gian giữ chỗ."}
+                  : hasConfirmedDeposit
+                    ? "Đơn đã được giữ chỗ thành công. Bạn có thể thanh toán phần còn lại khi cần."
+                    : "Đang đợi backend trả về thời gian giữ chỗ."}
             </p>
 
             <div className="depositActions">
               <button
                 type="button"
                 className="btn depositPrimaryBtn"
-                disabled={actionLoading === "static" || holdExpired}
+                disabled={actionLoading === "static" || (holdExpired && !hasConfirmedDeposit)}
                 onClick={onConfirmStaticDeposit}
               >
                 {actionLoading === "static"
                   ? "Đang xác nhận..."
-                  : holdExpired
+                  : holdExpired && !hasConfirmedDeposit
                     ? "Hết thời gian giữ chỗ"
-                    : `Xác nhận thanh toán ${paymentOptionLabel} ${formatPrice(selectedPaymentAmount)} VND`}
+                    : `Xác nhận thanh toán ${paymentActionLabel} ${formatPrice(selectedPaymentAmount)} VND`}
               </button>
             </div>
           </section>
         )}
 
-        {paymentConfirmed && (
+        {paymentCompleted && (
           <section className="depositCard depositSuccessBox">
             <p className="message success">Đơn đặt sân này đã được xác nhận thanh toán thành công.</p>
             <p>

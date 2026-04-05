@@ -75,6 +75,84 @@ const persistKnownBooking = (booking) => {
   persistKnownBookings(mergeKnownBookingCollections(getStoredKnownBookings(), [booking]))
 }
 
+const mergeRemotePaymentBookingWithStoredHint = (remoteBooking, storedBooking) => {
+  if (!remoteBooking || !storedBooking) {
+    return remoteBooking || storedBooking || null
+  }
+
+  const storedPaymentType = String(storedBooking?.paymentType || storedBooking?.type || "").trim().toUpperCase()
+  if (!storedPaymentType) {
+    return remoteBooking
+  }
+
+  const remotePaymentSummary = getBookingPaymentSummaryVi(remoteBooking)
+  if (storedPaymentType === "DEPOSIT" && remotePaymentSummary.isFullyPaid) {
+    return remoteBooking
+  }
+  if (
+    storedPaymentType === "FULL"
+    && !remotePaymentSummary.isFullyPaid
+    && Number(remotePaymentSummary.remainingAmount || 0) > 0
+  ) {
+    return remoteBooking
+  }
+
+  const nextBooking = {
+    ...remoteBooking,
+    paymentType: storedPaymentType,
+    type: storedPaymentType,
+    depositPaid: Boolean(storedBooking?.depositPaid || remoteBooking?.depositPaid),
+    depositStatus: String(storedBooking?.depositStatus || remoteBooking?.depositStatus || "").trim(),
+    paymentStatus: String(storedBooking?.paymentStatus || remoteBooking?.paymentStatus || "").trim(),
+  }
+
+  const storedDepositAmount = Number(storedBooking?.depositAmount)
+  if (Number.isFinite(storedDepositAmount) && storedDepositAmount > 0) {
+    nextBooking.depositAmount = storedDepositAmount
+  }
+
+  if (
+    storedBooking?.remainingAmount !== null
+    && storedBooking?.remainingAmount !== undefined
+    && (typeof storedBooking?.remainingAmount !== "string" || storedBooking.remainingAmount.trim() !== "")
+  ) {
+    nextBooking.remainingAmount = Number(storedBooking.remainingAmount)
+  }
+
+  const storedPaidAmount = Number(storedBooking?.paidAmount)
+  if (Number.isFinite(storedPaidAmount) && storedPaidAmount > 0) {
+    nextBooking.paidAmount = storedPaidAmount
+  }
+
+  if (storedPaymentType === "FULL") {
+    nextBooking.fullyPaid = true
+    nextBooking.remainingAmount = 0
+    nextBooking.depositPaid = true
+    nextBooking.depositStatus = "PAID"
+    nextBooking.paymentStatus = "PAID"
+    return nextBooking
+  }
+
+  nextBooking.fullyPaid = false
+  nextBooking.depositPaid = Boolean(storedBooking?.depositPaid || remoteBooking?.depositPaid || true)
+  nextBooking.depositStatus = String(storedBooking?.depositStatus || remoteBooking?.depositStatus || "PAID").trim()
+  nextBooking.paymentStatus = String(storedBooking?.paymentStatus || remoteBooking?.paymentStatus || "DEPOSIT_PAID").trim()
+  return nextBooking
+}
+
+const mergeRemotePaymentBookingsWithStoredHints = (remoteBookings = [], storedKnownBookings = []) => {
+  const storedBookingMap = new Map(
+    (Array.isArray(storedKnownBookings) ? storedKnownBookings : [])
+      .map((item) => [String(item?.id || item?._id || "").trim(), item])
+      .filter(([bookingId]) => bookingId)
+  )
+
+  return (Array.isArray(remoteBookings) ? remoteBookings : []).map((booking) => {
+    const bookingId = String(booking?.id || booking?._id || "").trim()
+    return mergeRemotePaymentBookingWithStoredHint(booking, storedBookingMap.get(bookingId))
+  })
+}
+
 const formatCountdownLabel = (totalSeconds = 0) => {
   const normalizedSeconds = Math.max(Number(totalSeconds) || 0, 0)
   const minutes = Math.floor(normalizedSeconds / 60)
@@ -170,6 +248,8 @@ const applyConfirmedPaymentSelectionToBooking = (
   }
 
   const normalizedPaymentOption = String(paymentOption || "deposit").trim().toLowerCase()
+  const isRemainingPayment = normalizedPaymentOption === "remaining"
+  const isFullSettlement = normalizedPaymentOption === "full" || isRemainingPayment
   const normalizedTotalAmount = Math.max(Number(booking?.totalPrice || totalAmount || 0), 0)
   const fallbackDepositAmount = calculateBookingDepositAmount(normalizedTotalAmount)
   const currentDepositAmount = Number(booking?.depositAmount)
@@ -182,7 +262,7 @@ const applyConfirmedPaymentSelectionToBooking = (
     : Number.NaN
   const fallbackRemainingAmount = calculateRemainingPaymentAmount(normalizedTotalAmount, effectiveDepositAmount)
   const effectiveRemainingAmount =
-    normalizedPaymentOption === "full"
+    isFullSettlement
       ? 0
       : (
         Number.isFinite(currentRemainingAmount) && currentRemainingAmount > 0
@@ -190,22 +270,24 @@ const applyConfirmedPaymentSelectionToBooking = (
           : Math.max(Number(remainingAmount || fallbackRemainingAmount), 0)
       )
   const effectivePaymentAmount =
-    normalizedPaymentOption === "full"
+    isRemainingPayment
+      ? Math.max(Number(paymentAmount || remainingAmount || fallbackRemainingAmount), 0)
+      : normalizedPaymentOption === "full"
       ? Math.max(Number(paymentAmount || normalizedTotalAmount), normalizedTotalAmount)
       : Math.max(Number(paymentAmount || effectiveDepositAmount), effectiveDepositAmount)
 
   return {
     ...booking,
     totalPrice: normalizedTotalAmount,
-    paymentType: normalizedPaymentOption === "full" ? "FULL" : "DEPOSIT",
-    type: normalizedPaymentOption === "full" ? "FULL" : "DEPOSIT",
+    paymentType: isFullSettlement ? "FULL" : "DEPOSIT",
+    type: isFullSettlement ? "FULL" : "DEPOSIT",
     depositAmount: effectiveDepositAmount,
     remainingAmount: effectiveRemainingAmount,
     paidAmount: effectivePaymentAmount,
     depositPaid: true,
-    fullyPaid: normalizedPaymentOption === "full",
+    fullyPaid: isFullSettlement,
     depositStatus: "PAID",
-    paymentStatus: normalizedPaymentOption === "full" ? "PAID" : "DEPOSIT_PAID",
+    paymentStatus: isFullSettlement ? "PAID" : "DEPOSIT_PAID",
     expiredAt: "",
     holdExpiresAt: "",
   }
@@ -326,6 +408,18 @@ export const useDepositPaymentController = ({ authToken }) => {
     () => deriveFieldFromBooking(initialBooking, location.state?.field || cachedBooking?.field || null),
     [cachedBooking?.field, initialBooking, location.state]
   )
+  const storedPaymentBookingHints = useMemo(
+    () =>
+      mergeKnownBookingCollections(
+        getStoredKnownBookings(),
+        [
+          cachedBooking,
+          location.state?.booking,
+          ...(Array.isArray(location.state?.booking?.groupedBookings) ? location.state.booking.groupedBookings : []),
+        ].filter(Boolean)
+      ),
+    [cachedBooking, location.state]
+  )
 
   const [booking, setBooking] = useState(initialBooking)
   const [field, setField] = useState(initialField)
@@ -366,16 +460,25 @@ export const useDepositPaymentController = ({ authToken }) => {
           const matchedBookings = paymentBookingIds
             .map((id) => liveBookingMap.get(String(id || "").trim()))
             .filter(Boolean)
+          const mergedMatchedBookings = mergeRemotePaymentBookingsWithStoredHints(
+            matchedBookings,
+            storedPaymentBookingHints
+          )
 
-          nextBooking = aggregatePaymentBookings(matchedBookings, initialBooking)
+          nextBooking = aggregatePaymentBookings(mergedMatchedBookings, initialBooking)
           if (!nextBooking) {
             throw new Error("Không tìm thấy đơn đặt sân cần thanh toán.")
           }
 
-          matchedBookings.forEach((item) => persistKnownBooking(item))
+          mergedMatchedBookings.forEach((item) => persistKnownBooking(item))
         } else {
           const data = await getBookingById(bookingId, authToken)
-          nextBooking = data.booking || initialBooking || null
+          const liveBooking = data.booking || initialBooking || null
+          const storedBookingHint =
+            storedPaymentBookingHints.find(
+              (item) => String(item?.id || item?._id || "").trim() === String(bookingId || "").trim()
+            ) || null
+          nextBooking = mergeRemotePaymentBookingWithStoredHint(liveBooking, storedBookingHint) || liveBooking
           persistKnownBooking(nextBooking)
         }
 
@@ -420,7 +523,16 @@ export const useDepositPaymentController = ({ authToken }) => {
     return () => {
       mounted = false
     }
-  }, [authToken, bookingId, cachedBooking, initialBooking, location.state, paymentBookingIds, refreshKey])
+  }, [
+    authToken,
+    bookingId,
+    cachedBooking,
+    initialBooking,
+    location.state,
+    paymentBookingIds,
+    refreshKey,
+    storedPaymentBookingHints,
+  ])
 
   useEffect(() => {
     const hasExpiry = Boolean(booking?.expiredAt || booking?.holdExpiresAt)
@@ -487,7 +599,13 @@ export const useDepositPaymentController = ({ authToken }) => {
     [booking, depositAmount, remainingAmount, totalPrice]
   )
   const fullyPaid = paymentSummary.isFullyPaid
-  const paymentConfirmed = paymentSummary.hasConfirmedDeposit || paymentSummary.isFullyPaid
+  const hasConfirmedDeposit = paymentSummary.hasConfirmedDeposit
+  const paymentConfirmed = hasConfirmedDeposit || paymentSummary.isFullyPaid
+  const paymentCompleted = fullyPaid
+  const outstandingAmount = Number(paymentSummary.remainingAmount || 0)
+  const paidDepositAmount = Number(paymentSummary.paidDepositAmount || 0)
+  const remainingPaidAmount = Number(paymentSummary.remainingPaidAmount || 0)
+  const canPayRemaining = hasConfirmedDeposit && !fullyPaid && outstandingAmount > 0
   const holdExpiresAt = String(booking?.expiredAt || booking?.holdExpiresAt || "").trim()
   const holdExpiryTimestamp = getExpiryTimestamp(holdExpiresAt)
   const secondsRemaining = paymentConfirmed || !holdExpiryTimestamp
@@ -584,21 +702,28 @@ export const useDepositPaymentController = ({ authToken }) => {
       return
     }
 
+    if (canPayRemaining) {
+      setPaymentOption("remaining")
+      return
+    }
+
     setPaymentOption("deposit")
-  }, [fullyPaid, booking?.id])
+  }, [booking?.id, canPayRemaining, fullyPaid])
 
   const selectedPaymentAmount = useMemo(
     () => (
-      paymentOption === "full"
+      paymentOption === "remaining"
+        ? Math.max(outstandingAmount, 0)
+        : paymentOption === "full"
         ? Math.max(totalPrice, 0)
         : Math.max(depositAmount, 0)
     ),
-    [depositAmount, paymentOption, totalPrice]
+    [depositAmount, outstandingAmount, paymentOption, totalPrice]
   )
 
   const selectedRemainingAmount = useMemo(
     () => (
-      paymentOption === "full"
+      paymentOption === "full" || paymentOption === "remaining"
         ? 0
         : remainingAmount
     ),
@@ -670,6 +795,28 @@ export const useDepositPaymentController = ({ authToken }) => {
     [depositAmount, remainingAmount, totalPrice]
   )
 
+  const effectivePaymentOptionLabel =
+    paymentOption === "remaining"
+      ? "thanh toan phan con lai"
+      : displayPaymentOptionLabel
+
+  const effectiveDisplayPaymentOptions = useMemo(
+    () => (
+      canPayRemaining
+        ? [
+            {
+              id: "remaining",
+              label: "Thanh toan phan con lai",
+              amount: outstandingAmount,
+              remainingAmount: 0,
+              description: "Thanh toan so tien con no sau khi da xac nhan tien coc.",
+            },
+          ]
+        : displayPaymentOptions
+    ),
+    [canPayRemaining, displayPaymentOptions, outstandingAmount]
+  )
+
   const displayPaymentMethods = useMemo(
     () => ({
       staticTransfer: {
@@ -688,6 +835,20 @@ export const useDepositPaymentController = ({ authToken }) => {
     [booking?.id, holdExpired, paymentConfirmed]
   )
 
+  const effectiveDisplayPaymentMethods = useMemo(
+    () => ({
+      ...displayPaymentMethods,
+      staticTransfer: {
+        ...displayPaymentMethods.staticTransfer,
+        enabled: Boolean(booking?.id) && !paymentCompleted && !(holdExpired && !hasConfirmedDeposit),
+        message: holdExpired && !hasConfirmedDeposit
+          ? "Don dat san da het thoi gian giu cho."
+          : "",
+      },
+    }),
+    [booking?.id, displayPaymentMethods, hasConfirmedDeposit, holdExpired, paymentCompleted]
+  )
+
   const staticTransfer = useMemo(
     () => ({
       amount: selectedPaymentAmount,
@@ -701,7 +862,7 @@ export const useDepositPaymentController = ({ authToken }) => {
 
   // eslint-disable-next-line no-unused-vars
   const handleConfirmStaticDeposit = async () => {
-    if (!authToken || !bookingId || paymentConfirmed || holdExpired) {
+    if (!authToken || !bookingId || paymentCompleted || (holdExpired && !hasConfirmedDeposit)) {
       return
     }
 
@@ -714,7 +875,7 @@ export const useDepositPaymentController = ({ authToken }) => {
         authToken,
         bookingId,
         "CASH",
-        paymentOption === "full" ? "FULL" : "DEPOSIT",
+        paymentOption === "deposit" ? "DEPOSIT" : "FULL",
         selectedPaymentAmount
       )
       const paymentId = String(paymentData?.payment?.id || paymentData?.payment?._id || "").trim()
@@ -772,7 +933,7 @@ export const useDepositPaymentController = ({ authToken }) => {
         ? booking.bookingIds.map((item) => String(item || "").trim()).filter(Boolean)
         : paymentBookingIds
 
-    if (!authToken || targetBookingIds.length === 0 || paymentConfirmed || holdExpired) {
+    if (!authToken || targetBookingIds.length === 0 || paymentCompleted || (holdExpired && !hasConfirmedDeposit)) {
       return
     }
 
@@ -787,7 +948,7 @@ export const useDepositPaymentController = ({ authToken }) => {
             authToken,
             targetBookingId,
             "CASH",
-            paymentOption === "full" ? "FULL" : "DEPOSIT",
+            paymentOption === "deposit" ? "DEPOSIT" : "FULL",
             targetBookingIds.length === 1 ? selectedPaymentAmount : null
           )
           const paymentId = String(paymentData?.payment?.id || paymentData?.payment?._id || "").trim()
@@ -836,7 +997,12 @@ export const useDepositPaymentController = ({ authToken }) => {
 
               return applyConfirmedPaymentSelectionToBooking(item, {
                 paymentOption,
-                paymentAmount: paymentOption === "full" ? itemTotalAmount : itemDepositAmount,
+                paymentAmount:
+                  paymentOption === "full"
+                    ? itemTotalAmount
+                    : paymentOption === "remaining"
+                      ? itemRemainingAmount
+                      : itemDepositAmount,
                 totalAmount: itemTotalAmount,
                 depositAmount: itemDepositAmount,
                 remainingAmount: itemRemainingAmount,
@@ -934,11 +1100,16 @@ export const useDepositPaymentController = ({ authToken }) => {
   }
 
   const handlePaymentOptionChange = (value) => {
-    if (paymentConfirmed || holdExpired) {
+    if (paymentCompleted || (holdExpired && !hasConfirmedDeposit)) {
       return
     }
 
     const normalizedValue = String(value || "").trim().toLowerCase()
+    if (normalizedValue === "remaining") {
+      setPaymentOption("remaining")
+      return
+    }
+
     setPaymentOption(normalizedValue === "full" ? "full" : "deposit")
   }
 
@@ -952,10 +1123,16 @@ export const useDepositPaymentController = ({ authToken }) => {
     feedback,
     actionLoading,
     paymentConfirmed,
+    paymentCompleted,
+    hasConfirmedDeposit,
+    outstandingAmount,
+    paidDepositAmount,
+    remainingPaidAmount,
+    paymentStatusLabel: paymentSummary.label,
     holdExpiresAt,
     holdExpired,
     countdownLabel,
-    paymentMethods: displayPaymentMethods,
+    paymentMethods: effectiveDisplayPaymentMethods,
     staticTransfer,
     totalPrice,
     depositAmount,
@@ -963,8 +1140,8 @@ export const useDepositPaymentController = ({ authToken }) => {
     selectedPaymentAmount,
     selectedRemainingAmount,
     paymentOption,
-    paymentOptionLabel: displayPaymentOptionLabel,
-    paymentOptions: displayPaymentOptions,
+    paymentOptionLabel: effectivePaymentOptionLabel,
+    paymentOptions: effectiveDisplayPaymentOptions,
     summary,
     formatPrice,
     loginPath: ROUTES.login,

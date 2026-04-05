@@ -62,8 +62,7 @@ const normalizeAdminBooking = (booking) => {
     paymentStatus,
     paymentType,
     fullyPaid: Boolean(
-      booking.fullyPaid
-      || booking.fullyPaidAt
+      booking.fullyPaidAt
       || String(booking.status || "").trim().toLowerCase() === "completed"
       || (paymentType === "full" && isPaidPaymentStatus && remainingAmount !== null && remainingAmount <= 0)
     ),

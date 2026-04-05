@@ -1,6 +1,6 @@
-import React, { useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import { PAYMENT_METHODS, PAYMENT_TYPES } from '../models/paymentModel'
-import { getPaymentMethodLabel, getPaymentTypeLabel, formatCurrencyVi } from '../utils/paymentHelpers'
+import { formatCurrencyVi, getPaymentMethodLabel, getPaymentTypeLabel } from '../utils/paymentHelpers'
 import './PaymentMethodForm.scss'
 
 const VISIBLE_PAYMENT_METHODS = PAYMENT_METHODS.filter((method) => method !== 'MOMO')
@@ -15,27 +15,54 @@ const PaymentMethodForm = ({
   defaultPaymentType = 'DEPOSIT',
   hideFullPaymentOption = false,
   hideDepositOption = false,
+  hidePaymentTypeSection = false,
+  paymentTypeLabelOverride = '',
+  fixedPaymentNotice = '',
 }) => {
   const [selectedMethod, setSelectedMethod] = useState(VISIBLE_PAYMENT_METHODS[0] || '')
   const [selectedType, setSelectedType] = useState(defaultPaymentType)
 
-  const paymentAmount = selectedType === 'DEPOSIT' ? depositAmount : totalPrice
-  // Filter available types based on which option should be hidden
-  let availableTypes = PAYMENT_TYPES
-  if (hideFullPaymentOption) {
-    availableTypes = availableTypes.filter(t => t !== 'FULL')
-  }
-  if (hideDepositOption) {
-    availableTypes = availableTypes.filter(t => t !== 'DEPOSIT')
-  }
+  const availableTypes = useMemo(() => {
+    let nextTypes = PAYMENT_TYPES
 
-  const handleSubmit = (e) => {
-    e.preventDefault()
-    if (!selectedMethod || !selectedType) {
+    if (hideFullPaymentOption) {
+      nextTypes = nextTypes.filter((type) => type !== 'FULL')
+    }
+
+    if (hideDepositOption) {
+      nextTypes = nextTypes.filter((type) => type !== 'DEPOSIT')
+    }
+
+    return nextTypes
+  }, [hideDepositOption, hideFullPaymentOption])
+
+  useEffect(() => {
+    const normalizedDefaultType = availableTypes.includes(defaultPaymentType)
+      ? defaultPaymentType
+      : availableTypes[0] || ''
+
+    if (normalizedDefaultType && normalizedDefaultType !== selectedType) {
+      setSelectedType(normalizedDefaultType)
+    }
+  }, [availableTypes, defaultPaymentType, selectedType])
+
+  const effectiveSelectedType = availableTypes.includes(selectedType)
+    ? selectedType
+    : availableTypes[0] || selectedType
+  const paymentAmount = effectiveSelectedType === 'DEPOSIT' ? depositAmount : totalPrice
+  const effectivePaymentTypeLabel =
+    paymentTypeLabelOverride
+    || getPaymentTypeLabel(effectiveSelectedType)
+
+  const handleSubmit = (event) => {
+    event.preventDefault()
+
+    if (!selectedMethod || !effectiveSelectedType) {
       alert('Vui lòng chọn phương thức và loại thanh toán')
       return
     }
-    onSubmit(bookingId, selectedMethod, selectedType)
+
+    onSubmit(bookingId, selectedMethod, effectiveSelectedType)
   }
 
   return (
@@ -52,7 +79,7 @@ const PaymentMethodForm = ({
                 name="method"
                 value={method}
                 checked={selectedMethod === method}
-                onChange={(e) => setSelectedMethod(e.target.value)}
+                onChange={(event) => setSelectedMethod(event.target.value)}
                 disabled={loading}
               />
               <span className="radio-label">{getPaymentMethodLabel(method)}</span>
@@ -61,39 +88,50 @@ const PaymentMethodForm = ({
         </div>
       </div>
 
-      {availableTypes.length > 0 && (
+      {!hidePaymentTypeSection && availableTypes.length > 0 && (
         <div className="form-section">
           <label>Loại thanh toán</label>
           {availableTypes.length === 1 ? (
             <div className="form-info-text">
-              <strong>{getPaymentTypeLabel(availableTypes[0])}</strong>
-              <p>({formatCurrencyVi(availableTypes[0] === 'DEPOSIT' ? depositAmount : totalPrice)})</p>
+              <strong>{effectivePaymentTypeLabel}</strong>
+              <p>({formatCurrencyVi(paymentAmount)})</p>
             </div>
           ) : (
             <div className="radio-group">
-            {availableTypes.map((type) => (
-              <label key={type} className="radio-option">
-                <input
-                  type="radio"
-                  name="type"
-                  value={type}
-                  checked={selectedType === type}
-                  onChange={(e) => setSelectedType(e.target.value)}
-                  disabled={loading}
-                />
-                <span className="radio-label">
-                  {getPaymentTypeLabel(type)} ({formatCurrencyVi(type === 'DEPOSIT' ? depositAmount : totalPrice)})
-                </span>
-              </label>
+              {availableTypes.map((type) => (
+                <label key={type} className="radio-option">
+                  <input
+                    type="radio"
+                    name="type"
+                    value={type}
+                    checked={effectiveSelectedType === type}
+                    onChange={(event) => setSelectedType(event.target.value)}
+                    disabled={loading}
+                  />
+                  <span className="radio-label">
+                    {getPaymentTypeLabel(type)} ({formatCurrencyVi(type === 'DEPOSIT' ? depositAmount : totalPrice)})
+                  </span>
+                </label>
               ))}
             </div>
           )}
         </div>
       )}
 
+      {hidePaymentTypeSection && (
+        <div className="form-section">
+          <label>Loại thanh toán</label>
+          <div className="form-info-text">
+            <strong>{effectivePaymentTypeLabel}</strong>
+            <p>({formatCurrencyVi(paymentAmount)})</p>
+            {fixedPaymentNotice && <p>{fixedPaymentNotice}</p>}
+          </div>
+        </div>
+      )}
+
       <div className="form-info">
         <p>
-          <strong>Số tiền xác nhận:</strong> {formatCurrencyVi(paymentAmount)}
+          <strong>{hidePaymentTypeSection ? 'Số tiền cần thanh toán:' : 'Số tiền xác nhận:'}</strong> {formatCurrencyVi(paymentAmount)}
         </p>
       </div>
 
