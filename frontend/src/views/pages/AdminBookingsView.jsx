@@ -11,6 +11,7 @@ import {
   FiUser,
   FiXCircle,
 } from "react-icons/fi"
+import { getBookingPaymentSummaryVi } from "../../models/bookingTextModel"
 import "./AdminBookingsView.scss"
 
 const STATUS_META = Object.freeze({
@@ -211,6 +212,35 @@ const AdminBookingsView = ({
               const groupedCount = Number(
                 booking?.groupedBookingCount || booking?.bookingIds?.length || 1
               )
+              const paymentSummary = getBookingPaymentSummaryVi(booking)
+              const groupedBookings = Array.isArray(booking?.groupedBookings) && booking.groupedBookings.length > 0
+                ? booking.groupedBookings
+                : [booking]
+              const totalAmount = Number(paymentSummary.totalAmount || booking?.totalPrice || 0)
+              const paidDepositAmount = Number(paymentSummary.paidDepositAmount || 0)
+              const remainingPaidAmount = Number(paymentSummary.remainingPaidAmount || 0)
+              const remainingAmount = Number(paymentSummary.remainingAmount || 0)
+              const needsDepositConfirmation = groupedBookings.some((item) => {
+                const itemPaymentSummary = getBookingPaymentSummaryVi(item)
+                return !itemPaymentSummary.isFullyPaid && !itemPaymentSummary.hasConfirmedDeposit
+              })
+              const needsRemainingConfirmation =
+                !needsDepositConfirmation
+                && groupedBookings.some((item) => {
+                  const itemPaymentSummary = getBookingPaymentSummaryVi(item)
+                  return itemPaymentSummary.hasConfirmedDeposit
+                    && !itemPaymentSummary.isFullyPaid
+                    && Number(itemPaymentSummary.remainingAmount || 0) > 0
+                })
+              const canConfirmAction =
+                needsDepositConfirmation
+                || needsRemainingConfirmation
+                || booking?.status === "PENDING"
+              const confirmActionLabel = needsRemainingConfirmation
+                ? "Xác nhận thanh toán nốt"
+                : needsDepositConfirmation
+                  ? "Xác nhận cọc"
+                  : "Xác nhận"
 
               return (
                 <article className="admin-booking-card" key={booking?.id}>
@@ -231,6 +261,10 @@ const AdminBookingsView = ({
                       <span className={`status-pill status-pill--${statusMeta.tone}`}>
                         <span aria-hidden="true">{statusMeta.icon}</span>
                         {statusMeta.label}
+                      </span>
+
+                      <span className={`payment-pill payment-pill--${paymentSummary.tone}`}>
+                        {paymentSummary.label}
                       </span>
 
                       {groupedCount > 1 && (
@@ -287,6 +321,51 @@ const AdminBookingsView = ({
                     </div>
                   </div>
 
+                  {totalAmount > 0 && (
+                    <div className="admin-booking-card__paymentRow">
+                      <div className="booking-detail booking-detail--payment">
+                        <span className="booking-detail__label">
+                          <FiDollarSign aria-hidden="true" />
+                          {"\u0110\u00e3 c\u1ecdc"}
+                        </span>
+                        <strong>{formatCurrency(paidDepositAmount)}</strong>
+                        <p>
+                          {paidDepositAmount > 0
+                            ? "\u004b\u0068\u00e1\u0063\u0068\u0020\u0111\u00e3\u0020\u0074\u0068\u0061\u006e\u0068\u0020\u0074\u006f\u00e1\u006e\u0020\u0070\u0068\u1ea7\u006e\u0020\u0063\u1ecdc\u002e"
+                            : "\u0043\u0068\u01b0\u0061\u0020\u0078\u00e1\u0063\u0020\u006e\u0068\u1ead\u006e\u0020\u0074\u0069\u1ec1\u006e\u0020\u0063\u1ecdc\u002e"}
+                        </p>
+                      </div>
+
+                      <div className="booking-detail booking-detail--payment">
+                        <span className="booking-detail__label">
+                          <FiDollarSign aria-hidden="true" />
+                          {"\u0110\u00e3 thanh to\u00e1n ph\u1ea7n c\u00f2n l\u1ea1i"}
+                        </span>
+                        <strong>{formatCurrency(remainingPaidAmount)}</strong>
+                        <p>
+                          {remainingPaidAmount > 0
+                            ? "\u0050\u0068\u1ea7\u006e\u0020\u0063\u00f2\u006e\u0020\u006c\u1ea1\u0069\u0020\u0111\u00e3\u0020\u0111\u01b0\u1ee3\u0063\u0020\u0078\u00e1\u0063\u0020\u006e\u0068\u1ead\u006e\u002e"
+                            : "\u0043\u0068\u01b0\u0061\u0020\u0074\u0068\u0061\u006e\u0068\u0020\u0074\u006f\u00e1\u006e\u0020\u0070\u0068\u1ea7\u006e\u0020\u0063\u00f2\u006e\u0020\u006c\u1ea1\u0069\u002e"}
+                        </p>
+                      </div>
+
+                      <div
+                        className={`booking-detail booking-detail--payment${remainingAmount > 0 ? " booking-detail--paymentDue" : ""}`.trim()}
+                      >
+                        <span className="booking-detail__label">
+                          <FiDollarSign aria-hidden="true" />
+                          {"\u0043\u00f2n n\u1ee3"}
+                        </span>
+                        <strong>{formatCurrency(remainingAmount)}</strong>
+                        <p>
+                          {remainingAmount > 0
+                            ? "\u0053\u1ed1\u0020\u0074\u0069\u1ec1\u006e\u0020\u006b\u0068\u00e1\u0063\u0068\u0020\u0063\u00f2\u006e\u0020\u0070\u0068\u1ea3\u0069\u0020\u0074\u0068\u0061\u006e\u0068\u0020\u0074\u006f\u00e1\u006e\u002e"
+                            : "\u004b\u0068\u00f4\u006e\u0067\u0020\u0063\u00f2\u006e\u0020\u0063\u00f4\u006e\u0067\u0020\u006e\u1ee3\u002e"}
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
                   <div className="admin-booking-card__footer">
                     <div className="booking-tag">
                       <FiTag aria-hidden="true" />
@@ -294,30 +373,19 @@ const AdminBookingsView = ({
                     </div>
 
                     <div className="booking-actions">
-                      {booking?.status === "PENDING" && (
-                        <>
-                          <button
-                            type="button"
-                            className="booking-action booking-action--confirm"
-                            onClick={() => handleConfirmBooking(booking)}
-                            disabled={isProcessing}
-                          >
-                            <FiCheckCircle aria-hidden="true" />
-                            {isProcessing ? "Đang xử lý..." : "Xác nhận"}
-                          </button>
-                          <button
-                            type="button"
-                            className="booking-action booking-action--cancel"
-                            onClick={() => handleCancelBooking(booking)}
-                            disabled={isProcessing}
-                          >
-                            <FiXCircle aria-hidden="true" />
-                            {isProcessing ? "Đang xử lý..." : "Hủy đơn"}
-                          </button>
-                        </>
+                      {canConfirmAction && (
+                        <button
+                          type="button"
+                          className="booking-action booking-action--confirm"
+                          onClick={() => handleConfirmBooking(booking)}
+                          disabled={isProcessing}
+                        >
+                          <FiCheckCircle aria-hidden="true" />
+                          {isProcessing ? "Đang xử lý..." : confirmActionLabel}
+                        </button>
                       )}
 
-                      {booking?.status === "CONFIRMED" && (
+                      {(booking?.status === "PENDING" || booking?.status === "CONFIRMED") && (
                         <button
                           type="button"
                           className="booking-action booking-action--cancel"

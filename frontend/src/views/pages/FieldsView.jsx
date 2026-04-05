@@ -152,6 +152,7 @@ const FieldsView = ({
                     {field.district && <span>Khu vực: {field.district}</span>}
                     {field.ward && <span>Phường: {field.ward}</span>}
                     {field.city && <span>Thành phố: {field.city}</span>}
+                    {field.ownerPhone && <span>SĐT chủ sân: {field.ownerPhone}</span>}
                   </div>
                   <div className="fieldActions">
                     <Link className="btn smallBtn" to={createFieldDetailRoute(field.id)}>

@@ -92,7 +92,59 @@ Validation
 - Provide a short manual verification checklist for the affected flow.
 ```
 
-## 3. Payment or Booking Regression
+## 3. Incomplete Ticket Or Vague QA Report
+
+Use when the user only gives a symptom and key details are missing.
+
+```md
+Objective
+- Turn the reported issue into a verified root-cause fix without broad rewrites.
+
+Observed behavior
+- [What the reporter sees now]
+- [Error text or visible wrong state]
+
+Expected behavior
+- [What should happen instead]
+
+Assumptions
+- [Assumption about role]
+- [Assumption about route or page]
+- [Assumption about the likely trigger]
+
+Relevant repo context
+- Runtime entry is `src/App.js` -> `src/controllers/AppController.jsx`.
+- This repo separates orchestration in `controllers`, business rules in `models`, and rendering in `views` or `components`.
+- [Any domain-specific note that applies]
+
+Files to inspect first
+- `[path-1]`
+- `[path-2]`
+- `[path-3]`
+
+Constraints
+- Validate assumptions against the code before changing behavior.
+- Do not invent new architecture or rewrite unrelated files.
+- Keep cleanup adjacent to the final fix only.
+
+Required actions
+- Reconstruct the failure path from the report and confirm or correct the assumptions.
+- Identify the exact root cause.
+- Implement the smallest safe fix in the correct layer.
+- Clean only directly related dead or misleading logic.
+
+Acceptance criteria
+- The reported symptom no longer occurs.
+- The fix matches the actual runtime path.
+- The final summary clearly states which assumptions were confirmed or corrected.
+
+Validation
+- Run `npm run build`.
+- Add focused tests only if practical.
+- Provide a short manual checklist with route, role, action, and expected visible result.
+```
+
+## 4. Payment Or Booking Regression
 
 Use for bugs that cross state, API, and UI boundaries in the reservation or payment flow.
 

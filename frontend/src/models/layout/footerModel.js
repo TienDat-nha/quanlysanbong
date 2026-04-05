@@ -4,7 +4,6 @@ const FOOTER_LINKS = Object.freeze([
   { key: "home", to: ROUTES.home, label: "Trang chủ" },
   { key: "fields", to: ROUTES.fields, label: "Danh sách sân" },
   { key: "booking", to: ROUTES.booking, label: "Đặt sân" },
-  { key: "contact", to: ROUTES.contact, label: "Liên hệ" },
 ])
 
 const FOOTER_CONTACTS = Object.freeze([

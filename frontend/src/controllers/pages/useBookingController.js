@@ -38,7 +38,11 @@ import {
   normalizeSubFieldKey,
   parseTimeSlot,
 } from "../../models/bookingModel"
-import { formatBookingStatusVi, validateBookingFormVi } from "../../models/bookingTextModel"
+import {
+  formatBookingStatusVi,
+  getBookingPaymentSummaryVi,
+  validateBookingFormVi,
+} from "../../models/bookingTextModel"
 import { getFieldList, isFieldApprovedForPublic } from "../../models/fieldModel"
 import { createDepositPaymentRoute, ROUTES } from "../../models/routeModel"
 
@@ -176,6 +180,84 @@ const mergeBookingCollections = (...collections) => {
   })
 
   return Array.from(bookingMap.values())
+}
+
+const mergeRemoteUserBookingWithStoredHint = (remoteBooking, storedBooking) => {
+  if (!remoteBooking || !storedBooking) {
+    return remoteBooking || storedBooking || null
+  }
+
+  const storedPaymentType = String(storedBooking?.paymentType || storedBooking?.type || "").trim().toUpperCase()
+  if (!storedPaymentType) {
+    return remoteBooking
+  }
+
+  const remotePaymentType = String(remoteBooking?.paymentType || remoteBooking?.type || "").trim().toUpperCase()
+  const remotePaymentSummary = getBookingPaymentSummaryVi(remoteBooking)
+  const remoteExplicitFullPayment =
+    remotePaymentType === "FULL"
+    || Boolean(remoteBooking?.fullyPaid)
+    || remotePaymentSummary.isFullyPaid
+
+  if (storedPaymentType === "DEPOSIT" && remoteExplicitFullPayment) {
+    return remoteBooking
+  }
+
+  const nextBooking = {
+    ...remoteBooking,
+    paymentType: storedPaymentType,
+    type: storedPaymentType,
+    depositPaid: Boolean(storedBooking?.depositPaid || remoteBooking?.depositPaid),
+    depositStatus: String(storedBooking?.depositStatus || remoteBooking?.depositStatus || "").trim(),
+    paymentStatus: String(storedBooking?.paymentStatus || remoteBooking?.paymentStatus || "").trim(),
+  }
+
+  const storedDepositAmount = Number(storedBooking?.depositAmount)
+  if (Number.isFinite(storedDepositAmount) && storedDepositAmount > 0) {
+    nextBooking.depositAmount = storedDepositAmount
+  }
+
+  if (
+    storedBooking?.remainingAmount !== null
+    && storedBooking?.remainingAmount !== undefined
+    && (typeof storedBooking?.remainingAmount !== "string" || storedBooking.remainingAmount.trim() !== "")
+  ) {
+    nextBooking.remainingAmount = Number(storedBooking.remainingAmount)
+  }
+
+  const storedPaidAmount = Number(storedBooking?.paidAmount)
+  if (Number.isFinite(storedPaidAmount) && storedPaidAmount > 0) {
+    nextBooking.paidAmount = storedPaidAmount
+  }
+
+  if (storedPaymentType === "FULL") {
+    nextBooking.fullyPaid = true
+    nextBooking.remainingAmount = 0
+    nextBooking.depositPaid = true
+    nextBooking.depositStatus = "PAID"
+    nextBooking.paymentStatus = "PAID"
+    return nextBooking
+  }
+
+  nextBooking.fullyPaid = false
+  nextBooking.depositPaid = true
+  nextBooking.depositStatus = "PAID"
+  nextBooking.paymentStatus = "DEPOSIT_PAID"
+
+  return nextBooking
+}
+
+const mergeRemoteUserBookingsWithStoredHints = (remoteBookings = [], storedKnownBookings = []) => {
+  const storedBookingMap = new Map(
+    (Array.isArray(storedKnownBookings) ? storedKnownBookings : [])
+      .map((booking) => [String(booking?.id || booking?._id || "").trim(), booking])
+      .filter(([bookingId]) => bookingId)
+  )
+
+  return (Array.isArray(remoteBookings) ? remoteBookings : []).map((booking) => {
+    const bookingId = String(booking?.id || booking?._id || "").trim()
+    return mergeRemoteUserBookingWithStoredHint(booking, storedBookingMap.get(bookingId))
+  })
 }
 
 const getUserBookingActionIds = (bookingOrId) => {
@@ -396,16 +478,17 @@ const sortUserBookingsForGrouping = (bookings = []) =>
 
 const createGroupedUserBooking = (booking) => {
   const timeRange = getUserBookingTimeRange(booking)
+  const paymentSummary = getBookingPaymentSummaryVi(booking)
 
   return {
     ...booking,
     bookingIds: getUserBookingActionIds(booking),
     groupedBookingCount: 1,
     groupedBookings: [booking],
-    depositAmount: Number(booking?.depositAmount || 0),
-    remainingAmount: Number(booking?.remainingAmount || 0),
-    depositPaid: isPaidUserBooking(booking),
-    fullyPaid: Boolean(booking?.fullyPaid),
+    depositAmount: Number(paymentSummary.depositAmount || 0),
+    remainingAmount: Number(paymentSummary.remainingAmount || 0),
+    depositPaid: paymentSummary.hasConfirmedDeposit,
+    fullyPaid: paymentSummary.isFullyPaid,
     _groupKey: getUserBookingGroupKey(booking),
     _groupStartMinutes: timeRange?.startMinutes ?? null,
     _groupEndMinutes: timeRange?.endMinutes ?? null,
@@ -441,24 +524,18 @@ const mergeGroupedUserBooking = (currentGroup, nextBooking) => {
     .map((booking) => String(booking?.createdAt || "").trim())
     .filter(Boolean)
     .sort((left, right) => new Date(right).getTime() - new Date(left).getTime())
+  const mergedPaymentSummaries = mergedBookings.map((booking) => getBookingPaymentSummaryVi(booking))
 
   return {
     ...currentGroup,
     bookingIds: mergedIds,
     groupedBookingCount: mergedBookings.length,
     groupedBookings: mergedBookings,
-    depositAmount: mergedBookings.reduce((sum, booking) => sum + Number(booking?.depositAmount || 0), 0),
-    depositPaid: mergedBookings.some((booking) => isPaidUserBooking(booking)),
-    fullyPaid: mergedBookings.every(
-      (booking) =>
-        Boolean(booking?.fullyPaid)
-        || (
-          isPaidUserBooking(booking)
-          && Number(booking?.remainingAmount || 0) <= 0
-        )
-    ),
+    depositAmount: mergedPaymentSummaries.reduce((sum, item) => sum + Number(item?.depositAmount || 0), 0),
+    depositPaid: mergedPaymentSummaries.some((item) => item?.hasConfirmedDeposit),
+    fullyPaid: mergedPaymentSummaries.every((item) => item?.isFullyPaid),
     totalPrice: mergedBookings.reduce((sum, booking) => sum + Number(booking?.totalPrice || 0), 0),
-    remainingAmount: mergedBookings.reduce((sum, booking) => sum + Number(booking?.remainingAmount || 0), 0),
+    remainingAmount: mergedPaymentSummaries.reduce((sum, item) => sum + Number(item?.remainingAmount || 0), 0),
     createdAt: mergedCreatedAtCandidates[0] || currentGroup?.createdAt || nextBooking?.createdAt || null,
     _groupEndMinutes: nextRange?.endMinutes ?? currentGroup?._groupEndMinutes,
     timeSlot:
@@ -1014,11 +1091,12 @@ export const useBookingController = ({ authToken, currentUser }) => {
       try {
         if (authToken) {
           const data = await getMyBookings(authToken)
+          const remoteBookings = Array.isArray(data?.bookings) ? data.bookings : []
           if (mounted) {
             setBookings(
               isOwnerPortal
-                ? (data.bookings || [])
-                : (data.bookings || [])
+                ? remoteBookings
+                : mergeRemoteUserBookingsWithStoredHints(remoteBookings, storedKnownBookings)
             )
           }
         } else {

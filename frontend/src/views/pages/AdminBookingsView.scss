@@ -341,6 +341,17 @@
   font-weight: 700;
 }
 
+.payment-pill {
+  display: inline-flex;
+  align-items: center;
+  min-height: 38px;
+  padding: 0 14px;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
 .status-pill--pending {
   background: var(--owner-amber-soft);
   color: #9c670d;
@@ -362,9 +373,40 @@
   color: #275d9a;
 }
 
+.payment-pill--success {
+  background: var(--owner-green-soft);
+  border-color: rgba(15, 122, 58, 0.12);
+  color: var(--owner-green-strong);
+}
+
+.payment-pill--warning {
+  background: var(--owner-amber-soft);
+  border-color: rgba(185, 122, 18, 0.16);
+  color: #9c670d;
+}
+
+.payment-pill--danger {
+  background: var(--owner-red-soft);
+  border-color: rgba(184, 78, 66, 0.14);
+  color: #af4338;
+}
+
+.payment-pill--neutral {
+  background: #f4f7f5;
+  border-color: rgba(23, 49, 36, 0.08);
+  color: #5f7868;
+}
+
 .admin-booking-card__grid {
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 14px;
+  margin-bottom: 18px;
+}
+
+.admin-booking-card__paymentRow {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 14px;
   margin-bottom: 18px;
 }
@@ -408,6 +450,23 @@
 
 .booking-detail--price strong {
   font-size: 1.1rem;
+  color: #8e6112;
+}
+
+.booking-detail--payment {
+  min-height: auto;
+}
+
+.booking-detail--payment strong {
+  color: #1d4f2d;
+}
+
+.booking-detail--paymentDue {
+  background: #fffaf0;
+  border-color: #efdfaf;
+}
+
+.booking-detail--paymentDue strong {
   color: #8e6112;
 }
 
@@ -482,6 +541,10 @@
   .admin-booking-card__grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+
+  .admin-booking-card__paymentRow {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 @media (max-width: 720px) {
@@ -531,6 +594,10 @@
   }
 
   .admin-booking-card__grid {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-booking-card__paymentRow {
     grid-template-columns: 1fr;
   }
 

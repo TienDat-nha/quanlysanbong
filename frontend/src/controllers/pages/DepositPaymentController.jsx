@@ -129,8 +129,17 @@ const DepositPaymentController = ({ authToken, currentUser }) => {
     setShowPaymentModal(true)
   }
 
-  const handlePaymentSuccess = () => {
+  const handlePaymentSuccess = (result = null) => {
     setShowPaymentModal(false)
+
+    if (result?.redirectToBookings) {
+      handleGoToBookings({
+        bookingMessage: String(result?.message || '').trim() || 'ÄÃ£ táº¡o yÃªu cáº§u thanh toÃ¡n. ÄÆ¡n Ä‘ang chá» admin xÃ¡c nháº­n.',
+        bookingMessageType: String(result?.messageType || 'success').trim() || 'success',
+      })
+      return
+    }
+
     handleRefresh()
   }
 

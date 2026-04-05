@@ -177,6 +177,7 @@ const UsersView = ({
               className={controlClass(formErrors?.phone)}
               name="phone"
               type="text"
+              required
               placeholder="09xxxxxxxx"
               value={formValues.phone}
               onChange={onInputChange}

@@ -142,6 +142,14 @@ export const createLocalBookingRecord = ({
     fieldSlug: String(booking?.fieldSlug || field?.slug || "").trim(),
     fieldAddress: String(booking?.fieldAddress || field?.address || "").trim(),
     fieldDistrict: String(booking?.fieldDistrict || field?.district || "").trim(),
+    fieldOwnerPhone: String(
+      booking?.fieldOwnerPhone
+      || booking?.field?.ownerPhone
+      || booking?.field?.owner?.phone
+      || field?.ownerPhone
+      || field?.owner?.phone
+      || ""
+    ).trim(),
     subFieldId: normalizedSubFieldId,
     subFieldKey: String(booking?.subFieldKey || subField?.key || "").trim(),
     subFieldName: String(booking?.subFieldName || subField?.name || "").trim(),

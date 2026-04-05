@@ -21,10 +21,14 @@ export const usePaymentFlow = (authToken) => {
         setError('')
         const payment = await createPayment(authToken, bookingId, method, paymentType, amount, bookingIds)
         setCurrentPayment(payment)
-        
-        // Load QR
-        const qr = await getQR(authToken, payment.id)
-        setQrData(qr)
+
+        const normalizedMethod = String(method || '').trim().toUpperCase()
+        if (normalizedMethod !== 'CASH') {
+          const qr = await getQR(authToken, payment.id)
+          setQrData(qr)
+        } else {
+          setQrData(null)
+        }
         
         return payment
       } catch (err) {

@@ -5,6 +5,7 @@ import {
   getPaymentMethodLabel,
   getPaymentTypeLabel,
 } from '../../utils/paymentHelpers'
+import { getEffectivePaymentStatus } from '../../models/paymentModel'
 import PaymentStatusBadge from '../../components/PaymentStatusBadge'
 import './MyPaymentsView.scss'
 
@@ -44,7 +45,13 @@ const MyPaymentsView = ({
       {!loading && payments.length > 0 && (
         <div className="payments-list">
           {payments.map((payment) => {
-            const isPending = payment.status === 'PENDING'
+            const effectiveStatus = getEffectivePaymentStatus(
+              payment.status,
+              payment.expiredAt,
+              payment.createdAt
+            )
+            const isPending = effectiveStatus === 'PENDING'
+            const canViewQr = isPending && String(payment.method || '').trim().toUpperCase() !== 'CASH'
             const isCancelling = cancelling[payment.id]
 
             return (
@@ -84,12 +91,16 @@ const MyPaymentsView = ({
                   </div>
 
                   <div className="payment-status">
-                    <PaymentStatusBadge status={payment.status} />
+                    <PaymentStatusBadge
+                      status={payment.status}
+                      expiredAt={payment.expiredAt}
+                      createdAt={payment.createdAt}
+                    />
                   </div>
                 </div>
 
                 <div className="payment-actions">
-                  {isPending && (
+                  {canViewQr && (
                     <button
                       className="btn btn-action btn-view-qr"
                       onClick={() => onViewQR(payment)}
@@ -109,7 +120,7 @@ const MyPaymentsView = ({
                     </button>
                   )}
 
-                  {payment.status !== 'PENDING' && (
+                  {!isPending && (
                     <span className="action-placeholder">Không thể thao tác</span>
                   )}
                 </div>

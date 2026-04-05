@@ -1,3 +1,5 @@
+import { getEffectivePaymentStatus } from '../models/paymentModel'
+
 const formatCurrencyVi = (value) => {
   const num = Number(value || 0)
   return new Intl.NumberFormat('vi-VN', {
@@ -40,14 +42,15 @@ const formatDateVi = (dateInput) => {
   }
 }
 
-const getPaymentStatusInfo = (status) => {
-  const normalized = String(status || '').trim().toUpperCase()
+const getPaymentStatusInfo = (status, expiredAt = null, createdAt = null) => {
+  const normalized = getEffectivePaymentStatus(status, expiredAt, createdAt)
   
   const statusMap = {
     PENDING: { label: 'Chưa thanh toán', color: 'warning', icon: '⏳' },
     PAID: { label: 'Đã thanh toán', color: 'success', icon: '✓' },
     CANCELLED: { label: 'Đã hủy', color: 'danger', icon: '✕' },
     EXPIRED: { label: 'Hết hạn', color: 'secondary', icon: '⏱' },
+    FAILED: { label: 'Thanh toán thất bại', color: 'danger', icon: '!' },
   }
 
   return statusMap[normalized] || { label: normalized, color: 'secondary', icon: '?' }

@@ -16,6 +16,7 @@ import {
   getBookingDurationMinutes,
   parseTimeSlot,
 } from "../../models/bookingModel"
+import { getBookingPaymentSummaryVi } from "../../models/bookingTextModel"
 import { formatPrice } from "../../models/fieldModel"
 import { ROUTES } from "../../models/routeModel"
 
@@ -110,9 +111,22 @@ const getGroupedBookingIds = (bookingId, locationState, search) => {
       [...stateBookingIds, ...searchBookingIds, bookingId]
         .map((item) => String(item || "").trim())
         .filter(Boolean)
-    )
+      )
   )
 }
+
+const isNavigationEventLike = (value) =>
+  Boolean(
+    value
+    && typeof value === "object"
+    && (
+      typeof value.preventDefault === "function"
+      || typeof value.stopPropagation === "function"
+      || "nativeEvent" in value
+      || "currentTarget" in value
+      || "target" in value
+    )
+  )
 
 const getBookingTimeRange = (booking) => {
   const parsedRange = parseTimeSlot(String(booking?.timeSlot || "").trim())
@@ -134,6 +148,67 @@ const getBookingTimeRange = (booking) => {
   }
 
   return null
+}
+
+const hasExplicitAmountValue = (value) =>
+  value !== null
+  && value !== undefined
+  && (typeof value !== "string" || value.trim() !== "")
+
+const applyConfirmedPaymentSelectionToBooking = (
+  booking,
+  {
+    paymentOption = "deposit",
+    paymentAmount = 0,
+    totalAmount = 0,
+    depositAmount = 0,
+    remainingAmount = 0,
+  } = {}
+) => {
+  if (!booking || typeof booking !== "object") {
+    return null
+  }
+
+  const normalizedPaymentOption = String(paymentOption || "deposit").trim().toLowerCase()
+  const normalizedTotalAmount = Math.max(Number(booking?.totalPrice || totalAmount || 0), 0)
+  const fallbackDepositAmount = calculateBookingDepositAmount(normalizedTotalAmount)
+  const currentDepositAmount = Number(booking?.depositAmount)
+  const effectiveDepositAmount =
+    Number.isFinite(currentDepositAmount) && currentDepositAmount > 0
+      ? currentDepositAmount
+      : Math.max(Number(depositAmount || fallbackDepositAmount), 0)
+  const currentRemainingAmount = hasExplicitAmountValue(booking?.remainingAmount)
+    ? Number(booking?.remainingAmount)
+    : Number.NaN
+  const fallbackRemainingAmount = calculateRemainingPaymentAmount(normalizedTotalAmount, effectiveDepositAmount)
+  const effectiveRemainingAmount =
+    normalizedPaymentOption === "full"
+      ? 0
+      : (
+        Number.isFinite(currentRemainingAmount) && currentRemainingAmount > 0
+          ? currentRemainingAmount
+          : Math.max(Number(remainingAmount || fallbackRemainingAmount), 0)
+      )
+  const effectivePaymentAmount =
+    normalizedPaymentOption === "full"
+      ? Math.max(Number(paymentAmount || normalizedTotalAmount), normalizedTotalAmount)
+      : Math.max(Number(paymentAmount || effectiveDepositAmount), effectiveDepositAmount)
+
+  return {
+    ...booking,
+    totalPrice: normalizedTotalAmount,
+    paymentType: normalizedPaymentOption === "full" ? "FULL" : "DEPOSIT",
+    type: normalizedPaymentOption === "full" ? "FULL" : "DEPOSIT",
+    depositAmount: effectiveDepositAmount,
+    remainingAmount: effectiveRemainingAmount,
+    paidAmount: effectivePaymentAmount,
+    depositPaid: true,
+    fullyPaid: normalizedPaymentOption === "full",
+    depositStatus: "PAID",
+    paymentStatus: normalizedPaymentOption === "full" ? "PAID" : "DEPOSIT_PAID",
+    expiredAt: "",
+    holdExpiresAt: "",
+  }
 }
 
 const aggregatePaymentBookings = (bookings = [], fallbackBooking = null) => {
@@ -163,11 +238,9 @@ const aggregatePaymentBookings = (bookings = [], fallbackBooking = null) => {
   const lastBooking = sortedBookings[sortedBookings.length - 1] || firstBooking
   const firstRange = getBookingTimeRange(firstBooking)
   const lastRange = getBookingTimeRange(lastBooking)
-  const paidCount = sortedBookings.filter(
-    (booking) =>
-      Boolean(booking?.depositPaid || booking?.fullyPaid)
-      || String(booking?.paymentStatus || booking?.depositStatus || "").trim().toLowerCase() === "paid"
-  ).length
+  const paymentSummaries = sortedBookings.map((item) => getBookingPaymentSummaryVi(item))
+  const fullyPaidCount = paymentSummaries.filter((item) => item?.isFullyPaid).length
+  const confirmedDepositCount = paymentSummaries.filter((item) => item?.hasConfirmedDeposit).length
   const earliestExpiry = sortedBookings
     .map((booking) => String(booking?.expiredAt || booking?.holdExpiresAt || "").trim())
     .map((value) => ({ value, timestamp: getExpiryTimestamp(value) }))
@@ -185,36 +258,33 @@ const aggregatePaymentBookings = (bookings = [], fallbackBooking = null) => {
       firstRange && lastRange
         ? buildTimeSlotLabel(firstRange.startMinutes, lastRange.endMinutes)
         : String(firstBooking?.timeSlot || "").trim(),
-    totalPrice: sortedBookings.reduce((sum, booking) => sum + Number(booking?.totalPrice || 0), 0),
-    depositAmount: sortedBookings.reduce(
-      (sum, booking) => sum + Number(booking?.depositAmount || calculateBookingDepositAmount(booking?.totalPrice || 0)),
+    totalPrice: paymentSummaries.reduce((sum, item) => sum + Number(item?.totalAmount || 0), 0),
+    depositAmount: paymentSummaries.reduce((sum, item) => sum + Number(item?.depositAmount || 0), 0),
+    remainingAmount: paymentSummaries.reduce((sum, item) => sum + Number(item?.remainingAmount || 0), 0),
+    paidAmount: paymentSummaries.reduce(
+      (sum, item) => sum + Number(item?.paidDepositAmount || 0) + Number(item?.remainingPaidAmount || 0),
       0
     ),
-    remainingAmount: sortedBookings.reduce(
-      (sum, booking) =>
-        sum + Number(booking?.remainingAmount ?? calculateRemainingPaymentAmount(booking?.totalPrice || 0, booking?.depositAmount || 0)),
-      0
-    ),
-    paidAmount: sortedBookings.reduce((sum, booking) => sum + Number(booking?.paidAmount || 0), 0),
-    depositPaid: paidCount === sortedBookings.length,
-    fullyPaid: sortedBookings.every(
-      (booking) =>
-        Boolean(booking?.fullyPaid)
-        || (
-          Boolean(booking?.depositPaid)
-          && Number(booking?.remainingAmount || 0) <= 0
-        )
-    ),
+    depositPaid: confirmedDepositCount === sortedBookings.length,
+    fullyPaid: fullyPaidCount === sortedBookings.length,
     paymentStatus:
-      paidCount === sortedBookings.length
+      fullyPaidCount === sortedBookings.length
         ? "PAID"
-        : paidCount > 0
-          ? "PARTIAL"
-          : String(firstBooking?.paymentStatus || firstBooking?.depositStatus || "UNPAID").trim(),
+        : confirmedDepositCount === sortedBookings.length
+          ? "DEPOSIT_PAID"
+          : confirmedDepositCount > 0
+            ? "PARTIAL"
+            : String(firstBooking?.paymentStatus || firstBooking?.depositStatus || "UNPAID").trim(),
     depositStatus:
-      paidCount === sortedBookings.length
+      confirmedDepositCount === sortedBookings.length
         ? "PAID"
         : "UNPAID",
+    paymentType:
+      fullyPaidCount === sortedBookings.length
+        ? "FULL"
+        : confirmedDepositCount > 0
+          ? "DEPOSIT"
+          : String(firstBooking?.paymentType || firstBooking?.type || "").trim(),
     status:
       sortedBookings.every((booking) => String(booking?.status || "").trim().toUpperCase() === "CONFIRMED")
         ? "CONFIRMED"
@@ -231,24 +301,8 @@ const isBookingPaymentConfirmed = (booking) => {
     return false
   }
 
-  const bookingStatusKey = String(booking.status || "").trim().toLowerCase()
-  const depositStatusKey = String(booking.depositStatus || booking.paymentStatus || "").trim().toLowerCase()
-  const remainingAmount = Number(booking.remainingAmount || 0)
-
-  return Boolean(
-    booking.depositPaid
-    || booking.fullyPaid
-    || depositStatusKey === "paid"
-    || bookingStatusKey === "confirmed"
-    || bookingStatusKey === "completed"
-    || (
-      remainingAmount <= 0
-      && (
-        booking.depositPaid
-        || depositStatusKey === "paid"
-      )
-    )
-  )
+  const paymentSummary = getBookingPaymentSummaryVi(booking)
+  return paymentSummary.hasConfirmedDeposit || paymentSummary.isFullyPaid
 }
 
 export const useDepositPaymentController = ({ authToken }) => {
@@ -422,25 +476,18 @@ export const useDepositPaymentController = ({ authToken }) => {
     [booking?.date, booking?.timeSlot]
   )
 
-  const bookingStatusKey = String(booking?.status || "").trim().toLowerCase()
-  const depositStatusKey = String(booking?.depositStatus || booking?.paymentStatus || "").trim().toLowerCase()
-  const fullyPaid = Boolean(
-    booking?.fullyPaid
-    || (
-      Number(booking?.remainingAmount ?? remainingAmount) <= 0
-      && (
-        booking?.depositPaid
-        || depositStatusKey === "paid"
-      )
-    )
+  const paymentSummary = useMemo(
+    () =>
+      getBookingPaymentSummaryVi({
+        ...booking,
+        totalPrice,
+        depositAmount,
+        remainingAmount,
+      }),
+    [booking, depositAmount, remainingAmount, totalPrice]
   )
-  const paymentConfirmed = Boolean(
-    booking?.depositPaid
-    || fullyPaid
-    || depositStatusKey === "paid"
-    || bookingStatusKey === "confirmed"
-    || bookingStatusKey === "completed"
-  )
+  const fullyPaid = paymentSummary.isFullyPaid
+  const paymentConfirmed = paymentSummary.hasConfirmedDeposit || paymentSummary.isFullyPaid
   const holdExpiresAt = String(booking?.expiredAt || booking?.holdExpiresAt || "").trim()
   const holdExpiryTimestamp = getExpiryTimestamp(holdExpiresAt)
   const secondsRemaining = paymentConfirmed || !holdExpiryTimestamp
@@ -682,22 +729,21 @@ export const useDepositPaymentController = ({ authToken }) => {
 
       try {
         const bookingData = await getBookingById(bookingId, authToken)
-        nextBooking = bookingData.booking || null
+        nextBooking = applyConfirmedPaymentSelectionToBooking(bookingData.booking || null, {
+          paymentOption,
+          paymentAmount: selectedPaymentAmount,
+          totalAmount: totalPrice,
+          depositAmount,
+          remainingAmount,
+        })
       } catch (_apiError) {
-        nextBooking = booking
-          ? {
-              ...booking,
-              status: "CONFIRMED",
-              depositStatus: "PAID",
-              paymentStatus: "PAID",
-              depositPaid: true,
-              fullyPaid: paymentOption === "full",
-              paidAmount: selectedPaymentAmount,
-              remainingAmount: paymentOption === "full" ? 0 : remainingAmount,
-              expiredAt: "",
-              holdExpiresAt: "",
-            }
-          : null
+        nextBooking = applyConfirmedPaymentSelectionToBooking(booking, {
+          paymentOption,
+          paymentAmount: selectedPaymentAmount,
+          totalAmount: totalPrice,
+          depositAmount,
+          remainingAmount,
+        })
       }
 
       setBooking(nextBooking || booking)
@@ -777,35 +823,50 @@ export const useDepositPaymentController = ({ authToken }) => {
           const matchedBookings = targetBookingIds
             .map((id) => liveBookingMap.get(String(id || "").trim()))
             .filter(Boolean)
+            .map((item) => {
+              const itemTotalAmount = Number(item?.totalPrice || 0)
+              const itemDepositAmount =
+                Number(item?.depositAmount) > 0
+                  ? Number(item.depositAmount)
+                  : calculateBookingDepositAmount(itemTotalAmount)
+              const itemRemainingAmount =
+                hasExplicitAmountValue(item?.remainingAmount)
+                  ? Number(item.remainingAmount)
+                  : calculateRemainingPaymentAmount(itemTotalAmount, itemDepositAmount)
+
+              return applyConfirmedPaymentSelectionToBooking(item, {
+                paymentOption,
+                paymentAmount: paymentOption === "full" ? itemTotalAmount : itemDepositAmount,
+                totalAmount: itemTotalAmount,
+                depositAmount: itemDepositAmount,
+                remainingAmount: itemRemainingAmount,
+              })
+            })
+            .filter(Boolean)
 
           nextBooking = aggregatePaymentBookings(matchedBookings, booking)
           matchedBookings.forEach((item) => persistKnownBooking(item))
         } else {
           const bookingData = await getBookingById(targetBookingIds[0], authToken)
-          nextBooking = bookingData.booking || null
+          nextBooking = applyConfirmedPaymentSelectionToBooking(bookingData.booking || null, {
+            paymentOption,
+            paymentAmount: selectedPaymentAmount,
+            totalAmount: totalPrice,
+            depositAmount,
+            remainingAmount,
+          })
           persistKnownBooking(nextBooking)
         }
       } catch (_apiError) {
-        nextBooking = booking
-          ? {
-              ...booking,
-              status: "CONFIRMED",
-              depositStatus: "PAID",
-              paymentStatus: "PAID",
-              depositPaid: confirmedBookingIds.length === targetBookingIds.length,
-              fullyPaid: paymentOption === "full" && confirmedBookingIds.length === targetBookingIds.length,
-              paidAmount:
-                confirmedBookingIds.length === targetBookingIds.length
-                  ? selectedPaymentAmount
-                  : Number(booking?.paidAmount || 0),
-              remainingAmount:
-                confirmedBookingIds.length === targetBookingIds.length
-                  ? selectedRemainingAmount
-                  : Number(booking?.remainingAmount ?? remainingAmount),
-              expiredAt: "",
-              holdExpiresAt: "",
-            }
-          : null
+        nextBooking = confirmedBookingIds.length === targetBookingIds.length
+          ? applyConfirmedPaymentSelectionToBooking(booking, {
+              paymentOption,
+              paymentAmount: selectedPaymentAmount,
+              totalAmount: totalPrice,
+              depositAmount,
+              remainingAmount: selectedRemainingAmount,
+            })
+          : booking || null
       }
 
       setBooking(nextBooking || booking)
@@ -854,8 +915,18 @@ export const useDepositPaymentController = ({ authToken }) => {
     setRefreshKey((value) => value + 1)
   }
 
-  const handleGoToBookings = () => {
-    navigate(ROUTES.booking)
+  const handleGoToBookings = (navigationState = null) => {
+    const nextState =
+      navigationState
+      && typeof navigationState === "object"
+      && !isNavigationEventLike(navigationState)
+        ? navigationState
+        : undefined
+
+    navigate(
+      ROUTES.booking,
+      nextState ? { state: nextState } : undefined
+    )
   }
 
   const handleGoToFields = () => {

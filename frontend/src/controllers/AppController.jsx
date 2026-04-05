@@ -13,7 +13,6 @@ import AdminOwnerFieldsController from "./pages/AdminOwnerFieldsController"
 import AdminFieldRequestsController from "./pages/AdminFieldRequestsController"
 import OwnerFieldRequestsController from "./pages/OwnerFieldRequestsController"
 import BookingController from "./pages/BookingController"
-import ContactController from "./pages/ContactController"
 import DepositPaymentController from "./pages/DepositPaymentController"
 import FieldDetailController from "./pages/FieldDetailController"
 import FieldsController from "./pages/FieldsController"
@@ -94,7 +93,7 @@ const AppController = () => {
           path={`${ROUTES.depositPayment}/:bookingId`}
           element={<DepositPaymentController authToken={authToken} currentUser={currentUser} />}
         />
-        <Route path={ROUTES.contact} element={<ContactController />} />
+        <Route path={ROUTES.contact} element={<Navigate to={ROUTES.home} replace />} />
         <Route
           path={ROUTES.login}
           element={<LoginController onLoginSuccess={handleLoginSuccess} />}

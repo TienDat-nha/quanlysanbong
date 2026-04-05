@@ -1585,12 +1585,160 @@ button {
 .bookingList ul {
   display: grid;
   gap: 0.75rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
 }
 
 .bookingItem {
   border: 1px solid rgba(9, 101, 131, 0.18);
   border-radius: 0.8rem;
   padding: 0.7rem;
+}
+
+.bookingHistoryCard {
+  display: grid;
+  gap: 0.95rem;
+  padding: 1rem 1.05rem;
+  background: linear-gradient(180deg, rgba(250, 253, 255, 0.98), rgba(255, 255, 255, 0.98));
+  box-shadow: 0 12px 24px rgba(6, 53, 71, 0.06);
+  transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+}
+
+.bookingHistoryCard:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 16px 30px rgba(6, 53, 71, 0.1);
+}
+
+.bookingHistoryCard--success {
+  border-color: rgba(18, 95, 44, 0.18);
+  background: linear-gradient(180deg, rgba(242, 251, 245, 0.98), rgba(255, 255, 255, 0.98));
+}
+
+.bookingHistoryCard--warning {
+  border-color: rgba(181, 141, 30, 0.2);
+  background: linear-gradient(180deg, rgba(255, 250, 233, 0.98), rgba(255, 255, 255, 0.98));
+}
+
+.bookingHistoryCard--danger {
+  border-color: rgba(162, 71, 41, 0.18);
+  background: linear-gradient(180deg, rgba(252, 245, 242, 0.98), rgba(255, 255, 255, 0.98));
+}
+
+.bookingHistoryCardTop {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.bookingHistoryCardHeading {
+  display: grid;
+  gap: 0.3rem;
+}
+
+.bookingHistoryCardEyebrow {
+  font-size: 0.74rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: rgba(6, 53, 71, 0.62);
+}
+
+.bookingHistoryCardSubline {
+  margin: 0;
+  color: rgba(6, 53, 71, 0.76);
+  font-size: 0.94rem;
+}
+
+.bookingHistoryCardBadges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+  justify-content: flex-end;
+}
+
+.bookingHistoryBadge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2rem;
+  padding: 0.35rem 0.8rem;
+  border-radius: 999px;
+  border: 1px solid rgba(9, 101, 131, 0.16);
+  background: rgba(255, 255, 255, 0.92);
+  color: var(--blackColor);
+  font-size: 0.86rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.bookingHistoryBadge--success {
+  border-color: rgba(18, 95, 44, 0.2);
+  background: rgba(45, 164, 91, 0.1);
+}
+
+.bookingHistoryBadge--warning {
+  border-color: rgba(181, 141, 30, 0.24);
+  background: rgba(223, 177, 43, 0.16);
+}
+
+.bookingHistoryBadge--danger {
+  border-color: rgba(162, 71, 41, 0.22);
+  background: rgba(208, 97, 63, 0.12);
+}
+
+.bookingHistoryBadge--neutral {
+  border-color: rgba(9, 101, 131, 0.16);
+  background: rgba(9, 101, 131, 0.08);
+}
+
+.bookingHistoryCardGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+.bookingHistoryMetaItem {
+  display: grid;
+  gap: 0.28rem;
+  padding: 0.82rem 0.9rem;
+  border-radius: 0.85rem;
+  border: 1px solid rgba(9, 101, 131, 0.12);
+  background: rgba(255, 255, 255, 0.84);
+}
+
+.bookingHistoryMetaLabel {
+  font-size: 0.77rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: rgba(6, 53, 71, 0.58);
+}
+
+.bookingHistoryMetaValue {
+  color: var(--blackColor);
+  line-height: 1.45;
+}
+
+.bookingHistoryMetaValue--accent {
+  color: #0b7a2e;
+}
+
+.bookingHistoryCardFooter {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.8rem;
+  flex-wrap: wrap;
+  padding-top: 0.85rem;
+  border-top: 1px solid rgba(9, 101, 131, 0.1);
+}
+
+.bookingHistoryCardFooterNote {
+  color: rgba(6, 53, 71, 0.72);
+  font-size: 0.88rem;
+  font-weight: 600;
 }
 
 .depositPage {
@@ -1844,11 +1992,15 @@ button {
 
 .bookingHistoryItemActions {
   margin: 0.65rem 0 0.35rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
 }
 
 .bookingItem h3 {
+  margin: 0;
   color: var(--blackColor);
-  font-size: 1rem;
+  font-size: 1.08rem;
 }
 
 .depositPrimaryBtn {
@@ -1916,7 +2068,8 @@ button {
   .depositDetailGrid,
   .depositAmountGrid,
   .depositMethodGrid,
-  .depositTransferGrid {
+  .depositTransferGrid,
+  .bookingHistoryCardGrid {
     grid-template-columns: 1fr;
   }
 
@@ -1941,6 +2094,14 @@ button {
   .bookingStepBackButton,
   .depositPrimaryBtn {
     width: 100%;
+  }
+
+  .bookingHistoryCardBadges {
+    justify-content: flex-start;
+  }
+
+  .bookingHistoryCardFooter {
+    align-items: stretch;
   }
 
   .bookingPlanner--visual .bookingPlannerHeader {

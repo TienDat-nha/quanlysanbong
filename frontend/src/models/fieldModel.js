@@ -171,6 +171,15 @@ const normalizeField = (field) => {
     )
       .trim()
       .toLowerCase(),
+    ownerPhone: String(
+      field?.ownerPhone
+      || field?.userPhone
+      || field?.owner?.phone
+      || field?.user?.phone
+      || field?.ownerUserId?.phone
+      || field?.userId?.phone
+      || ""
+    ).trim(),
     ownerFullName:
       field?.ownerFullName
       || field?.ownerName

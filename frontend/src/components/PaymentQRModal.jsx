@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react'
 import { calculateCountdown, formatDateTimeVi, getPaymentStatusInfo } from '../utils/paymentHelpers'
+import { getEffectivePaymentStatus } from '../models/paymentModel'
 import PaymentStatusBadge from './PaymentStatusBadge'
 import './PaymentQRModal.scss'
 
@@ -55,7 +56,8 @@ const PaymentQRModal = ({
 }) => {
   const [countdown, setCountdown] = useState(null)
   const [confirmCancel, setConfirmCancel] = useState(false)
-  const paymentStatusInfo = getPaymentStatusInfo(payment?.status)
+  const effectiveStatus = getEffectivePaymentStatus(payment?.status, payment?.expiredAt, payment?.createdAt)
+  const paymentStatusInfo = getPaymentStatusInfo(payment?.status, payment?.expiredAt, payment?.createdAt)
   const displayQrImage = buildQrPreviewUrl(payment, qrImage)
   const momoActionUrl = String(payment?.deeplink || payment?.payUrl || '').trim()
   const isMomoPayment = String(payment?.method || '').trim().toUpperCase() === 'MOMO'
@@ -76,7 +78,7 @@ const PaymentQRModal = ({
   }, [payment?.expiredAt])
 
   const isExpired = countdown?.isExpired || false
-  const canCancel = payment?.status === 'PENDING' && !isExpired
+  const canCancel = effectiveStatus === 'PENDING' && !isExpired
 
   const handleConfirmPayment = () => {
     if (loading) return
@@ -110,7 +112,11 @@ const PaymentQRModal = ({
 
         <div className="modal-body">
           <div className="section status-section">
-            <PaymentStatusBadge status={payment?.status} />
+            <PaymentStatusBadge
+              status={payment?.status}
+              expiredAt={payment?.expiredAt}
+              createdAt={payment?.createdAt}
+            />
             <span className="payment-id" title={payment?.id}>
               ID: {payment?.id?.slice(0, 12)}...
             </span>

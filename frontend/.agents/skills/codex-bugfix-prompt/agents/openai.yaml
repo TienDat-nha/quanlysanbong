@@ -1,8 +1,8 @@
 interface:
-  display_name: "Codex Bugfix Prompt"
-  short_description: "Viet prompt fix bug sat repo sanbong"
+  display_name: "Codex Root-Cause Prompt"
+  short_description: "Viet prompt fix bug tan goc sat repo"
   brand_color: "#0F766E"
-  default_prompt: "Use $codex-bugfix-prompt to draft a Codex prompt that fixes a bug cleanly in this sanbong frontend repo."
+  default_prompt: "Use $codex-bugfix-prompt to write one execution-ready Codex prompt that fixes a bug at the root cause, keeps cleanup narrow, and stays aligned with this sanbong frontend repo."
 
 policy:
   allow_implicit_invocation: true

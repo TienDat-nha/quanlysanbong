@@ -2,12 +2,15 @@ import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { usePaymentFlow } from '../hooks/usePaymentFlow'
 import PaymentMethodForm from './PaymentMethodForm'
 import PaymentQRModal from './PaymentQRModal'
-import { cancelPayment, checkPaymentStatus, confirmPayment, getPaymentByBooking, getQR } from '../services/paymentService'
+import { cancelPayment, checkPaymentStatus, getPaymentByBooking, getQR } from '../services/paymentService'
 import { getBookingById, getMyBookings } from '../models/api'
 import './PaymentMethodModal.scss'
 
 const normalizePaymentType = (value, fallback = 'DEPOSIT') =>
   String(value || fallback || 'DEPOSIT').trim().toUpperCase()
+
+const normalizePaymentMethod = (value, fallback = '') =>
+  String(value || fallback || '').trim().toUpperCase()
 
 const normalizeAmount = (value) => {
   const amount = Number(value || 0)
@@ -248,6 +251,7 @@ const PaymentMethodModal = ({
   const handleFormSubmit = async (_bkId, method, paymentFormType) => {
     try {
       setLocalError('')
+      const normalizedMethod = normalizePaymentMethod(method)
 
       const finalPaymentType = isFullPayment ? 'FULL' : normalizePaymentType(paymentFormType)
       const expectedAmount =
@@ -296,6 +300,17 @@ const PaymentMethodModal = ({
         )
       }
 
+      if (normalizedMethod === 'CASH') {
+        onPaymentSuccess?.({
+          payment,
+          redirectToBookings: true,
+          message: 'ÄÃ£ táº¡o yÃªu cáº§u thanh toÃ¡n táº¡i chá»—. ÄÆ¡n Ä‘ang chá» admin xÃ¡c nháº­n.',
+          messageType: 'success',
+        })
+        onClose?.()
+        return
+      }
+
       const qr = await getQR(authToken, payment.id)
       applyQrState(payment, qr)
       setStep('qr')
@@ -314,13 +329,12 @@ const PaymentMethodModal = ({
 
       setLocalError('')
 
-      if (String(selectedPayment?.method || '').trim().toUpperCase() === 'CASH') {
-        await confirmPayment(authToken, paymentId)
-        settleSuccessfulPayment()
+      if (normalizePaymentMethod(selectedPayment?.method) === 'CASH') {
+        setLocalError('Thanh toÃ¡n táº¡i chá»— Ä‘ang chá» admin xÃ¡c nháº­n. Vui lÃ²ng xem tráº¡ng thÃ¡i booking thay vÃ¬ tá»± kiá»ƒm tra thanh toÃ¡n.')
         return
       }
 
-      if (String(selectedPayment?.method || '').trim().toUpperCase() === 'MOMO') {
+      if (normalizePaymentMethod(selectedPayment?.method) === 'MOMO') {
         const statusResult = await checkPaymentStatus(authToken, paymentId)
         const checkedPayment = statusResult?.payment || null
 

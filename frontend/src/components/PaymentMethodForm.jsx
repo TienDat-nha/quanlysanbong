@@ -3,6 +3,8 @@ import { PAYMENT_METHODS, PAYMENT_TYPES } from '../models/paymentModel'
 import { getPaymentMethodLabel, getPaymentTypeLabel, formatCurrencyVi } from '../utils/paymentHelpers'
 import './PaymentMethodForm.scss'
 
+const VISIBLE_PAYMENT_METHODS = PAYMENT_METHODS.filter((method) => method !== 'MOMO')
+
 const PaymentMethodForm = ({
   bookingId,
   totalPrice,
@@ -14,7 +16,7 @@ const PaymentMethodForm = ({
   hideFullPaymentOption = false,
   hideDepositOption = false,
 }) => {
-  const [selectedMethod, setSelectedMethod] = useState('MOMO')
+  const [selectedMethod, setSelectedMethod] = useState(VISIBLE_PAYMENT_METHODS[0] || '')
   const [selectedType, setSelectedType] = useState(defaultPaymentType)
 
   const paymentAmount = selectedType === 'DEPOSIT' ? depositAmount : totalPrice
@@ -43,7 +45,7 @@ const PaymentMethodForm = ({
       <div className="form-section">
         <label>Phương thức thanh toán</label>
         <div className="radio-group">
-          {PAYMENT_METHODS.map((method) => (
+          {VISIBLE_PAYMENT_METHODS.map((method) => (
             <label key={method} className="radio-option">
               <input
                 type="radio"

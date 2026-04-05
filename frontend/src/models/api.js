@@ -560,6 +560,15 @@ const normalizeFieldItem = (field) => {
     ownerUserId: normalizeId(field.ownerUserId, field.userId, field.owner?._id, field.owner?.id),
     userId: normalizeId(field.userId, field.ownerUserId, field.owner?._id, field.owner?.id),
     ownerEmail: String(field.ownerEmail || field.userEmail || field.owner?.email || "").trim().toLowerCase(),
+    ownerPhone: String(
+      field.ownerPhone
+      || field.userPhone
+      || field.owner?.phone
+      || field.user?.phone
+      || field.ownerUserId?.phone
+      || field.userId?.phone
+      || ""
+    ).trim(),
     approvalStatus: String(field.approvalStatus || "").trim(),
     status: String(field.status || "").trim(),
     isLocked: Boolean(field.isLocked),
@@ -687,6 +696,13 @@ const mergeFieldSources = (field, snapshot) => {
       field?.owner?.email,
       snapshot.ownerEmail
     ),
+    ownerPhone: pickFirstNonEmptyString(
+      field?.ownerPhone,
+      field?.userPhone,
+      field?.owner?.phone,
+      field?.user?.phone,
+      snapshot.ownerPhone
+    ),
     approvalStatus: pickFirstNonEmptyString(
       field?.approvalStatus,
       field?.status,
@@ -743,6 +759,7 @@ const rememberFieldSnapshot = (field) => {
       ownerUserId: normalizedField.ownerUserId,
       userId: normalizedField.userId,
       ownerEmail: normalizedField.ownerEmail,
+      ownerPhone: normalizedField.ownerPhone,
       approvalStatus: normalizedField.approvalStatus,
       status: normalizedField.status,
       isLocked: normalizedField.isLocked,
@@ -975,6 +992,43 @@ const normalizeBookingItem = (booking) => {
             || null,
         }
       : null
+  const totalPrice = Number(booking.totalPrice || booking.price || booking.amount || 0)
+  const depositAmount = Number(
+    booking.depositAmount
+    || booking.paidAmount
+    || booking.payment?.amount
+    || 0
+  )
+  const rawRemainingAmount = booking.remainingAmount ?? booking.payment?.remainingAmount ?? null
+  const remainingAmount =
+    rawRemainingAmount === null
+    || rawRemainingAmount === undefined
+    || (typeof rawRemainingAmount === "string" && rawRemainingAmount.trim() === "")
+      ? null
+      : Number(rawRemainingAmount)
+  const paidAmount = Number(
+    booking.paidAmount
+    || booking.payment?.amount
+    || 0
+  )
+  const paymentStatus = String(
+    booking.paymentStatus
+    || booking.payment?.status
+    || booking.statusPayment
+    || ""
+  ).trim()
+  const normalizedPaymentStatus = paymentStatus.toUpperCase()
+  const paymentType = String(
+    booking.paymentType
+    || booking.payment?.paymentType
+    || booking.payment?.type
+    || ""
+  ).trim().toUpperCase()
+  const isPaidPaymentStatus =
+    normalizedPaymentStatus === "PAID"
+    || normalizedPaymentStatus === "SUCCESS"
+    || normalizedPaymentStatus === "SUCCEEDED"
+    || normalizedPaymentStatus === "COMPLETED"
 
   return {
     ...booking,
@@ -985,6 +1039,14 @@ const normalizeBookingItem = (booking) => {
     fieldSlug: String(booking.fieldSlug || field?.slug || "").trim(),
     fieldAddress: String(booking.fieldAddress || field?.address || "").trim(),
     fieldDistrict: String(booking.fieldDistrict || field?.district || "").trim(),
+    fieldOwnerPhone: String(
+      booking.fieldOwnerPhone
+      || field?.ownerPhone
+      || booking.field?.ownerPhone
+      || booking.field?.owner?.phone
+      || booking.field?.user?.phone
+      || ""
+    ).trim(),
     subFieldId: normalizeId(booking.subFieldId, subField?.id),
     subFieldKey: String(booking.subFieldKey || subField?.key || "").trim(),
     timeSlotId: normalizeId(booking.timeSlotId, timeSlot?.id),
@@ -1001,26 +1063,12 @@ const normalizeBookingItem = (booking) => {
     phone: String(booking.phone || booking.user?.phone || "").trim(),
     note: String(booking.note || booking.description || "").trim(),
     status: String(booking.status || booking.bookingStatus || "").trim(),
-    totalPrice: Number(booking.totalPrice || booking.price || booking.amount || 0),
-    depositAmount: Number(
-      booking.depositAmount
-      || booking.paidAmount
-      || booking.payment?.amount
-      || 0
-    ),
-    remainingAmount: Number(booking.remainingAmount || 0),
-    paidAmount: Number(
-      booking.paidAmount
-      || booking.payment?.amount
-      || 0
-    ),
+    totalPrice,
+    depositAmount,
+    remainingAmount,
+    paidAmount,
     paymentId: normalizeId(booking.paymentId, booking.payment?._id, booking.payment?.id),
-    paymentStatus: String(
-      booking.paymentStatus
-      || booking.payment?.status
-      || booking.statusPayment
-      || ""
-    ).trim(),
+    paymentStatus,
     depositStatus: String(
       booking.depositStatus
       || booking.payment?.status
@@ -1028,16 +1076,13 @@ const normalizeBookingItem = (booking) => {
       || ""
     ).trim(),
     depositMethod: String(booking.depositMethod || booking.payment?.method || "").trim(),
-    depositPaid: Boolean(booking.depositPaid || booking.payment?.status === "PAID"),
+    paymentType,
+    depositPaid: Boolean(booking.depositPaid || isPaidPaymentStatus),
     fullyPaid: Boolean(
       booking.fullyPaid
-      || (
-        Number(booking.remainingAmount || 0) <= 0
-        && (
-          Boolean(booking.depositPaid)
-          || String(booking.payment?.status || "").trim().toUpperCase() === "PAID"
-        )
-      )
+      || booking.fullyPaidAt
+      || String(booking.status || booking.bookingStatus || "").trim().toUpperCase() === "COMPLETED"
+      || (paymentType === "FULL" && isPaidPaymentStatus && remainingAmount !== null && remainingAmount <= 0)
     ),
     createdAt: booking.createdAt || booking.updatedAt || null,
     holdMinutes,
@@ -2302,7 +2347,15 @@ export const cancelAdminBooking = async (token, bookingId) =>
     body: JSON.stringify({ status: "CANCELLED" }),
   })
 
-const getLatestPaymentByBooking = async (token, bookingId) => {
+const PENDING_PAYMENT_CONFIRM_STATUSES = new Set(["", "PENDING", "WAITING", "PROCESSING"])
+
+const isPendingPaymentForConfirmation = (payment) =>
+  PENDING_PAYMENT_CONFIRM_STATUSES.has(String(payment?.status || "").trim().toUpperCase())
+
+const normalizeAdminPaymentType = (value, fallback = "DEPOSIT") =>
+  String(value || fallback || "DEPOSIT").trim().toUpperCase()
+
+const getLatestPaymentByBooking = async (token, bookingId, paymentType = "") => {
   const response = await request(`/payment/getPaymentByBooking/${encodeURIComponent(bookingId)}`, {
     headers: createTokenHeaders(token),
   })
@@ -2311,15 +2364,41 @@ const getLatestPaymentByBooking = async (token, bookingId) => {
     .map((item) => normalizePaymentItem(item))
     .filter(Boolean)
 
-  return payments[0] || null
+  const normalizedPaymentType = normalizeAdminPaymentType(paymentType, "")
+  const typedPayments = normalizedPaymentType
+    ? payments.filter((item) => {
+        const itemPaymentType = normalizeAdminPaymentType(item?.paymentType, "")
+        return !itemPaymentType || itemPaymentType === normalizedPaymentType
+      })
+    : payments
+
+  const pendingPayment = typedPayments.find((item) => isPendingPaymentForConfirmation(item))
+  return pendingPayment || typedPayments[0] || payments[0] || null
 }
 
-const confirmBookingPaymentByBookingId = async (token, bookingId) => {
+const confirmBookingPaymentByBookingId = async (token, bookingId, options = {}) => {
   const normalizedBookingId = String(bookingId || "").trim()
-  let payment = await getLatestPaymentByBooking(token, normalizedBookingId).catch(() => null)
+  const normalizedPaymentType = normalizeAdminPaymentType(options?.paymentType)
+  const normalizedAmount = Number(options?.amount)
+  const hasExplicitAmount = Number.isFinite(normalizedAmount) && normalizedAmount > 0
+  let payment = await getLatestPaymentByBooking(token, normalizedBookingId, normalizedPaymentType).catch(() => null)
 
-  if (!payment?.id) {
-    const createdPayment = await createBookingPayment(token, normalizedBookingId, "CASH")
+  const canReusePendingPayment =
+    Boolean(payment?.id)
+    && isPendingPaymentForConfirmation(payment)
+    && (
+      !normalizeAdminPaymentType(payment?.paymentType, "")
+      || normalizeAdminPaymentType(payment?.paymentType) === normalizedPaymentType
+    )
+
+  if (!canReusePendingPayment) {
+    const createdPayment = await createBookingPayment(
+      token,
+      normalizedBookingId,
+      "CASH",
+      normalizedPaymentType,
+      hasExplicitAmount ? normalizedAmount : null
+    )
     payment = createdPayment?.payment || null
   }
 
@@ -2336,10 +2415,13 @@ const confirmBookingPaymentByBookingId = async (token, bookingId) => {
 }
 
 export const confirmAdminBookingDeposit = async (token, bookingId) =>
-  confirmBookingPaymentByBookingId(token, bookingId)
+  confirmBookingPaymentByBookingId(token, bookingId, { paymentType: "DEPOSIT" })
 
-export const confirmAdminBookingPayment = async (token, bookingId) =>
-  confirmBookingPaymentByBookingId(token, bookingId)
+export const confirmAdminBookingPayment = async (token, bookingId, amount = null) =>
+  confirmBookingPaymentByBookingId(token, bookingId, {
+    paymentType: "FULL",
+    amount,
+  })
 
 export const uploadAdminImage = async (token, file) => {
   if (!file) {

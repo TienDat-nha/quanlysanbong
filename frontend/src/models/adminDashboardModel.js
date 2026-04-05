@@ -18,6 +18,28 @@ const normalizeAdminBooking = (booking) => {
     return null
   }
 
+  const totalPrice = Number(booking.totalPrice || 0)
+  const rawRemainingAmount = booking.remainingAmount
+  const remainingAmount =
+    rawRemainingAmount === null
+    || rawRemainingAmount === undefined
+    || (typeof rawRemainingAmount === "string" && rawRemainingAmount.trim() === "")
+      ? null
+      : Number(rawRemainingAmount)
+  const paidAmount = Number(booking.paidAmount || booking.payment?.amount || 0)
+  const paymentStatus = String(booking.paymentStatus || booking.payment?.status || "").trim().toLowerCase()
+  const paymentType = String(
+    booking.paymentType
+    || booking.payment?.paymentType
+    || booking.payment?.type
+    || ""
+  ).trim().toLowerCase()
+  const isPaidPaymentStatus =
+    paymentStatus === "paid"
+    || paymentStatus === "success"
+    || paymentStatus === "succeeded"
+    || paymentStatus === "completed"
+
   return {
     id: String(booking.id || ""),
     fieldId: String(booking.fieldId || booking.field?._id || booking.field?.id || "").trim(),
@@ -31,13 +53,20 @@ const normalizeAdminBooking = (booking) => {
     date: normalizeBookingDateValue(booking.date),
     timeSlot: String(booking.timeSlot || "").trim(),
     status: String(booking.status || "").trim().toLowerCase(),
-    totalPrice: Number(booking.totalPrice || 0),
+    totalPrice,
     depositAmount: Number(booking.depositAmount || 0),
-    remainingAmount: Number(booking.remainingAmount || 0),
+    remainingAmount,
+    paidAmount,
     depositPaid: Boolean(booking.depositPaid),
     depositStatus: String(booking.depositStatus || "").trim().toLowerCase(),
-    paymentStatus: String(booking.paymentStatus || "").trim().toLowerCase(),
-    fullyPaid: Boolean(booking.fullyPaid),
+    paymentStatus,
+    paymentType,
+    fullyPaid: Boolean(
+      booking.fullyPaid
+      || booking.fullyPaidAt
+      || String(booking.status || "").trim().toLowerCase() === "completed"
+      || (paymentType === "full" && isPaidPaymentStatus && remainingAmount !== null && remainingAmount <= 0)
+    ),
     depositMethod: String(booking.depositMethod || "").trim().toLowerCase(),
     depositPaidAt: booking.depositPaidAt || null,
     fullyPaidAt: booking.fullyPaidAt || null,

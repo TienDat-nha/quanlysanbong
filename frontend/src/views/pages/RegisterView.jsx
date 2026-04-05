@@ -83,6 +83,7 @@ const RegisterView = ({
                 id="register-phone"
                 className={controlClass(formErrors?.phone)}
                 type="tel"
+                required
                 value={form.phone}
                 onChange={(event) => onFieldChange("phone", event.target.value)}
                 placeholder="09xxxxxxxx"

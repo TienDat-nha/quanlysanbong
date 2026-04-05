@@ -6,7 +6,10 @@ import {
   getMyBookings,
   cancelAdminBooking,
   confirmAdminBooking,
+  confirmAdminBookingDeposit,
+  confirmAdminBookingPayment,
 } from "../../models/api"
+import { getBookingPaymentSummaryVi } from "../../models/bookingTextModel"
 import { getAdminDashboardState } from "../../models/adminDashboardModel"
 import {
   buildTimeSlotLabel,
@@ -107,16 +110,37 @@ const getManagedBookingStartMinutes = (booking) => {
   return match ? Number(match[1]) * 60 + Number(match[2]) : Number.MAX_SAFE_INTEGER
 }
 
+const getManagedBookingCustomerGroupKey = (booking) => {
+  const customerId = String(booking?.customer?.id || "").trim().toLowerCase()
+  if (customerId) {
+    return `id:${customerId}`
+  }
+
+  const customerPhone = String(booking?.customer?.phone || booking?.phone || "").trim().toLowerCase()
+  if (customerPhone) {
+    return `phone:${customerPhone}`
+  }
+
+  const customerEmail = String(booking?.customer?.email || "").trim().toLowerCase()
+  if (customerEmail) {
+    return `email:${customerEmail}`
+  }
+
+  const customerName = String(booking?.customer?.fullName || "").trim().toLowerCase()
+  if (customerName) {
+    return `name:${customerName}`
+  }
+
+  const bookingId = String(booking?.id || booking?._id || "").trim().toLowerCase()
+  return bookingId ? `booking:${bookingId}` : ""
+}
+
 const getManagedBookingGroupKey = (booking) =>
   [
     normalizeBookingDateValue(booking?.date),
     String(booking?.fieldId || booking?.fieldName || "").trim().toLowerCase(),
     String(booking?.subFieldId || booking?.subFieldName || "").trim().toLowerCase(),
-    String(booking?.customer?.id || "").trim().toLowerCase(),
-    String(booking?.customer?.phone || booking?.phone || "").trim().toLowerCase(),
-    String(booking?.customer?.email || "").trim().toLowerCase(),
-    String(booking?.customer?.fullName || "").trim().toLowerCase(),
-    String(booking?.status || "").trim().toUpperCase(),
+    getManagedBookingCustomerGroupKey(booking),
   ]
     .filter(Boolean)
     .join("|")
@@ -187,15 +211,51 @@ const getManagedBookingActionIds = (bookingOrId) => {
   return fallbackId ? [fallbackId] : []
 }
 
+const getManagedBookingItems = (booking) =>
+  Array.isArray(booking?.groupedBookings) && booking.groupedBookings.length > 0
+    ? booking.groupedBookings
+    : [booking].filter(Boolean)
+
+const getGroupedManagedBookingStatus = (bookings = []) => {
+  const statuses = (Array.isArray(bookings) ? bookings : [])
+    .map((booking) => String(booking?.status || "").trim().toUpperCase())
+    .filter(Boolean)
+
+  if (statuses.length === 0) {
+    return "PENDING"
+  }
+
+  if (statuses.every((status) => status === "COMPLETED")) {
+    return "COMPLETED"
+  }
+
+  if (statuses.every((status) => status === "CONFIRMED" || status === "COMPLETED")) {
+    return "CONFIRMED"
+  }
+
+  if (statuses.some((status) => status === "PENDING")) {
+    return "PENDING"
+  }
+
+  return statuses[0]
+}
+
 const createGroupedManagedBooking = (booking) => {
   const timeRange = getManagedBookingTimeRange(booking)
   const hourlyPrice = getManagedBookingHourlyPrice(booking)
+  const paymentSummary = getBookingPaymentSummaryVi(booking)
 
   return {
     ...booking,
     bookingIds: getManagedBookingActionIds(booking),
     totalPrice: getManagedBookingNormalizedTotalPrice(booking, hourlyPrice),
     groupedBookingCount: 1,
+    groupedBookings: [booking],
+    status: getGroupedManagedBookingStatus([booking]),
+    depositAmount: Number(paymentSummary.depositAmount || 0),
+    remainingAmount: Number(paymentSummary.remainingAmount || 0),
+    depositPaid: paymentSummary.hasConfirmedDeposit,
+    fullyPaid: paymentSummary.isFullyPaid,
     _groupKey: getManagedBookingGroupKey(booking),
     _groupStartMinutes: timeRange?.startMinutes ?? null,
     _groupEndMinutes: timeRange?.endMinutes ?? null,
@@ -225,6 +285,7 @@ const canMergeManagedBookings = (currentGroup, nextBooking) => {
 
 const mergeGroupedManagedBooking = (currentGroup, nextBooking) => {
   const nextRange = getManagedBookingTimeRange(nextBooking)
+  const mergedBookings = [...(Array.isArray(currentGroup?.groupedBookings) ? currentGroup.groupedBookings : []), nextBooking]
   const mergedBookingIds = Array.from(
     new Set([
       ...getManagedBookingActionIds(currentGroup),
@@ -234,6 +295,11 @@ const mergeGroupedManagedBooking = (currentGroup, nextBooking) => {
   const mergedStartMinutes = Number(currentGroup?._groupStartMinutes)
   const mergedEndMinutes = Number(nextRange?.endMinutes ?? currentGroup?._groupEndMinutes)
   const hourlyPrice = Number(currentGroup?._groupHourlyPrice || getManagedBookingHourlyPrice(nextBooking) || 0)
+  const mergedCreatedAtCandidates = mergedBookings
+    .map((booking) => String(booking?.createdAt || "").trim())
+    .filter(Boolean)
+    .sort((left, right) => new Date(right).getTime() - new Date(left).getTime())
+  const mergedPaymentSummaries = mergedBookings.map((booking) => getBookingPaymentSummaryVi(booking))
   const mergedDurationMinutes =
     Number.isFinite(mergedStartMinutes)
     && Number.isFinite(mergedEndMinutes)
@@ -244,11 +310,18 @@ const mergeGroupedManagedBooking = (currentGroup, nextBooking) => {
   return {
     ...currentGroup,
     bookingIds: mergedBookingIds,
+    groupedBookingCount: mergedBookings.length,
+    groupedBookings: mergedBookings,
+    status: getGroupedManagedBookingStatus(mergedBookings),
+    depositAmount: mergedPaymentSummaries.reduce((sum, item) => sum + Number(item?.depositAmount || 0), 0),
+    depositPaid: mergedPaymentSummaries.some((item) => item?.hasConfirmedDeposit),
+    fullyPaid: mergedPaymentSummaries.every((item) => item?.isFullyPaid),
     totalPrice:
       hourlyPrice > 0 && mergedDurationMinutes > 0
         ? Math.round((hourlyPrice * mergedDurationMinutes) / 60)
         : Number(currentGroup?.totalPrice || 0) + getManagedBookingNormalizedTotalPrice(nextBooking),
-    groupedBookingCount: Number(currentGroup?.groupedBookingCount || 1) + 1,
+    remainingAmount: mergedPaymentSummaries.reduce((sum, item) => sum + Number(item?.remainingAmount || 0), 0),
+    createdAt: mergedCreatedAtCandidates[0] || currentGroup?.createdAt || nextBooking?.createdAt || null,
     _groupEndMinutes: nextRange?.endMinutes ?? currentGroup?._groupEndMinutes,
     _groupHourlyPrice: hourlyPrice,
     timeSlot:
@@ -292,17 +365,18 @@ const sortManagedBookings = (bookings = []) =>
       return leftDate.localeCompare(rightDate)
     }
 
+    const leftGroupKey = String(getManagedBookingGroupKey(left) || "")
+    const rightGroupKey = String(getManagedBookingGroupKey(right) || "")
+    if (leftGroupKey !== rightGroupKey) {
+      return leftGroupKey.localeCompare(rightGroupKey, "vi")
+    }
+
     const slotDiff = getManagedBookingStartMinutes(left) - getManagedBookingStartMinutes(right)
     if (slotDiff !== 0) {
       return slotDiff
     }
 
-    const fieldDiff = String(left?.fieldName || "").localeCompare(String(right?.fieldName || ""), "vi")
-    if (fieldDiff !== 0) {
-      return fieldDiff
-    }
-
-    return String(left?.subFieldName || "").localeCompare(String(right?.subFieldName || ""), "vi")
+    return String(left?.id || left?._id || "").localeCompare(String(right?.id || right?._id || ""), "vi")
   })
 
 const getVisibleManagedBookings = (bookings = [], selectedDate = "", filterStatus = "ALL") => {
@@ -554,6 +628,7 @@ export const useAdminBookingsController = ({ authToken, currentUser }) => {
   const handleConfirmBooking = async (booking) => {
     const bookingIds = getManagedBookingActionIds(booking)
     const actionKey = String(booking?.id || bookingIds[0] || "").trim()
+    const groupedBookings = getManagedBookingItems(booking)
 
     if (bookingIds.length === 0) {
       setError("Không tìm thấy mã đặt sân hợp lệ để xác nhận.")
@@ -563,8 +638,43 @@ export const useAdminBookingsController = ({ authToken, currentUser }) => {
     try {
       setError(null)
       setActionLoading(actionKey)
+      const actionTasks = groupedBookings.flatMap((item) => {
+        const itemBookingId = String(item?.id || item?._id || "").trim()
+        if (!itemBookingId) {
+          return []
+        }
+
+        const paymentSummary = getBookingPaymentSummaryVi(item)
+        const itemStatus = String(item?.status || "").trim().toUpperCase()
+        const needsBookingConfirmation = itemStatus !== "CONFIRMED" && itemStatus !== "COMPLETED"
+
+        if (paymentSummary.isFullyPaid) {
+          return needsBookingConfirmation
+            ? [() => confirmAdminBooking(authToken, itemBookingId)]
+            : []
+        }
+
+        if (!paymentSummary.hasConfirmedDeposit) {
+          const tasks = []
+          if (needsBookingConfirmation) {
+            tasks.push(() => confirmAdminBooking(authToken, itemBookingId))
+          }
+          tasks.push(() => confirmAdminBookingDeposit(authToken, itemBookingId))
+          return tasks
+        }
+
+        if (Number(paymentSummary.remainingAmount || 0) > 0) {
+          return [() => confirmAdminBookingPayment(authToken, itemBookingId, Number(paymentSummary.remainingAmount || 0))]
+        }
+
+        return needsBookingConfirmation
+          ? [() => confirmAdminBooking(authToken, itemBookingId)]
+          : []
+      })
       const results = await Promise.allSettled(
-        bookingIds.map((bookingId) => confirmAdminBooking(authToken, bookingId))
+        actionTasks.length > 0
+          ? actionTasks.map((task) => task())
+          : [Promise.resolve(null)]
       )
       await reloadVisibleBookings()
       const rejectedResult = results.find((result) => result.status === "rejected")

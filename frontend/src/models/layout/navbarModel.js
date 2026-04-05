@@ -9,7 +9,6 @@ const BASE_NAV_ITEMS = Object.freeze([
   { key: "home", to: ROUTES.home, label: "Trang chủ", end: true },
   { key: "fields", to: ROUTES.fields, label: "Danh sách sân" },
   { key: "booking", to: ROUTES.booking, label: "Đặt sân" },
-  { key: "contact", to: ROUTES.contact, label: "Liên hệ" },
 ])
 
 const GUEST_ACTIONS = Object.freeze([
@@ -41,7 +40,6 @@ export const createNavbarModel = (currentUser) => {
   const isOwner = isOwnerUser(currentUser)
   const isAuthenticated = Boolean(currentUser)
 
-  // Thêm link thanh toán cho user login
   if (isAuthenticated && !isAdmin && !isOwner) {
     baseItems.push({ key: "myPayments", to: ROUTES.myPayments, label: "Thanh toán" })
   }

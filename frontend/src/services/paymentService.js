@@ -1,5 +1,6 @@
 import { 
   createBookingPayment,
+  getMyBookings as getMyBookingsApi,
   getMyPayments as getMyPaymentsApi,
   getPaymentByBooking as getPaymentByBookingApi,
   confirmPayment as confirmPaymentApi,
@@ -8,6 +9,91 @@ import {
   getPaymentQr,
 } from '../models/api'
 import { normalizePaymentItem } from '../models/paymentModel'
+
+const PENDING_PAYMENT_STATUSES = new Set(['', 'PENDING', 'WAITING', 'PROCESSING', 'UNPAID'])
+const CANCELLED_BOOKING_STATUSES = new Set(['CANCELLED', 'CANCELED'])
+const PAID_BOOKING_STATUSES = new Set(['CONFIRMED', 'COMPLETED'])
+
+const getPaymentBookingIds = (payment) => {
+  if (!payment || typeof payment !== 'object') {
+    return []
+  }
+
+  const rawBookingIds = Array.isArray(payment.bookingIds)
+    ? payment.bookingIds
+    : [payment.bookingId]
+
+  return Array.from(
+    new Set(
+      rawBookingIds
+        .map((item) => String(item || '').trim())
+        .filter(Boolean)
+    )
+  )
+}
+
+const isBookingPaymentConfirmed = (booking) => {
+  if (!booking || typeof booking !== 'object') {
+    return false
+  }
+
+  const bookingStatus = String(booking.status || '').trim().toUpperCase()
+  const paymentStatus = String(booking.paymentStatus || booking.depositStatus || '').trim().toUpperCase()
+  const remainingAmount = Number(booking.remainingAmount || 0)
+
+  return Boolean(
+    booking.depositPaid
+    || booking.fullyPaid
+    || paymentStatus === 'PAID'
+    || PAID_BOOKING_STATUSES.has(bookingStatus)
+    || (
+      remainingAmount <= 0
+      && (
+        booking.depositPaid
+        || paymentStatus === 'PAID'
+      )
+    )
+  )
+}
+
+const reconcilePaymentWithBookingStatuses = (payment, bookingMap) => {
+  if (!payment || typeof payment !== 'object') {
+    return payment
+  }
+
+  const paymentStatus = String(payment.status || payment.paymentStatus || '').trim().toUpperCase()
+  if (!PENDING_PAYMENT_STATUSES.has(paymentStatus)) {
+    return payment
+  }
+
+  const relatedBookings = getPaymentBookingIds(payment)
+    .map((bookingId) => bookingMap.get(bookingId) || null)
+    .filter(Boolean)
+
+  if (relatedBookings.length === 0) {
+    return payment
+  }
+
+  const relatedBookingStatuses = relatedBookings
+    .map((booking) => String(booking?.status || '').trim().toUpperCase())
+    .filter(Boolean)
+
+  if (relatedBookingStatuses.length > 0 && relatedBookingStatuses.every((status) => CANCELLED_BOOKING_STATUSES.has(status))) {
+    return {
+      ...payment,
+      status: 'CANCELLED',
+    }
+  }
+
+  if (relatedBookings.every((booking) => isBookingPaymentConfirmed(booking))) {
+    return {
+      ...payment,
+      status: 'PAID',
+    }
+  }
+
+  return payment
+}
 
 export const createPayment = async (token, bookingId, method, paymentType, amount = null, bookingIds = []) => {
   if (!token) throw new Error('Token không hợp lệ')
@@ -61,10 +147,24 @@ export const checkPaymentStatus = async (token, paymentId) => {
 export const getMyPayments = async (token) => {
   if (!token) throw new Error('Token không hợp lệ')
 
-  const response = await getMyPaymentsApi(token)
+  const [paymentResponse, bookingResponse] = await Promise.all([
+    getMyPaymentsApi(token),
+    getMyBookingsApi(token).catch(() => ({ bookings: [] })),
+  ])
 
-  const payments = Array.isArray(response?.payments) ? response.payments : []
-  return payments.map(normalizePaymentItem).filter(Boolean)
+  const payments = Array.isArray(paymentResponse?.payments) ? paymentResponse.payments : []
+  const bookings = Array.isArray(bookingResponse?.bookings) ? bookingResponse.bookings : []
+  const bookingMap = new Map(
+    bookings.map((booking) => [
+      String(booking?.id || booking?._id || '').trim(),
+      booking,
+    ])
+  )
+
+  return payments
+    .map((payment) => reconcilePaymentWithBookingStatuses(payment, bookingMap))
+    .map(normalizePaymentItem)
+    .filter(Boolean)
 }
 
 export const getPaymentByBooking = async (token, bookingId) => {

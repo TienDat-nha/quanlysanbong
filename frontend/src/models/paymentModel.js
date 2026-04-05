@@ -10,7 +10,40 @@ const PAYMENT_PATHS = {
 
 const PAYMENT_METHODS = ['MOMO', 'BANK', 'CASH']
 const PAYMENT_TYPES = ['DEPOSIT', 'FULL']
-const PAYMENT_STATUSES = ['PENDING', 'PAID', 'CANCELLED', 'EXPIRED']
+const PAYMENT_STATUSES = ['PENDING', 'PAID', 'CANCELLED', 'EXPIRED', 'FAILED']
+const DEFAULT_PENDING_PAYMENT_MINUTES = 5
+
+const normalizePaymentDate = (value) => {
+  if (!value) {
+    return null
+  }
+
+  const date = value instanceof Date ? new Date(value.getTime()) : new Date(value)
+  return Number.isNaN(date.getTime()) ? null : date
+}
+
+const getEffectivePaymentStatus = (status, expiredAt = null, createdAt = null, now = Date.now()) => {
+  const normalizedStatus = String(status || '').trim().toUpperCase()
+  const normalizedExpiredAt = normalizePaymentDate(expiredAt)
+  const normalizedCreatedAt = normalizePaymentDate(createdAt)
+  const derivedExpiredAt =
+    normalizedExpiredAt
+    || (
+      normalizedCreatedAt
+        ? new Date(normalizedCreatedAt.getTime() + DEFAULT_PENDING_PAYMENT_MINUTES * 60 * 1000)
+        : null
+    )
+
+  if (
+    ['PENDING', 'EXPIRED', 'FAILED'].includes(normalizedStatus)
+    && derivedExpiredAt
+    && derivedExpiredAt.getTime() <= now
+  ) {
+    return 'CANCELLED'
+  }
+
+  return normalizedStatus
+}
 
 const normalizePaymentItem = (payment) => {
   if (!payment || typeof payment !== 'object') {
@@ -24,6 +57,10 @@ const normalizePaymentItem = (payment) => {
     return null
   }
 
+  const expiredAt = normalizePaymentDate(payment.expiredAt)
+  const createdAt = normalizePaymentDate(payment.createdAt)
+  const status = getEffectivePaymentStatus(payment.status, expiredAt, createdAt)
+
   return {
     ...payment,
     id: id || bookingId,
@@ -35,14 +72,14 @@ const normalizePaymentItem = (payment) => {
     amount: Number(payment.amount || 0),
     method: String(payment.method || '').trim().toUpperCase(),
     paymentType: String(payment.paymentType || payment.type || '').trim().toUpperCase(),
-    status: String(payment.status || '').trim().toUpperCase(),
+    status,
     qrImage: String(payment.qrImage || payment.qr || '').trim(),
     qrText: String(payment.qrText || payment.qrCode || payment.content || '').trim(),
     payUrl: String(payment.payUrl || payment.paymentUrl || '').trim(),
     deeplink: String(payment.deeplink || payment.deepLink || '').trim(),
     transactionCode: String(payment.transactionCode || '').trim(),
-    expiredAt: payment.expiredAt ? new Date(payment.expiredAt) : null,
-    createdAt: payment.createdAt ? new Date(payment.createdAt) : null,
+    expiredAt,
+    createdAt,
   }
 }
 
@@ -51,5 +88,6 @@ export {
   PAYMENT_METHODS, 
   PAYMENT_TYPES, 
   PAYMENT_STATUSES,
+  getEffectivePaymentStatus,
   normalizePaymentItem,
 }

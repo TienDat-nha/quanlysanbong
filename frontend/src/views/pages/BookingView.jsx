@@ -11,7 +11,7 @@ import {
 } from "../../models/bookingModel"
 import { formatPrice } from "../../models/fieldModel"
 import { getFieldTypeLabel } from "../../models/fieldTypeModel"
-import { formatPaymentStatusVi } from "../../models/bookingTextModel"
+import { getBookingPaymentSummaryVi } from "../../models/bookingTextModel"
 import { createDepositPaymentRoute } from "../../models/routeModel"
 
 const getSlotTitle = (fieldName, subFieldName, slot) => {
@@ -52,190 +52,46 @@ const getTimelineHeaderRange = (slot) => {
   }
 }
 
-// eslint-disable-next-line no-unused-vars
-const BookingHistoryPanel = ({
-  currentUser,
-  bookings,
-  authToken,
-  loadingBookings,
-  cancellingBookingId,
-  formatDateTime,
-  formatStatus,
-  onCancelBooking,
-  className = "",
-}) => (
-  <section className={`bookingList ${className}`.trim()}>
-    <h2>Sân đã đặt</h2>
-    {currentUser && <p className="helperText">Tài khoản: {currentUser.email}</p>}
-    {loadingBookings && <p>Đang tải lịch sử đặt sân...</p>}
-    {!loadingBookings && !authToken && <p>Đăng nhập để xem lịch sử đặt sân của bạn.</p>}
-    {!loadingBookings && authToken && bookings.length === 0 && <p>Bạn chưa có đơn đặt sân nào.</p>}
+const getBookingHistoryStatusTone = (status) => {
+  const normalizedStatus = String(status || "").trim().toUpperCase()
 
-    {!loadingBookings && bookings.length > 0 && (
-      <ul>
-        {bookings.map((booking) => {
-          const bookingStatus = String(booking.status || "").trim().toLowerCase()
-          const paymentStatus = String(
-            booking.paymentStatus || (booking.depositPaid ? "deposit_paid" : "unpaid")
-          )
-            .trim()
-            .toLowerCase()
-          const bookingPaid =
-            Boolean(booking.depositPaid || booking.fullyPaid)
-            || paymentStatus === "paid"
-            || paymentStatus === "deposit_paid"
-          const canShowDepositAction =
-            Boolean(authToken) && bookingStatus !== "cancelled" && paymentStatus !== "paid"
-          const canCancelBooking = Boolean(authToken) && bookingStatus !== "cancelled" && !bookingPaid
-          const isCancelling = String(cancellingBookingId) === String(booking.id)
-          const paymentActionLabel =
-            paymentStatus === "deposit_paid"
-              ? "Xem trạng thái thanh toán"
-              : paymentStatus === "pending"
-                ? "Xem yêu cầu thanh toán"
-                : "Thanh toán đặt cọc"
+  switch (normalizedStatus) {
+    case "CONFIRMED":
+    case "COMPLETED":
+    case "APPROVED":
+      return "success"
+    case "PENDING":
+      return "warning"
+    case "CANCELLED":
+    case "CANCELED":
+    case "REJECTED":
+      return "danger"
+    default:
+      return "neutral"
+  }
+}
 
-          return (
-            <li key={booking.id} className="bookingItem">
-              <h3>{booking.fieldName}</h3>
-              {booking.subFieldName && <p>Sân con: {booking.subFieldName}</p>}
-              <p>Ngày: {booking.date}</p>
-              <p>Giờ: {booking.timeSlot}</p>
-              {booking.phone && <p>SDT: {booking.phone}</p>}
-              {!booking.phone && booking.address && <p>Liên hệ: {booking.address}</p>}
-              <p>Trạng thái: {formatStatus(booking.status)}</p>
-              <p>Thanh toán: {formatPaymentStatusVi(booking.paymentStatus, booking.depositStatus)}</p>
+const getBookingHistoryCardTone = (bookingStatusTone, paymentStatusTone) => {
+  if (bookingStatusTone === "danger" || paymentStatusTone === "danger") {
+    return "danger"
+  }
 
-              {(canShowDepositAction || canCancelBooking) && (
-                <div className="bookingHistoryItemActions fieldActions">
-                  {canShowDepositAction && (
-                    <Link className="outlineBtnLink" to={createDepositPaymentRoute(booking.id)}>
-                      {paymentActionLabel}
-                    </Link>
-                  )}
+  if (bookingStatusTone === "success" || paymentStatusTone === "success") {
+    return "success"
+  }
 
-                  {canCancelBooking && (
-                    <button
-                      className="outlineBtnInline adminDangerBtn"
-                      type="button"
-                      onClick={() => onCancelBooking(booking)}
-                      disabled={isCancelling}
-                    >
-                      {isCancelling ? "Đang hủy..." : "Hủy đơn"}
-                    </button>
-                  )}
-                </div>
-              )}
+  if (bookingStatusTone === "warning" || paymentStatusTone === "warning") {
+    return "warning"
+  }
 
-              <small>Tạo lúc: {formatDateTime(booking.createdAt)}</small>
-            </li>
-          )
-        })}
-      </ul>
-    )}
-  </section>
-)
+  return "neutral"
+}
 
 // eslint-disable-next-line no-unused-vars
-const BookingHistoryPanelClean = ({
-  currentUser,
-  bookings,
-  authToken,
-  loadingBookings,
-  cancellingBookingId,
-  formatDateTime,
-  formatStatus,
-  onCancelBooking,
-  className = "",
-}) => (
-  <section className={`bookingList ${className}`.trim()}>
-    <h2>Sân đã đặt</h2>
-    {currentUser && <p className="helperText">Tài khoản: {currentUser.email}</p>}
-    {loadingBookings && <p>Đang tải lịch sử đặt sân...</p>}
-    {!loadingBookings && !authToken && <p>Đăng nhập để xem lịch sử đặt sân của bạn.</p>}
-    {!loadingBookings && authToken && bookings.length === 0 && <p>Bạn chưa có đơn đặt sân nào.</p>}
+const BookingHistoryPanel = (props) => <BookingHistoryPanelUtf8 {...props} />
 
-    {!loadingBookings && bookings.length > 0 && (
-      <ul>
-        {bookings.map((booking) => {
-          const paymentTargetIds =
-            Array.isArray(booking.bookingIds) && booking.bookingIds.length > 0
-              ? booking.bookingIds.map((item) => String(item || "").trim()).filter(Boolean)
-              : [String(booking.id || "").trim()].filter(Boolean)
-          const bookingStatus = String(booking.status || "").trim().toLowerCase()
-          const paymentStatus = String(
-            booking.paymentStatus || (booking.depositPaid ? "deposit_paid" : "unpaid")
-          )
-            .trim()
-            .toLowerCase()
-          const bookingPaid =
-            Boolean(booking.depositPaid || booking.fullyPaid)
-            || paymentStatus === "paid"
-            || paymentStatus === "deposit_paid"
-          const canShowDepositAction =
-            Boolean(authToken) && bookingStatus !== "cancelled" && paymentStatus !== "paid"
-          const canCancelBooking = Boolean(authToken) && bookingStatus !== "cancelled" && !bookingPaid
-          const isCancelling = String(cancellingBookingId) === String(booking.id)
-          const paymentQuery =
-            paymentTargetIds.length > 1
-              ? `?${new URLSearchParams({ bookingIds: paymentTargetIds.join(",") }).toString()}`
-              : ""
-          const paymentActionLabel =
-            paymentStatus === "deposit_paid"
-              ? "Xem trạng thái thanh toán"
-              : paymentStatus === "pending"
-                ? "Xem yêu cầu thanh toán"
-                : "Thanh toán"
-
-          return (
-            <li key={booking.id} className="bookingItem">
-              <h3>{booking.fieldName}</h3>
-              {booking.subFieldName && <p>Sân con: {booking.subFieldName}</p>}
-              <p>Ngày: {booking.date}</p>
-              <p>Giờ: {booking.timeSlot}</p>
-              {booking.phone && <p>SDT: {booking.phone}</p>}
-              {!booking.phone && booking.address && <p>Liên hệ: {booking.address}</p>}
-              <p>Trạng thái: {formatStatus(booking.status)}</p>
-              <p>Thanh toán: {formatPaymentStatusVi(booking.paymentStatus, booking.depositStatus)}</p>
-
-              {(canShowDepositAction || canCancelBooking) && (
-                <div className="bookingHistoryItemActions fieldActions">
-                  {canShowDepositAction && (
-                    <Link
-                      className="outlineBtnLink"
-                      to={`${createDepositPaymentRoute(paymentTargetIds[0] || booking.id)}${paymentQuery}`}
-                      state={{
-                        booking,
-                        bookingIds: paymentTargetIds,
-                        field: booking.field || null,
-                      }}
-                    >
-                      {paymentActionLabel}
-                    </Link>
-                  )}
-
-                  {canCancelBooking && (
-                    <button
-                      className="outlineBtnInline adminDangerBtn"
-                      type="button"
-                      onClick={() => onCancelBooking(booking)}
-                      disabled={isCancelling}
-                    >
-                      {isCancelling ? "Đang hủy..." : "Hủy đơn"}
-                    </button>
-                  )}
-                </div>
-              )}
-
-              <small>Tạo lúc: {formatDateTime(booking.createdAt)}</small>
-            </li>
-          )
-        })}
-      </ul>
-    )}
-  </section>
-)
-
+// eslint-disable-next-line no-unused-vars
+const BookingHistoryPanelClean = (props) => <BookingHistoryPanelUtf8 {...props} />
 const BookingHistoryPanelUtf8 = ({
   currentUser,
   bookings,
@@ -262,71 +118,142 @@ const BookingHistoryPanelUtf8 = ({
               ? booking.bookingIds.map((item) => String(item || "").trim()).filter(Boolean)
               : [String(booking.id || "").trim()].filter(Boolean)
           const bookingStatus = String(booking.status || "").trim().toLowerCase()
-          const paymentStatus = String(
-            booking.paymentStatus || (booking.depositPaid ? "deposit_paid" : "unpaid")
-          )
-            .trim()
-            .toLowerCase()
-          const bookingPaid =
-            Boolean(booking.depositPaid || booking.fullyPaid)
-            || paymentStatus === "paid"
-            || paymentStatus === "deposit_paid"
+          const paymentSummary = getBookingPaymentSummaryVi(booking)
           const canShowDepositAction =
-            Boolean(authToken) && bookingStatus !== "cancelled" && paymentStatus !== "paid"
-          const canCancelBooking = Boolean(authToken) && bookingStatus !== "cancelled" && !bookingPaid
+            Boolean(authToken) && bookingStatus !== "cancelled" && paymentSummary.canShowPaymentAction
+          const canCancelBooking =
+            Boolean(authToken)
+            && bookingStatus !== "cancelled"
+            && !paymentSummary.hasConfirmedDeposit
+            && !paymentSummary.isFullyPaid
           const isCancelling = String(cancellingBookingId) === String(booking.id)
           const paymentQuery =
             paymentTargetIds.length > 1
               ? `?${new URLSearchParams({ bookingIds: paymentTargetIds.join(",") }).toString()}`
               : ""
-          const paymentActionLabel =
-            paymentStatus === "deposit_paid"
-              ? "Xem trạng thái thanh toán"
-              : paymentStatus === "pending"
-                ? "Xem yêu cầu thanh toán"
-                : "Thanh toán"
+          const paymentActionLabel = paymentSummary.actionLabel || "Thanh toán"
+          const bookingStatusLabel = formatStatus(booking.status)
+          const paymentStatusLabel = paymentSummary.label
+          const bookingStatusTone = getBookingHistoryStatusTone(booking.status)
+          const paymentStatusTone = paymentSummary.tone
+          const cardTone = getBookingHistoryCardTone(bookingStatusTone, paymentStatusTone)
+          const groupedBookingCount = Number(booking.groupedBookingCount || paymentTargetIds.length || 0)
+          const holdExpiresAt = String(booking.holdExpiresAt || booking.expiredAt || "").trim()
+          const shouldShowHoldExpiry =
+            Boolean(holdExpiresAt)
+            && !paymentSummary.hasConfirmedDeposit
+            && !paymentSummary.isFullyPaid
+          const ownerPhone = String(
+            booking.fieldOwnerPhone
+            || booking.field?.ownerPhone
+            || booking.field?.owner?.phone
+            || booking.field?.user?.phone
+            || ""
+          ).trim()
+          const footerNote = groupedBookingCount > 1
+            ? `${groupedBookingCount} khung giờ liên tiếp`
+            : `Mã đơn: ${String(booking.id || "").trim().slice(0, 12)}...`
+          const bookingCode = String(booking.id || paymentTargetIds[0] || "").trim()
+          const totalAmount = Number(paymentSummary.totalAmount || booking.totalPrice || 0)
+          const paidDepositAmount = Number(paymentSummary.paidDepositAmount || 0)
+          const remainingPaidAmount = Number(paymentSummary.remainingPaidAmount || 0)
+          const remainingAmount = Number(paymentSummary.remainingAmount || 0)
+          const detailItems = [
+            bookingCode ? { label: "Mã đặt", value: `#${bookingCode.slice(0, 8)}` } : null,
+            totalAmount > 0 ? { label: "Tổng tiền", value: `${formatPrice(totalAmount)} VND`, accent: true } : null,
+            paidDepositAmount > 0 ? { label: "Đã cọc", value: `${formatPrice(paidDepositAmount)} VND` } : null,
+            remainingPaidAmount > 0
+              ? { label: "Đã thanh toán phần còn lại", value: `${formatPrice(remainingPaidAmount)} VND` }
+              : null,
+            totalAmount > 0
+              ? {
+                  label: "Còn nợ",
+                  value: `${formatPrice(remainingAmount)} VND`,
+                  accent: remainingAmount > 0,
+                }
+              : null,
+            { label: "Ngày đặt", value: booking.date || "--" },
+            { label: "Khung giờ", value: booking.timeSlot || "--", accent: true },
+            ownerPhone ? { label: "Số điện thoại chủ sân", value: ownerPhone } : null,
+            booking.fieldAddress ? { label: "Địa chỉ sân", value: booking.fieldAddress } : null,
+            shouldShowHoldExpiry
+              ? { label: "Giữ chỗ đến", value: formatDateTime(holdExpiresAt) || holdExpiresAt }
+              : null,
+            { label: "Tạo lúc", value: formatDateTime(booking.createdAt) || "--" },
+          ].filter(Boolean)
 
           return (
-            <li key={booking.id} className="bookingItem">
-              <h3>{booking.fieldName}</h3>
-              {booking.subFieldName && <p>Sân con: {booking.subFieldName}</p>}
-              <p>Ngày: {booking.date}</p>
-              <p>Giờ: {booking.timeSlot}</p>
-              {booking.phone && <p>SDT: {booking.phone}</p>}
-              {!booking.phone && booking.address && <p>Liên hệ: {booking.address}</p>}
-              <p>Trạng thái: {formatStatus(booking.status)}</p>
-              <p>Thanh toán: {formatPaymentStatusVi(booking.paymentStatus, booking.depositStatus)}</p>
-
-              {(canShowDepositAction || canCancelBooking) && (
-                <div className="bookingHistoryItemActions fieldActions">
-                  {canShowDepositAction && (
-                    <Link
-                      className="outlineBtnLink"
-                      to={`${createDepositPaymentRoute(paymentTargetIds[0] || booking.id)}${paymentQuery}`}
-                      state={{
-                        booking,
-                        bookingIds: paymentTargetIds,
-                        field: booking.field || null,
-                      }}
-                    >
-                      {paymentActionLabel}
-                    </Link>
-                  )}
-
-                  {canCancelBooking && (
-                    <button
-                      className="outlineBtnInline adminDangerBtn"
-                      type="button"
-                      onClick={() => onCancelBooking(booking)}
-                      disabled={isCancelling}
-                    >
-                      {isCancelling ? "Đang hủy..." : "Hủy đơn"}
-                    </button>
-                  )}
+            <li
+              key={booking.id}
+              className={`bookingItem bookingHistoryCard bookingHistoryCard--${cardTone}`.trim()}
+            >
+              <div className="bookingHistoryCardTop">
+                <div className="bookingHistoryCardHeading">
+                  <span className="bookingHistoryCardEyebrow">Lịch sân của bạn</span>
+                  <h3>{booking.fieldName}</h3>
+                  <p className="bookingHistoryCardSubline">
+                    {booking.subFieldName ? `Sân con: ${booking.subFieldName}` : "Sân chưa gắn sân con"}
+                    {groupedBookingCount > 1 ? ` • ${groupedBookingCount} khung giờ liên tiếp` : ""}
+                  </p>
                 </div>
-              )}
 
-              <small>Tạo lúc: {formatDateTime(booking.createdAt)}</small>
+                <div className="bookingHistoryCardBadges">
+                  <span className={`bookingHistoryBadge bookingHistoryBadge--${bookingStatusTone}`.trim()}>
+                    {bookingStatusLabel}
+                  </span>
+                  <span className={`bookingHistoryBadge bookingHistoryBadge--${paymentStatusTone}`.trim()}>
+                    {paymentStatusLabel}
+                  </span>
+                </div>
+              </div>
+
+              <div className="bookingHistoryCardGrid">
+                {detailItems.map((item) => (
+                  <div key={`${booking.id}-${item.label}`} className="bookingHistoryMetaItem">
+                    <span className="bookingHistoryMetaLabel">{item.label}</span>
+                    <strong
+                      className={`bookingHistoryMetaValue${item.accent ? " bookingHistoryMetaValue--accent" : ""}`.trim()}
+                    >
+                      {item.value}
+                    </strong>
+                  </div>
+                ))}
+              </div>
+
+              <div className="bookingHistoryCardFooter">
+                <span className="bookingHistoryCardFooterNote" title={String(booking.id || "").trim()}>
+                  {footerNote}
+                </span>
+
+                {(canShowDepositAction || canCancelBooking) && (
+                  <div className="bookingHistoryItemActions fieldActions">
+                    {canShowDepositAction && (
+                      <Link
+                        className="outlineBtnLink"
+                        to={`${createDepositPaymentRoute(paymentTargetIds[0] || booking.id)}${paymentQuery}`}
+                        state={{
+                          booking,
+                          bookingIds: paymentTargetIds,
+                          field: booking.field || null,
+                        }}
+                      >
+                        {paymentActionLabel}
+                      </Link>
+                    )}
+
+                    {canCancelBooking && (
+                      <button
+                        className="outlineBtnInline adminDangerBtn"
+                        type="button"
+                        onClick={() => onCancelBooking(booking)}
+                        disabled={isCancelling}
+                      >
+                        {isCancelling ? "Đang hủy..." : "Hủy đơn"}
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
             </li>
           )
         })}
@@ -334,7 +261,6 @@ const BookingHistoryPanelUtf8 = ({
     )}
   </section>
 )
-
 const BookingView = ({
   authToken,
   currentUser,
