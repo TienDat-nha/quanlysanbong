@@ -53,12 +53,18 @@ const withExpectedPaymentShape = (payment, expectedType, expectedAmount) => ({
   paymentType: normalizePaymentType(payment?.paymentType, expectedType),
 })
 
-const isBookingPaymentConfirmed = (booking) => {
+const isBookingPaymentConfirmed = (booking, paymentType = '') => {
   if (!booking || typeof booking !== 'object') {
     return false
   }
 
   const paymentSummary = getBookingPaymentSummaryVi(booking)
+  const normalizedPaymentType = String(paymentType || '').trim().toUpperCase()
+
+  if (normalizedPaymentType === 'FULL') {
+    return paymentSummary.isFullyPaid
+  }
+
   return paymentSummary.hasConfirmedDeposit || paymentSummary.isFullyPaid
 }
 
@@ -400,11 +406,17 @@ const PaymentMethodModal = ({
           liveBookings.map((item) => [String(item?.id || item?._id || '').trim(), item])
         )
         paymentReceived = effectiveBookingIds.every((id) =>
-          isBookingPaymentConfirmed(liveBookingMap.get(String(id || '').trim()))
+          isBookingPaymentConfirmed(
+            liveBookingMap.get(String(id || '').trim()),
+            selectedPayment?.paymentType || effectivePaymentType
+          )
         )
       } else if (primaryBookingId) {
         const bookingData = await getBookingById(primaryBookingId, authToken)
-        paymentReceived = isBookingPaymentConfirmed(bookingData?.booking)
+        paymentReceived = isBookingPaymentConfirmed(
+          bookingData?.booking,
+          selectedPayment?.paymentType || effectivePaymentType
+        )
       }
 
       if (!paymentReceived) {

@@ -32,12 +32,18 @@ const getPaymentBookingIds = (payment) => {
   )
 }
 
-const isBookingPaymentConfirmed = (booking) => {
+const isBookingPaymentConfirmed = (booking, paymentType = '') => {
   if (!booking || typeof booking !== 'object') {
     return false
   }
 
   const paymentSummary = getBookingPaymentSummaryVi(booking)
+  const normalizedPaymentType = String(paymentType || '').trim().toUpperCase()
+
+  if (normalizedPaymentType === 'FULL') {
+    return paymentSummary.isFullyPaid
+  }
+
   return paymentSummary.hasConfirmedDeposit || paymentSummary.isFullyPaid
 }
 
@@ -70,7 +76,9 @@ const reconcilePaymentWithBookingStatuses = (payment, bookingMap) => {
     }
   }
 
-  if (relatedBookings.every((booking) => isBookingPaymentConfirmed(booking))) {
+  const normalizedPaymentType = String(payment.paymentType || payment.type || '').trim().toUpperCase()
+
+  if (relatedBookings.every((booking) => isBookingPaymentConfirmed(booking, normalizedPaymentType))) {
     return {
       ...payment,
       status: 'PAID',
