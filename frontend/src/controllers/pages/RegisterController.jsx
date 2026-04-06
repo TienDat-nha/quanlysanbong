@@ -10,6 +10,7 @@ const RegisterController = () => {
     successMessage,
     formErrors,
     loginPath,
+    otpActionMode,
     otpState,
     otpSummary,
     canResendOtp,
@@ -29,6 +30,7 @@ const RegisterController = () => {
       successMessage={successMessage}
       formErrors={formErrors}
       loginPath={loginPath}
+      otpActionMode={otpActionMode}
       otpState={otpState}
       otpSummary={otpSummary}
       canResendOtp={canResendOtp}

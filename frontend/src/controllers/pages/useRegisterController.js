@@ -95,6 +95,7 @@ export const useRegisterController = () => {
   const navigate = useNavigate()
   const [form, setForm] = useState(createRegisterForm)
   const [submitting, setSubmitting] = useState(false)
+  const [otpActionMode, setOtpActionMode] = useState("")
   const [error, setError] = useState("")
   const [successMessage, setSuccessMessage] = useState("")
   const [formErrors, setFormErrors] = useState(createRegisterFormErrors)
@@ -206,11 +207,15 @@ export const useRegisterController = () => {
 
   const otpSummary = useMemo(
     () => ({
-      countdownLabel: formatOtpCountdown(secondsUntilExpiry),
-      resendLabel: secondsUntilResend > 0 ? `${secondsUntilResend}s` : "Có thể gửi lại",
+      countdownLabel: otpState.code ? formatOtpCountdown(secondsUntilExpiry) : "--:--",
+      resendLabel: otpActionMode === "send"
+        ? "Đang gửi..."
+        : secondsUntilResend > 0
+          ? `${secondsUntilResend}s`
+          : "Có thể gửi lại",
       canSubmit: otpState.verified,
     }),
-    [otpState.verified, secondsUntilExpiry, secondsUntilResend]
+    [otpActionMode, otpState.code, otpState.verified, secondsUntilExpiry, secondsUntilResend]
   )
 
   const handleRequestOtp = async () => {
@@ -225,6 +230,18 @@ export const useRegisterController = () => {
       return
     }
 
+    const normalizedTargetEmail = String(form.email || "").trim().toLowerCase()
+    setOtpActionMode("send")
+    setOtpState((prev) => ({
+      ...prev,
+      targetEmail: normalizedTargetEmail,
+      verified: false,
+      feedback: {
+        type: "warning",
+        text: "Đang gửi OTP về email. Vui lòng chờ trong giây lát.",
+      },
+    }))
+
     try {
       const otpResponse = await requestRegisterOtp({
         email: form.email,
@@ -234,7 +251,10 @@ export const useRegisterController = () => {
       const expiresAtFromApi = Number(otpResponse?.expiresAtMs || 0)
       const expiresInMinutes = Number(otpResponse?.expiresInMinutes || 0)
       const fallbackExpiresAt =
-        sentAt + Math.max(expiresInMinutes > 0 ? expiresInMinutes * 60 * 1000 : OTP_EXPIRE_SECONDS * 1000, 1000)
+        sentAt + Math.max(
+          expiresInMinutes > 0 ? expiresInMinutes * 60 * 1000 : OTP_EXPIRE_SECONDS * 1000,
+          1000
+        )
 
       setOtpState({
         code: "issued",
@@ -243,7 +263,7 @@ export const useRegisterController = () => {
         sentAt,
         expiresAt: expiresAtFromApi > sentAt ? expiresAtFromApi : fallbackExpiresAt,
         resendAvailableAt: sentAt + OTP_RESEND_SECONDS * 1000,
-        targetEmail: String(otpResponse?.email || form.email || "").trim().toLowerCase(),
+        targetEmail: String(otpResponse?.email || normalizedTargetEmail).trim().toLowerCase(),
         feedback: {
           type: "success",
           text: normalizeSuccessOtpMessage(
@@ -260,6 +280,7 @@ export const useRegisterController = () => {
       const message = String(apiError?.message || "Không thể gửi OTP lúc này.").trim()
       setOtpState((prev) => ({
         ...prev,
+        targetEmail: prev.targetEmail || normalizedTargetEmail,
         verified: false,
         feedback: {
           type: "error",
@@ -267,61 +288,70 @@ export const useRegisterController = () => {
         },
       }))
       setError(message)
+    } finally {
+      setOtpActionMode("")
     }
   }
 
   const handleVerifyOtp = async () => {
     setError("")
     setSuccessMessage("")
+    setOtpActionMode("verify")
     setFormErrors((currentErrors) => ({
       ...currentErrors,
       otpInput: "",
     }))
 
     if (!otpState.code) {
+      const message = "Hãy gửi mã OTP trước khi xác nhận."
       setFormErrors((currentErrors) => ({
         ...currentErrors,
-        otpInput: "Hãy gửi mã OTP trước khi xác nhận.",
+        otpInput: message,
       }))
       setOtpState((prev) => ({
         ...prev,
         feedback: {
           type: "error",
-          text: "Hãy gửi mã OTP trước khi xác nhận.",
+          text: message,
         },
       }))
+      setOtpActionMode("")
       return
     }
 
     if (otpExpired) {
+      const message = "Mã OTP đã hết hạn. Hãy gửi lại mã mới."
       setFormErrors((currentErrors) => ({
         ...currentErrors,
-        otpInput: "Mã OTP đã hết hạn. Hãy gửi lại mã mới.",
+        otpInput: message,
       }))
       setOtpState((prev) => ({
         ...prev,
         verified: false,
         feedback: {
           type: "error",
-          text: "Mã OTP đã hết hạn. Hãy gửi lại mã mới.",
+          text: message,
         },
       }))
+      setOtpActionMode("")
       return
     }
 
     if (String(otpState.input || "").trim().length !== 6) {
+      const message = "Vui lòng nhập đủ 6 số OTP."
       setFormErrors((currentErrors) => ({
         ...currentErrors,
-        otpInput: "Vui lòng nhập đủ 6 số OTP.",
+        otpInput: message,
       }))
       setOtpState((prev) => ({
         ...prev,
         verified: false,
         feedback: {
           type: "error",
-          text: "Vui lòng nhập đủ 6 số OTP.",
+          text: message,
         },
       }))
+      setOtpActionMode("")
       return
     }
 
@@ -361,6 +391,9 @@ export const useRegisterController = () => {
           text: message,
         },
       }))
+      setError(message)
+    } finally {
+      setOtpActionMode("")
     }
   }
 
@@ -423,6 +456,7 @@ export const useRegisterController = () => {
     successMessage,
     formErrors,
     loginPath: ROUTES.login,
+    otpActionMode,
     otpState,
     otpSummary,
     canResendOtp,

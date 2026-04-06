@@ -14,6 +14,7 @@ const RegisterView = ({
   successMessage,
   formErrors,
   loginPath,
+  otpActionMode,
   otpState,
   otpSummary,
   canResendOtp,
@@ -30,6 +31,18 @@ const RegisterView = ({
       : otpState.feedback?.type === "warning"
         ? "message warning"
         : "message success"
+
+  const otpStatusLabel = otpState.verified
+    ? "Đã xác nhận"
+    : otpActionMode === "send"
+      ? "Đang gửi mã"
+      : otpState.feedback?.type === "error" && (otpState.targetEmail || form.email)
+        ? "Gửi mã thất bại"
+        : otpState.code
+          ? otpExpired
+            ? "Đã hết hạn"
+            : "Đang chờ xác nhận"
+          : "Chưa gửi mã"
 
   return (
     <section className="page section authPage registerPage">
@@ -130,17 +143,10 @@ const RegisterView = ({
 
             <div className="otpSummary registerOtpMeta">
               <p>
-                <strong>Email nhận mã:</strong> {otpState.targetEmail || "Chưa gửi OTP"}
+                <strong>Email nhận mã:</strong> {otpState.targetEmail || form.email || "Chưa gửi OTP"}
               </p>
               <p>
-                <strong>Trạng thái:</strong>{" "}
-                {otpState.verified
-                  ? "Đã xác nhận"
-                  : otpState.code
-                    ? otpExpired
-                      ? "Đã hết hạn"
-                      : "Đang chờ xác nhận"
-                    : "Chưa gửi mã"}
+                <strong>Trạng thái:</strong> {otpStatusLabel}
               </p>
               <div className="registerOtpStats">
                 <span className="registerOtpStat">
@@ -163,6 +169,7 @@ const RegisterView = ({
                 onChange={(event) => onOtpInputChange(event.target.value)}
                 placeholder="Nhập 6 số OTP"
                 maxLength={6}
+                disabled={submitting || otpActionMode === "send"}
               />
               <ErrorText text={formErrors?.otpInput} />
             </div>
@@ -172,17 +179,25 @@ const RegisterView = ({
                 className="registerOtpBtn"
                 type="button"
                 onClick={onRequestOtp}
-                disabled={submitting || !canResendOtp}
+                disabled={submitting || otpActionMode === "verify" || !canResendOtp}
               >
-                {otpState.code ? "Gửi lại OTP" : "Gửi OTP"}
+                {otpActionMode === "send"
+                  ? "Đang gửi..."
+                  : otpState.code
+                    ? "Gửi lại OTP"
+                    : "Gửi OTP"}
               </button>
               <button
                 className="outlineBtnInline"
                 type="button"
                 onClick={onVerifyOtp}
-                disabled={submitting || !otpState.code}
+                disabled={submitting || otpActionMode === "send" || !otpState.code}
               >
-                Xác nhận OTP
+                {otpActionMode === "verify"
+                  ? "Đang xác nhận..."
+                  : otpState.verified
+                    ? "Đã xác nhận"
+                    : "Xác nhận OTP"}
               </button>
             </div>
 
