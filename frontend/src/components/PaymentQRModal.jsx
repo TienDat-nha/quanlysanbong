@@ -61,7 +61,7 @@ const PaymentQRModal = ({
   const displayQrImage = buildQrPreviewUrl(payment, qrImage)
   const momoActionUrl = String(payment?.deeplink || payment?.payUrl || '').trim()
   const isMomoPayment = String(payment?.method || '').trim().toUpperCase() === 'MOMO'
-  const confirmButtonLabel = isMomoPayment ? 'Kiểm tra ngay' : 'Kiểm tra thanh toán'
+  const confirmButtonLabel = 'Kiểm tra thanh toán'
 
   useEffect(() => {
     if (!payment?.expiredAt) return undefined
@@ -180,7 +180,7 @@ const PaymentQRModal = ({
           {paymentStatusInfo?.color === 'warning' && !isExpired && (
             <div className="info-message">
               {isMomoPayment
-                ? 'Sau khi thanh toán xong trên MoMo, hệ thống sẽ tự xác nhận trong vài giây khi nhận IPN. Nếu cần đồng bộ ngay, bạn vẫn có thể bấm "Kiểm tra ngay".'
+                ? 'Sau khi thanh toán xong trên MoMo, bấm "Kiểm tra thanh toán" để đồng bộ trạng thái. Cách này ổn định hơn việc tự tải lại khi sandbox trả kết quả chậm.'
                 : 'Sau khi chuyển khoản xong, bấm "Kiểm tra thanh toán". Nếu hệ thống chưa nhận được giao dịch, trạng thái vẫn sẽ là chưa thanh toán.'}
             </div>
           )}
@@ -212,6 +212,14 @@ const PaymentQRModal = ({
                   Mở MoMo
                 </button>
               )}
+
+              <button
+                className="btn btn-success"
+                onClick={handleConfirmPayment}
+                disabled={loading}
+              >
+                {loading ? '...' : confirmButtonLabel}
+              </button>
 
               <button
                 className="btn btn-warning"
@@ -251,15 +259,6 @@ const PaymentQRModal = ({
                 </>
               )}
 
-              {!isMomoPayment && (
-                <button
-                  className="btn btn-success"
-                  onClick={handleConfirmPayment}
-                  disabled={loading}
-                >
-                  {loading ? '...' : confirmButtonLabel}
-                </button>
-              )}
             </>
           )}
         </div>
