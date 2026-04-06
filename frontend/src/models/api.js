@@ -1543,6 +1543,7 @@ const normalizeOtpRequestError = (
   const message = String(error?.message || "").trim()
   const normalizedMessage = normalizeApiErrorMessageKey(message)
   const status = Number(error?.status || 0)
+  const otpRetryMatch = message.match(/please\s+wait\s+(\d+)s\s+before\s+requesting\s+a\s+new\s+otp/i)
 
   if (
     status >= 500
@@ -1553,6 +1554,10 @@ const normalizeOtpRequestError = (
 
   if (status === 0) {
     return "Khong the ket noi dich vu OTP. Backend co the dang timeout hoac khong phan hoi."
+  }
+
+  if (otpRetryMatch) {
+    return `Vui long cho ${String(otpRetryMatch[1] || "0")} giay truoc khi yeu cau ma OTP moi.`
   }
 
   return message || fallbackMessage
@@ -1567,7 +1572,7 @@ export const requestRegisterOtp = async (payload = {}) => {
 
   let response
   try {
-    response = await requestFirstSuccessWithTransientRetry(
+    response = await requestFirstSuccess(
       SEND_OTP_PATHS,
       {
         method: "POST",
@@ -1575,8 +1580,7 @@ export const requestRegisterOtp = async (payload = {}) => {
           email,
           purpose: normalizeOtpPurpose(payload?.purpose, "register"),
         }),
-      },
-      RENDER_SHORT_READ_RETRY_CONFIG
+      }
     )
   } catch (error) {
     throw new Error(
@@ -1614,7 +1618,7 @@ export const verifyRegisterOtp = async (payload = {}) => {
 
   let response
   try {
-    response = await requestFirstSuccessWithTransientRetry(
+    response = await requestFirstSuccess(
       VERIFY_OTP_PATHS,
       {
         method: "POST",
@@ -1623,8 +1627,7 @@ export const verifyRegisterOtp = async (payload = {}) => {
           otp,
           purpose: normalizeOtpPurpose(payload?.purpose, "register"),
         }),
-      },
-      RENDER_SHORT_READ_RETRY_CONFIG
+      }
     )
   } catch (error) {
     throw new Error(

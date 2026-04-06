@@ -479,7 +479,7 @@ const PaymentMethodModal = ({
       setQrRefreshing(true)
       setLocalError('')
 
-      if (isPendingPayment(selectedPayment)) {
+      if (!isPaidPaymentStatus(selectedPayment?.status)) {
         await cancelPayment(authToken, selectedPayment.id).catch(() => null)
       }
 

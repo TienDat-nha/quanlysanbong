@@ -79,6 +79,7 @@ const PaymentQRModal = ({
 
   const isExpired = countdown?.isExpired || false
   const canCancel = effectiveStatus === 'PENDING' && !isExpired
+  const canRefreshQr = effectiveStatus !== 'PAID' && !confirmCancel
 
   const handleConfirmPayment = () => {
     if (loading) return
@@ -142,6 +143,12 @@ const PaymentQRModal = ({
             <div className="expired-message">QR code đã hết hạn</div>
           )}
 
+          {isExpired && (
+            <div className="info-message">
+              Mã QR đã hết hạn. Bấm "Tải lại QR" để tạo mã mới.
+            </div>
+          )}
+
           <div className="payment-info">
             <div className="info-row">
               <span className="label">Booking ID:</span>
@@ -201,6 +208,17 @@ const PaymentQRModal = ({
             Đóng
           </button>
 
+          {canRefreshQr && (
+            <button
+              className="btn btn-warning"
+              onClick={onRefreshQR}
+              disabled={loading}
+              title="Tạo lại mã QR"
+            >
+              {loading ? '...' : (isExpired ? 'Tải lại QR' : 'Lấy lại QR')}
+            </button>
+          )}
+
           {!isExpired && (
             <>
               {isMomoPayment && momoActionUrl && (
@@ -212,15 +230,6 @@ const PaymentQRModal = ({
                   Mở MoMo
                 </button>
               )}
-
-              <button
-                className="btn btn-warning"
-                onClick={onRefreshQR}
-                disabled={loading}
-                title="Lấy lại mã QR"
-              >
-                {loading ? '...' : 'Lấy lại QR'}
-              </button>
 
               {canCancel && !confirmCancel && (
                 <button
