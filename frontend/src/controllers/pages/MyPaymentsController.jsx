@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import MyPaymentsView from '../../views/pages/MyPaymentsView'
 import PaymentQRModal from '../../components/PaymentQRModal'
@@ -12,9 +12,17 @@ const buildPendingMomoFeedback = (text = '') => ({
     || 'Đã mở cổng thanh toán MoMo ở tab mới. Hoàn tất giao dịch rồi quay lại trang này.',
 })
 
+const buildSuccessMomoFeedback = (text = '') => ({
+  type: 'success',
+  text:
+    String(text || '').trim()
+    || 'Thanh toán MoMo thành công. Hệ thống đã xác nhận giao dịch.',
+})
+
 const MyPaymentsController = ({ authToken }) => {
   const location = useLocation()
   const navigate = useNavigate()
+  const knownPaymentStatusRef = useRef(new Map())
   const [selectedPayment, setSelectedPayment] = useState(null)
   const [qrData, setQrData] = useState(null)
   const [cancelling, setCancelling] = useState({})
@@ -152,6 +160,45 @@ const MyPaymentsController = ({ authToken }) => {
 
     return () => window.clearTimeout(timer)
   }, [location.pathname, location.search, navigate, providerFeedback])
+
+  useEffect(() => {
+    const nextStatusMap = new Map()
+    let syncedSuccessPayment = null
+
+    payments.forEach((payment) => {
+      const paymentId = String(payment?.id || '').trim()
+      const nextStatus = String(payment?.status || '').trim().toUpperCase()
+
+      if (!paymentId) {
+        return
+      }
+
+      const previousStatus = String(knownPaymentStatusRef.current.get(paymentId) || '').trim().toUpperCase()
+      nextStatusMap.set(paymentId, nextStatus)
+
+      if (!syncedSuccessPayment && nextStatus === 'PAID' && previousStatus && previousStatus !== 'PAID') {
+        syncedSuccessPayment = payment
+      }
+    })
+
+    knownPaymentStatusRef.current = nextStatusMap
+
+    if (!syncedSuccessPayment) {
+      return
+    }
+
+    const redirectedPaymentMatched =
+      redirectedPaymentId
+      && String(syncedSuccessPayment?.id || '').trim() === redirectedPaymentId
+
+    setProviderFeedback(
+      buildSuccessMomoFeedback(
+        redirectedPaymentMatched
+          ? 'Thanh toán MoMo thành công. Hệ thống đã xác nhận giao dịch của bạn.'
+          : ''
+      )
+    )
+  }, [payments, redirectedPaymentId])
 
   const openPaymentUrl = (value, popup = null) => {
     const actionUrl = String(value || '').trim()
