@@ -68,6 +68,16 @@ const isBookingPaymentConfirmed = (booking, paymentType = '') => {
   return paymentSummary.hasConfirmedDeposit || paymentSummary.isFullyPaid
 }
 
+const buildPaymentSuccessMessage = (paymentType = '') => {
+  const normalizedPaymentType = String(paymentType || '').trim().toUpperCase()
+
+  if (normalizedPaymentType === 'FULL') {
+    return 'Thanh toan thanh cong. He thong dang quay ve man hinh san da dat.'
+  }
+
+  return 'Thanh toan dat coc thanh cong. He thong dang quay ve man hinh san da dat.'
+}
+
 const PaymentMethodModal = ({
   bookingId,
   bookingIds = [],
@@ -132,10 +142,17 @@ const PaymentMethodModal = ({
       clearTimeout(successTimerRef.current)
     }
 
-    if (payment?.id) {
+    const resolvedPayment = payment?.id
+      ? {
+          ...(selectedPayment || {}),
+          ...payment,
+        }
+      : (selectedPayment || null)
+
+    if (resolvedPayment?.id) {
       setSelectedPayment((currentPayment) => ({
         ...(currentPayment || {}),
-        ...payment,
+        ...resolvedPayment,
       }))
     }
 
@@ -145,10 +162,15 @@ const PaymentMethodModal = ({
     successTimerRef.current = setTimeout(() => {
       successTimerRef.current = null
       successSettledRef.current = false
-      onPaymentSuccess?.()
+      onPaymentSuccess?.({
+        payment: resolvedPayment,
+        redirectToBookings: true,
+        message: buildPaymentSuccessMessage(resolvedPayment?.paymentType || effectivePaymentType),
+        messageType: 'success',
+      })
       onClose?.()
     }, 1500)
-  }, [onClose, onPaymentSuccess])
+  }, [effectivePaymentType, onClose, onPaymentSuccess, selectedPayment])
 
   useEffect(() => () => {
     if (successTimerRef.current) {
