@@ -1536,6 +1536,28 @@ const normalizeOtpPurpose = (value, fallback = "auth") =>
     .replace(/[^a-z0-9_:-]+/g, "_")
     .slice(0, 40) || String(fallback || "auth")
 
+const normalizeOtpRequestError = (
+  error,
+  fallbackMessage = "Khong the xu ly OTP luc nay. Vui long thu lai sau."
+) => {
+  const message = String(error?.message || "").trim()
+  const normalizedMessage = normalizeApiErrorMessageKey(message)
+  const status = Number(error?.status || 0)
+
+  if (
+    status >= 500
+    || normalizedMessage === "da co loi xay ra"
+  ) {
+    return "Dich vu gui OTP tren backend dang loi. Hay kiem tra cau hinh mail/OTP cua server."
+  }
+
+  if (status === 0) {
+    return "Khong the ket noi dich vu OTP. Backend co the dang timeout hoac khong phan hoi."
+  }
+
+  return message || fallbackMessage
+}
+
 export const requestRegisterOtp = async (payload = {}) => {
   const email = String(payload?.email || "").trim().toLowerCase()
 
@@ -1543,17 +1565,24 @@ export const requestRegisterOtp = async (payload = {}) => {
     throw new Error("Vui lòng nhập email trước khi gửi OTP.")
   }
 
-  const response = await requestFirstSuccessWithTransientRetry(
-    SEND_OTP_PATHS,
-    {
-      method: "POST",
-      body: JSON.stringify({
-        email,
-        purpose: normalizeOtpPurpose(payload?.purpose, "register"),
-      }),
-    },
-    RENDER_SHORT_READ_RETRY_CONFIG
-  )
+  let response
+  try {
+    response = await requestFirstSuccessWithTransientRetry(
+      SEND_OTP_PATHS,
+      {
+        method: "POST",
+        body: JSON.stringify({
+          email,
+          purpose: normalizeOtpPurpose(payload?.purpose, "register"),
+        }),
+      },
+      RENDER_SHORT_READ_RETRY_CONFIG
+    )
+  } catch (error) {
+    throw new Error(
+      normalizeOtpRequestError(error, "Khong the gui OTP luc nay. Vui long thu lai sau.")
+    )
+  }
   const data = getObjectFromResponse(response, ["data"]) || unwrapResponseData(response) || {}
   const expiresAt = String(data?.expiresAt || "").trim()
   const parsedExpiresAt = expiresAt ? new Date(expiresAt) : null
@@ -1583,18 +1612,25 @@ export const verifyRegisterOtp = async (payload = {}) => {
     throw new Error("Vui lòng nhập đầy đủ email và mã OTP.")
   }
 
-  const response = await requestFirstSuccessWithTransientRetry(
-    VERIFY_OTP_PATHS,
-    {
-      method: "POST",
-      body: JSON.stringify({
-        email,
-        otp,
-        purpose: normalizeOtpPurpose(payload?.purpose, "register"),
-      }),
-    },
-    RENDER_SHORT_READ_RETRY_CONFIG
-  )
+  let response
+  try {
+    response = await requestFirstSuccessWithTransientRetry(
+      VERIFY_OTP_PATHS,
+      {
+        method: "POST",
+        body: JSON.stringify({
+          email,
+          otp,
+          purpose: normalizeOtpPurpose(payload?.purpose, "register"),
+        }),
+      },
+      RENDER_SHORT_READ_RETRY_CONFIG
+    )
+  } catch (error) {
+    throw new Error(
+      normalizeOtpRequestError(error, "Khong the xac nhan OTP luc nay. Vui long thu lai sau.")
+    )
+  }
 
   return {
     verified: true,
