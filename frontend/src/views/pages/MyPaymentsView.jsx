@@ -51,7 +51,8 @@ const MyPaymentsView = ({
               payment.createdAt
             )
             const isPending = effectiveStatus === 'PENDING'
-            const canViewQr = isPending && String(payment.method || '').trim().toUpperCase() !== 'CASH'
+            const normalizedMethod = String(payment.method || '').trim().toUpperCase()
+            const canOpenPayment = isPending && normalizedMethod !== 'CASH'
             const isCancelling = cancelling[payment.id]
 
             return (
@@ -100,13 +101,13 @@ const MyPaymentsView = ({
                 </div>
 
                 <div className="payment-actions">
-                  {canViewQr && (
+                  {canOpenPayment && (
                     <button
                       className="btn btn-action btn-view-qr"
                       onClick={() => onViewQR(payment)}
                       disabled={loading}
                     >
-                      Xem QR
+                      {normalizedMethod === 'MOMO' ? 'Mở MoMo' : 'Xem QR'}
                     </button>
                   )}
 

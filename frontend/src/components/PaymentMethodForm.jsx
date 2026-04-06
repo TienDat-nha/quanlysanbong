@@ -53,6 +53,7 @@ const PaymentMethodForm = ({
   const effectivePaymentTypeLabel =
     paymentTypeLabelOverride
     || getPaymentTypeLabel(effectiveSelectedType)
+  const submitLabel = selectedMethod === 'MOMO' ? 'Tiếp tục đến MoMo' : 'Tạo thanh toán'
 
   const handleSubmit = (event) => {
     event.preventDefault()
@@ -142,7 +143,7 @@ const PaymentMethodForm = ({
         className="btn btn-primary"
         disabled={loading}
       >
-        {loading ? 'Đang xử lý...' : 'Tạo thanh toán'}
+        {loading ? 'Đang xử lý...' : submitLabel}
       </button>
     </form>
   )

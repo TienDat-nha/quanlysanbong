@@ -35,11 +35,38 @@ const MyPaymentsController = ({ authToken }) => {
     loadPayments()
   }, [authToken, loadPayments])
 
+  const openPaymentUrl = (value) => {
+    const actionUrl = String(value || '').trim()
+    if (!actionUrl || typeof window === 'undefined') {
+      return false
+    }
+
+    window.location.assign(actionUrl)
+    return true
+  }
+
   const handleViewQR = async (payment) => {
     try {
       setLocalError('')
-      setSelectedPayment(payment)
       const qr = await getQR(authToken, payment.id)
+      const normalizedMethod = String(payment?.method || '').trim().toUpperCase()
+      const actionUrl = String(
+        payment?.payUrl
+        || qr?.payUrl
+        || payment?.deeplink
+        || qr?.deeplink
+        || ''
+      ).trim()
+
+      if (normalizedMethod === 'MOMO') {
+        if (openPaymentUrl(actionUrl)) {
+          return
+        }
+
+        throw new Error('Không lấy được liên kết thanh toán MoMo. Vui lòng thử lại.')
+      }
+
+      setSelectedPayment(payment)
       setQrData(qr)
     } catch (err) {
       setLocalError(err?.message || 'Loi lay ma QR')

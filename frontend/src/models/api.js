@@ -3039,10 +3039,43 @@ export const createBookingPayment = async (
     }),
   })
 
+  const payloadData = unwrapResponseData(response) || {}
+  const paymentPayload =
+    getObjectFromResponse(response, ["payment", "item"])
+    || getObjectFromResponse(payloadData, ["payment", "item"])
+    || getObjectFromResponse(payloadData, ["payment"])
+    || payloadData
+
   return {
     payment:
-      normalizePaymentItem(getObjectFromResponse(response, ["payment", "item"]))
-      || normalizePaymentItem(unwrapResponseData(response)),
+      normalizePaymentItem({
+        ...paymentPayload,
+        qrImage: String(
+          pickFirstValue(payloadData, ["qr.qrImage", "qr.qrImageUrl", "qr.url", "qrImage", "qrImageUrl"])
+          || ""
+        ).trim(),
+        qrText: String(
+          pickFirstValue(payloadData, ["qr.qrText", "qr.qrCode", "qr.content", "qr.qr", "qrText", "qrCode"])
+          || ""
+        ).trim(),
+        payUrl: String(
+          pickFirstValue(payloadData, ["qr.payUrl", "qr.paymentUrl", "payUrl", "paymentUrl"])
+          || ""
+        ).trim(),
+        deeplink: String(
+          pickFirstValue(payloadData, ["qr.deeplink", "qr.deepLink", "deeplink", "deepLink"])
+          || ""
+        ).trim(),
+        expiredAt:
+          pickFirstValue(payloadData, ["qr.expiredAt", "expiredAt"])
+          || paymentPayload?.expiredAt
+          || null,
+        createdAt:
+          pickFirstValue(payloadData, ["qr.createdAt", "createdAt"])
+          || paymentPayload?.createdAt
+          || null,
+      })
+      || normalizePaymentItem(payloadData),
     message: String(response?.message || "").trim(),
   }
 }

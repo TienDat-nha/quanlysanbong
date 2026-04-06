@@ -53,6 +53,15 @@ const withExpectedPaymentShape = (payment, expectedType, expectedAmount) => ({
   paymentType: normalizePaymentType(payment?.paymentType, expectedType),
 })
 
+const resolveMomoActionUrl = (payment = null, qr = null) =>
+  String(
+    payment?.payUrl
+    || qr?.payUrl
+    || payment?.deeplink
+    || qr?.deeplink
+    || ''
+  ).trim()
+
 const isBookingPaymentConfirmed = (booking, paymentType = '') => {
   if (!booking || typeof booking !== 'object') {
     return false
@@ -376,7 +385,32 @@ const PaymentMethodModal = ({
         return
       }
 
+      if (normalizedMethod === 'MOMO') {
+        const actionUrl = resolveMomoActionUrl(payment)
+
+        if (actionUrl) {
+          if (typeof window !== 'undefined') {
+            window.location.assign(actionUrl)
+            return
+          }
+        }
+      }
+
       const qr = await getQR(authToken, payment.id)
+
+      if (normalizedMethod === 'MOMO') {
+        const actionUrl = resolveMomoActionUrl(payment, qr)
+
+        if (!actionUrl) {
+          throw new Error('Không lấy được liên kết thanh toán MoMo. Vui lòng thử lại.')
+        }
+
+        if (typeof window !== 'undefined') {
+          window.location.assign(actionUrl)
+          return
+        }
+      }
+
       applyQrState(payment, qr)
       setStep('qr')
     } catch (err) {

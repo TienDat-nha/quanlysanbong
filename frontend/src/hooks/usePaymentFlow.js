@@ -23,7 +23,7 @@ export const usePaymentFlow = (authToken) => {
         setCurrentPayment(payment)
 
         const normalizedMethod = String(method || '').trim().toUpperCase()
-        if (normalizedMethod !== 'CASH') {
+        if (normalizedMethod !== 'CASH' && normalizedMethod !== 'MOMO') {
           const qr = await getQR(authToken, payment.id)
           setQrData(qr)
         } else {
