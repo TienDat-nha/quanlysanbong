@@ -667,8 +667,8 @@ const BookingView = ({
 
         {bookingIdWarning && (
           <p className="message warning">
-            {bookingIdWarning}. Hãy nhờ admin vào Quản lý sân và bấm `Khởi tạo khung giờ mẫu`
-            trước khi xác nhận đặt sân.
+            {bookingIdWarning}. Hệ thống sẽ mở đặt sân ngay khi backend đồng bộ xong dữ liệu
+            timeSlot từ giờ mở cửa của sân.
           </p>
         )}
 
@@ -762,7 +762,7 @@ const BookingView = ({
 
           <p className="bookingVisualNotice">
             {bookingIdWarning
-              ? "Backend chưa có timeSlot thật nên bảng này đang ở chế độ chỉ xem. Sau khi admin khởi tạo khung giờ mẫu, bạn có thể chọn nhiều ô trống liền kề để đặt nhiều giờ liên tiếp."
+              ? "Backend chưa trả về timeSlot thật nên bảng này đang ở chế độ chỉ xem. Khi dữ liệu khung giờ được đồng bộ từ giờ mở cửa của sân, bạn có thể chọn nhiều ô trống liền kề để đặt nhiều giờ liên tiếp."
               : "Lưu ý: ô đỏ là đã đặt, ô xám là không thể chọn. Bạn có thể bấm thêm các ô trống liền kề trên cùng một sân con để chọn nhiều giờ liên tiếp."}
           </p>
 

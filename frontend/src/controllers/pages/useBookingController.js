@@ -916,7 +916,7 @@ export const useBookingController = ({ authToken, currentUser }) => {
         }
         if (timeSlotsResult.status === "rejected") {
           setCatalogMessage((currentMessage) =>
-            [currentMessage, "Chưa tải được khung giờ backend. Hệ thống sẽ dùng khung giờ tạm để xem lịch."]
+            [currentMessage, "Chưa tải được khung giờ backend. Hệ thống sẽ dùng khung giờ tạm để xem lịch trong lúc chờ backend đồng bộ từ giờ mở cửa."]
               .filter(Boolean)
               .join(" ")
           )
@@ -932,7 +932,7 @@ export const useBookingController = ({ authToken, currentUser }) => {
               ? currentFeedback
               : {
                   type: "warning",
-                  text: "Khung giờ backend đang tải chậm. Bạn vẫn có thể xem lịch, nhưng cần đợi backend trả về time slot thật trước khi gửi đơn.",
+                  text: "Khung giờ backend đang tải chậm. Bạn vẫn có thể xem lịch, nhưng cần đợi backend đồng bộ slot thật từ giờ mở cửa trước khi gửi đơn.",
                 }
           )
         }
@@ -1248,7 +1248,7 @@ export const useBookingController = ({ authToken, currentUser }) => {
     && selectedTimeSlotIds.every((timeSlotId) => isMongoObjectId(timeSlotId))
   const bookingIdWarning = useMemo(() => {
     if (rawTimeline.length === 0) {
-      return "Backend hiện chưa có dữ liệu khung giờ thật"
+      return "Backend chưa đồng bộ được khung giờ thật từ giờ mở cửa của sân"
     }
 
     if (selectedField && Array.isArray(selectedField.subFields) && selectedField.subFields.length > 0) {
@@ -1348,7 +1348,7 @@ export const useBookingController = ({ authToken, currentUser }) => {
     if (bookingIdWarning) {
       setFeedback({
         type: "error",
-        text: `${bookingIdWarning}. Hãy nhờ admin khởi tạo khung giờ mẫu trước khi đặt tay.`,
+        text: `${bookingIdWarning}. Hãy tải lại trang sau khi dữ liệu sân và khung giờ được đồng bộ xong.`,
       })
       return
     }
@@ -1376,7 +1376,7 @@ export const useBookingController = ({ authToken, currentUser }) => {
     if (bookingIdWarning) {
       setFeedback({
         type: "error",
-        text: `${bookingIdWarning}. Backend đang yêu cầu ObjectId thật cho sân con và khung giờ.`,
+        text: `${bookingIdWarning}. Hệ thống cần timeSlot thật từ backend trước khi xác nhận.`,
       })
       return
     }
@@ -1409,7 +1409,7 @@ export const useBookingController = ({ authToken, currentUser }) => {
     if (bookingIdWarning) {
       setFeedback({
         type: "error",
-        text: `${bookingIdWarning}. FE chưa thể gửi đơn vì backend sẽ báo ID không hợp lệ.`,
+        text: `${bookingIdWarning}. FE chưa thể gửi đơn vì backend chưa trả về ID khung giờ hợp lệ.`,
       })
       return
     }

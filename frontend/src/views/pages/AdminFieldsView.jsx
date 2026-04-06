@@ -81,7 +81,7 @@ const QuickActionGrid = ({ manualBookingPath }) => (
   </section>
 )
 
-const AdminToolsSection = ({ bootstrappingTimeSlots, handleBootstrapTimeSlots }) => (
+const AdminToolsSection = () => (
   <section className="usersPanel adminDashboardPanel adminDashboardTools">
     <div className="usersPanelHeader">
       <div>
@@ -90,23 +90,16 @@ const AdminToolsSection = ({ bootstrappingTimeSlots, handleBootstrapTimeSlots })
           Admin không tạo sân trong màn này. Admin chỉ xử lý các sân Chủ sân đã gửi lên.
         </p>
       </div>
-      <span>4 thao tác</span>
+      <span>3 thao tác</span>
     </div>
     <div className="ownerAdminMiniCard">
       <span>Xác nhận tạo sân hoặc cập nhật sân của Chủ sân.</span>
       <span>Khóa hoặc mở khóa sân khi cần.</span>
       <span>Xóa sân nếu không còn hợp lệ.</span>
       <div className="adminToolsActions">
-        <button
-          type="button"
-          className="btn adminToolsAction"
-          onClick={handleBootstrapTimeSlots}
-          disabled={bootstrappingTimeSlots}
-        >
-          {bootstrappingTimeSlots ? "Đang khởi tạo khung giờ..." : "Khởi tạo khung giờ mẫu"}
-        </button>
         <p className="helperText">
-          Tạo sẵn các khung 30 phút từ 05:00 đến 23:30 để Chủ sân đặt tay bằng `ObjectId` thật.
+          Backend sẽ tự đồng bộ khung giờ 30 phút từ giờ mở cửa của sân và sân con. Admin không
+          cần khởi tạo khung giờ mẫu thủ công nữa.
         </p>
       </div>
     </div>
@@ -850,7 +843,6 @@ const AdminFieldsView = (props) => {
     deletingFieldId,
     fieldStatusActionId,
     fieldStatusActionMode,
-    bootstrappingTimeSlots,
     error,
     noticeMessage,
     successMessage,
@@ -879,7 +871,6 @@ const AdminFieldsView = (props) => {
     handleDeleteField,
     handleRejectField,
     handleFieldModeration,
-    handleBootstrapTimeSlots,
     handleSubmit,
     handleManagedBookingsDateChange,
     handleConfirmBooking,
@@ -1035,10 +1026,7 @@ const AdminFieldsView = (props) => {
       )}
 
       <div className="container adminFieldManagementStack">
-        <AdminToolsSection
-          bootstrappingTimeSlots={bootstrappingTimeSlots}
-          handleBootstrapTimeSlots={handleBootstrapTimeSlots}
-        />
+        <AdminToolsSection />
 
         <FieldListSection
           isAdminPortal={isAdminPortal}

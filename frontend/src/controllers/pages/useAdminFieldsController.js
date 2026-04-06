@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState } from "react"
 import { useLocation, useNavigate } from "react-router-dom"
 import {
   approveAdminField,
-  bootstrapAdminTimeSlots,
   cancelAdminBooking,
   confirmAdminBooking,
   confirmAdminBookingDeposit,
@@ -460,7 +459,6 @@ export const useAdminFieldsController = ({ authToken, currentUser }) => {
   const [deletingFieldId, setDeletingFieldId] = useState("")
   const [fieldStatusActionId, setFieldStatusActionId] = useState("")
   const [fieldStatusActionMode, setFieldStatusActionMode] = useState("")
-  const [bootstrappingTimeSlots, setBootstrappingTimeSlots] = useState(false)
   const [editingFieldId, setEditingFieldId] = useState(null)
   const [error, setError] = useState("")
   const [noticeMessage, setNoticeMessage] = useState("")
@@ -626,7 +624,6 @@ export const useAdminFieldsController = ({ authToken, currentUser }) => {
       setDeletingFieldId("")
       setFieldStatusActionId("")
       setFieldStatusActionMode("")
-      setBootstrappingTimeSlots(false)
       setNoticeMessage("")
       setError("")
       resetForm()
@@ -1234,35 +1231,6 @@ export const useAdminFieldsController = ({ authToken, currentUser }) => {
     }
   }
 
-  const handleBootstrapTimeSlots = async () => {
-    if (!authToken || !isAdminPortal) {
-      return
-    }
-
-    setBootstrappingTimeSlots(true)
-    setError("")
-    setSuccessMessage("")
-    setNoticeMessage("")
-
-    try {
-      const response = await bootstrapAdminTimeSlots(authToken)
-
-      if (Number(response?.createdCount || 0) > 0) {
-        setSuccessMessage(
-          resolveDisplayMessage(response?.message, "Đã khởi tạo khung giờ mẫu cho backend.")
-        )
-      } else {
-        setNoticeMessage(
-          resolveDisplayMessage(response?.message, "Backend đã có sẵn khung giờ mẫu.")
-        )
-      }
-    } catch (apiError) {
-      setError(apiError.message)
-    } finally {
-      setBootstrappingTimeSlots(false)
-    }
-  }
-
   const handleBookingAction = async (bookingId, action) => {
     if (!authToken || !canAccessFieldDashboard || !bookingId) {
       return
@@ -1325,7 +1293,6 @@ export const useAdminFieldsController = ({ authToken, currentUser }) => {
     deletingFieldId,
     fieldStatusActionId,
     fieldStatusActionMode,
-    bootstrappingTimeSlots,
     error,
     noticeMessage,
     successMessage,
@@ -1362,7 +1329,6 @@ export const useAdminFieldsController = ({ authToken, currentUser }) => {
     handleDeleteField,
     handleRejectField,
     handleFieldModeration,
-    handleBootstrapTimeSlots,
     handleSubmit,
     handleConfirmBooking: (bookingId) => handleBookingAction(bookingId, "confirm"),
     handleConfirmDeposit: (bookingId) => handleBookingAction(bookingId, "deposit"),
