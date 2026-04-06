@@ -96,6 +96,7 @@ const PaymentMethodModal = ({
   const [qrData, setQrData] = useState(null)
   const [pollInterval, setPollInterval] = useState(null)
   const [qrRefreshing, setQrRefreshing] = useState(false)
+  const [statusChecking, setStatusChecking] = useState(false)
   const [localError, setLocalError] = useState('')
   const successTimerRef = useRef(null)
   const successSettledRef = useRef(false)
@@ -307,6 +308,7 @@ const PaymentMethodModal = ({
     setQrData(null)
     setStep('form')
     setQrRefreshing(false)
+    setStatusChecking(false)
     setLocalError('')
     resetPayment()
   }
@@ -384,7 +386,13 @@ const PaymentMethodModal = ({
   }
 
   const handleConfirmPayment = async (paymentId) => {
+    if (statusChecking) {
+      return
+    }
+
     try {
+      setStatusChecking(true)
+
       if (pollInterval) {
         clearInterval(pollInterval)
         setPollInterval(null)
@@ -467,6 +475,8 @@ const PaymentMethodModal = ({
     } catch (err) {
       setLocalError(err?.message || 'Lỗi xác nhận thanh toán')
       console.error('Error confirming payment:', err)
+    } finally {
+      setStatusChecking(false)
     }
   }
 
@@ -536,7 +546,7 @@ const PaymentMethodModal = ({
         onConfirmPayment={handleConfirmPayment}
         onCancelPayment={handleBackToForm}
         onRefreshQR={handleRefreshQr}
-        loading={loading || qrRefreshing}
+        loading={loading || qrRefreshing || statusChecking}
         error={localError || error}
         onClose={handleBackToForm}
       />

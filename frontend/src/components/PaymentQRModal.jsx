@@ -80,6 +80,7 @@ const PaymentQRModal = ({
   const isExpired = countdown?.isExpired || false
   const canCancel = effectiveStatus === 'PENDING' && !isExpired
   const canRefreshQr = effectiveStatus !== 'PAID' && !confirmCancel
+  const canConfirmPayment = effectiveStatus !== 'PAID' && !confirmCancel
 
   const handleConfirmPayment = () => {
     if (loading) return
@@ -219,6 +220,16 @@ const PaymentQRModal = ({
             </button>
           )}
 
+          {canConfirmPayment && (
+            <button
+              className="btn btn-success"
+              onClick={handleConfirmPayment}
+              disabled={loading}
+            >
+              {loading ? '...' : confirmButtonLabel}
+            </button>
+          )}
+
           {!isExpired && (
             <>
               {isMomoPayment && momoActionUrl && (
@@ -260,15 +271,6 @@ const PaymentQRModal = ({
                 </>
               )}
 
-              {!isMomoPayment && (
-                <button
-                  className="btn btn-success"
-                  onClick={handleConfirmPayment}
-                  disabled={loading}
-                >
-                  {loading ? '...' : confirmButtonLabel}
-                </button>
-              )}
             </>
           )}
         </div>
