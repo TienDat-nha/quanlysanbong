@@ -99,6 +99,7 @@ const PaymentMethodModal = ({
   const [localError, setLocalError] = useState('')
   const successTimerRef = useRef(null)
   const successSettledRef = useRef(false)
+  const pollInFlightRef = useRef(false)
   const { loading, error, handleCreatePayment, resetPayment } = usePaymentFlow(authToken)
 
   const effectivePaymentType = isFullPayment ? 'FULL' : normalizePaymentType(paymentType)
@@ -187,35 +188,14 @@ const PaymentMethodModal = ({
     let active = true
 
     const interval = setInterval(async () => {
+      if (pollInFlightRef.current) {
+        return
+      }
+
+      pollInFlightRef.current = true
+
       try {
         const paymentMethod = String(selectedPayment?.method || '').trim().toUpperCase()
-
-        if (paymentMethod && paymentMethod !== 'CASH') {
-          const statusResult = await checkPaymentStatus(authToken, selectedPayment.id).catch(() => null)
-          const checkedPayment = statusResult?.payment || null
-
-          if (!active) {
-            return
-          }
-
-          if (checkedPayment?.id) {
-            setSelectedPayment((currentPayment) => (
-              currentPayment
-                ? {
-                    ...currentPayment,
-                    ...checkedPayment,
-                  }
-                : currentPayment
-            ))
-
-            if (isPaidPaymentStatus(checkedPayment?.status)) {
-              clearInterval(interval)
-              setPollInterval(null)
-              settleSuccessfulPayment(checkedPayment)
-              return
-            }
-          }
-        }
 
         if (primaryBookingId) {
           const latestPayment = await getPaymentByBooking(authToken, primaryBookingId).catch(() => null)
@@ -246,6 +226,33 @@ const PaymentMethodModal = ({
           }
         }
 
+        if (paymentMethod && paymentMethod !== 'CASH') {
+          const statusResult = await checkPaymentStatus(authToken, selectedPayment.id).catch(() => null)
+          const checkedPayment = statusResult?.payment || null
+
+          if (!active) {
+            return
+          }
+
+          if (checkedPayment?.id) {
+            setSelectedPayment((currentPayment) => (
+              currentPayment
+                ? {
+                    ...currentPayment,
+                    ...checkedPayment,
+                  }
+                : currentPayment
+            ))
+
+            if (isPaidPaymentStatus(checkedPayment?.status)) {
+              clearInterval(interval)
+              setPollInterval(null)
+              settleSuccessfulPayment(checkedPayment)
+              return
+            }
+          }
+        }
+
         const qr = await getQR(authToken, selectedPayment.id)
         if (!active) {
           return
@@ -271,12 +278,15 @@ const PaymentMethodModal = ({
         }
       } catch (err) {
         console.error('Polling error:', err)
+      } finally {
+        pollInFlightRef.current = false
       }
     }, 3000)
 
     setPollInterval(interval)
     return () => {
       active = false
+      pollInFlightRef.current = false
       clearInterval(interval)
     }
   }, [authToken, primaryBookingId, selectedPayment?.id, selectedPayment?.method, settleSuccessfulPayment, step])
