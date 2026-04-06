@@ -251,13 +251,15 @@ const PaymentQRModal = ({
                 </>
               )}
 
-              <button
-                className="btn btn-success"
-                onClick={handleConfirmPayment}
-                disabled={loading}
-              >
-                {loading ? '...' : confirmButtonLabel}
-              </button>
+              {!isMomoPayment && (
+                <button
+                  className="btn btn-success"
+                  onClick={handleConfirmPayment}
+                  disabled={loading}
+                >
+                  {loading ? '...' : confirmButtonLabel}
+                </button>
+              )}
             </>
           )}
         </div>

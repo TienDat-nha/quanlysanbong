@@ -23,6 +23,17 @@ const isPendingPayment = (payment) => {
   return status === '' || status === 'PENDING' || status === 'WAITING' || status === 'PROCESSING'
 }
 
+const PAID_PAYMENT_STATUSES = new Set([
+  'PAID',
+  'SUCCESS',
+  'SUCCEEDED',
+  'COMPLETED',
+  'DEPOSIT_PAID',
+])
+
+const isPaidPaymentStatus = (value) =>
+  PAID_PAYMENT_STATUSES.has(String(value || '').trim().toUpperCase())
+
 const doesPaymentMatchSelection = (payment, expectedType, expectedAmount) => {
   if (!payment || typeof payment !== 'object') {
     return false
@@ -151,7 +162,34 @@ const PaymentMethodModal = ({
       try {
         const paymentMethod = String(selectedPayment?.method || '').trim().toUpperCase()
 
-        if (paymentMethod === 'MOMO' && primaryBookingId) {
+        if (paymentMethod && paymentMethod !== 'CASH') {
+          const statusResult = await checkPaymentStatus(authToken, selectedPayment.id).catch(() => null)
+          const checkedPayment = statusResult?.payment || null
+
+          if (!active) {
+            return
+          }
+
+          if (checkedPayment?.id) {
+            setSelectedPayment((currentPayment) => (
+              currentPayment
+                ? {
+                    ...currentPayment,
+                    ...checkedPayment,
+                  }
+                : currentPayment
+            ))
+
+            if (isPaidPaymentStatus(checkedPayment?.status)) {
+              clearInterval(interval)
+              setPollInterval(null)
+              settleSuccessfulPayment(checkedPayment)
+              return
+            }
+          }
+        }
+
+        if (primaryBookingId) {
           const latestPayment = await getPaymentByBooking(authToken, primaryBookingId).catch(() => null)
 
           if (!active) {
@@ -171,7 +209,7 @@ const PaymentMethodModal = ({
                 : currentPayment
             ))
 
-            if (String(latestPayment?.status || '').trim().toUpperCase() === 'PAID') {
+            if (isPaidPaymentStatus(latestPayment?.status)) {
               clearInterval(interval)
               setPollInterval(null)
               settleSuccessfulPayment(latestPayment)
@@ -321,26 +359,19 @@ const PaymentMethodModal = ({
         return
       }
 
-      if (normalizePaymentMethod(selectedPayment?.method) === 'MOMO') {
-        const statusResult = await checkPaymentStatus(authToken, paymentId)
-        const checkedPayment = statusResult?.payment || null
+      const paymentMethod = normalizePaymentMethod(selectedPayment?.method)
+      const statusResult = await checkPaymentStatus(authToken, paymentId).catch(() => null)
+      const checkedPayment = statusResult?.payment || null
 
-        if (checkedPayment?.id) {
-          setSelectedPayment((currentPayment) => ({
-            ...(currentPayment || {}),
-            ...checkedPayment,
-          }))
-        }
+      if (checkedPayment?.id) {
+        setSelectedPayment((currentPayment) => ({
+          ...(currentPayment || {}),
+          ...checkedPayment,
+        }))
+      }
 
-        if (String(checkedPayment?.status || '').trim().toUpperCase() === 'PAID') {
-          settleSuccessfulPayment(checkedPayment)
-          return
-        }
-
-        setLocalError(
-          statusResult?.message
-          || 'He thong chua nhan duoc thanh toan MoMo. Vui long hoan tat giao dich roi kiem tra lai.'
-        )
+      if (isPaidPaymentStatus(checkedPayment?.status)) {
+        settleSuccessfulPayment(checkedPayment)
         return
       }
 
@@ -355,7 +386,7 @@ const PaymentMethodModal = ({
         }))
       }
 
-      if (String(latestPayment?.status || '').trim().toUpperCase() === 'PAID') {
+      if (isPaidPaymentStatus(latestPayment?.status)) {
         settleSuccessfulPayment(latestPayment)
         return
       }
@@ -377,7 +408,14 @@ const PaymentMethodModal = ({
       }
 
       if (!paymentReceived) {
-        setLocalError('Hệ thống chưa nhận được thanh toán. Vui lòng hoàn tất giao dịch và bấm "Kiểm tra thanh toán" lại sau.')
+        setLocalError(
+          statusResult?.message
+          || (
+            paymentMethod === 'MOMO'
+              ? 'He thong chua nhan duoc thanh toan MoMo. Vui long hoan tat giao dich roi kiem tra lai.'
+              : 'Hệ thống chưa nhận được thanh toán. Vui lòng đợi backend đồng bộ giao dịch rồi bấm "Kiểm tra thanh toán" lại sau.'
+          )
+        )
         return
       }
 

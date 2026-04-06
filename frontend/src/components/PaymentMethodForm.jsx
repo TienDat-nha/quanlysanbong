@@ -3,7 +3,7 @@ import { PAYMENT_METHODS, PAYMENT_TYPES } from '../models/paymentModel'
 import { formatCurrencyVi, getPaymentMethodLabel, getPaymentTypeLabel } from '../utils/paymentHelpers'
 import './PaymentMethodForm.scss'
 
-const VISIBLE_PAYMENT_METHODS = PAYMENT_METHODS.filter((method) => method !== 'MOMO')
+const VISIBLE_PAYMENT_METHODS = PAYMENT_METHODS.filter((method) => method !== 'BANK')
 
 const PaymentMethodForm = ({
   bookingId,
