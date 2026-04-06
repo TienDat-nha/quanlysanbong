@@ -62,9 +62,6 @@ const PaymentQRModal = ({
   const momoActionUrl = String(payment?.deeplink || payment?.payUrl || '').trim()
   const isMomoPayment = String(payment?.method || '').trim().toUpperCase() === 'MOMO'
   const confirmButtonLabel = 'Kiểm tra thanh toán'
-  const helperMessage = isMomoPayment
-    ? 'Thanh toán xong thì bấm "Kiểm tra thanh toán". Nếu mã hết hạn, bấm "Lấy QR mới".'
-    : 'Chuyển khoản xong thì bấm "Kiểm tra thanh toán".'
 
   useEffect(() => {
     if (!payment?.expiredAt) return undefined
@@ -181,23 +178,31 @@ const PaymentQRModal = ({
           {error && <div className="error-message">{error}</div>}
 
           {paymentStatusInfo?.color === 'warning' && !isExpired && (
-            <div className="info-message compact">
-              {helperMessage}
+            <div className="info-message">
+              {isMomoPayment
+                ? 'Sau khi thanh toán xong trên MoMo, bấm "Kiểm tra thanh toán" để đồng bộ trạng thái. Cách này ổn định hơn việc tự tải lại khi sandbox trả kết quả chậm.'
+                : 'Sau khi chuyển khoản xong, bấm "Kiểm tra thanh toán". Nếu hệ thống chưa nhận được giao dịch, trạng thái vẫn sẽ là chưa thanh toán.'}
+            </div>
+          )}
+
+          {isMomoPayment && momoActionUrl && !isExpired && (
+            <div className="info-message">
+              Bạn có thể quét QR bằng MoMo hoặc bấm "Mở MoMo" để chuyển sang ví sandbox.
             </div>
           )}
         </div>
 
         <div className="modal-footer">
-          {!isExpired && (
-            <div className="footer-main-actions">
-              <button
-                className="btn btn-success btn-primary-action"
-                onClick={handleConfirmPayment}
-                disabled={loading}
-              >
-                {loading ? '...' : confirmButtonLabel}
-              </button>
+          <button
+            className="btn btn-secondary"
+            onClick={onClose}
+            disabled={loading}
+          >
+            Đóng
+          </button>
 
+          {!isExpired && (
+            <>
               {isMomoPayment && momoActionUrl && (
                 <button
                   className="btn btn-primary"
@@ -209,54 +214,53 @@ const PaymentQRModal = ({
               )}
 
               <button
+                className="btn btn-success"
+                onClick={handleConfirmPayment}
+                disabled={loading}
+              >
+                {loading ? '...' : confirmButtonLabel}
+              </button>
+
+              <button
                 className="btn btn-warning"
                 onClick={onRefreshQR}
                 disabled={loading}
                 title="Lấy lại mã QR"
               >
-                {loading ? '...' : 'Lấy QR mới'}
+                {loading ? '...' : 'Lấy lại QR'}
               </button>
-            </div>
+
+              {canCancel && !confirmCancel && (
+                <button
+                  className="btn btn-danger"
+                  onClick={() => setConfirmCancel(true)}
+                  disabled={loading}
+                >
+                  Hủy thanh toán
+                </button>
+              )}
+
+              {confirmCancel && (
+                <>
+                  <button
+                    className="btn btn-danger-confirm"
+                    onClick={handleCancelPayment}
+                    disabled={loading}
+                  >
+                    {loading ? '...' : 'Xác nhận hủy'}
+                  </button>
+                  <button
+                    className="btn btn-secondary"
+                    onClick={() => setConfirmCancel(false)}
+                    disabled={loading}
+                  >
+                    Quay lại
+                  </button>
+                </>
+              )}
+
+            </>
           )}
-
-          <div className="footer-secondary-actions">
-            <button
-              className="btn btn-secondary btn-muted"
-              onClick={onClose}
-              disabled={loading}
-            >
-              Đóng
-            </button>
-
-            {canCancel && !confirmCancel && (
-              <button
-                className="btn btn-danger"
-                onClick={() => setConfirmCancel(true)}
-                disabled={loading}
-              >
-                Hủy mã này
-              </button>
-            )}
-
-            {confirmCancel && (
-              <>
-                <button
-                  className="btn btn-danger-confirm"
-                  onClick={handleCancelPayment}
-                  disabled={loading}
-                >
-                  {loading ? '...' : 'Xác nhận hủy'}
-                </button>
-                <button
-                  className="btn btn-secondary btn-muted"
-                  onClick={() => setConfirmCancel(false)}
-                  disabled={loading}
-                >
-                  Giữ lại
-                </button>
-              </>
-            )}
-          </div>
         </div>
       </div>
     </div>
