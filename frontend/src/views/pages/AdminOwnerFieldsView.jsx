@@ -163,17 +163,18 @@ const AdminOwnerFieldsView = ({
     <section className="admin-owner-fields-container">
       <header className="admin-owner-fields-hero">
         <div className="admin-owner-fields-copy">
-          <span className="admin-owner-fields-kicker">Quản trị sân chủ sân</span>
-          <h1>Quản lý Sân của Chủ Sân</h1>
+          <span className="admin-owner-fields-kicker">Khu kiểm duyệt sân</span>
+          <h1>Quản lý sân của chủ sân</h1>
           <p>
-            Theo dõi trạng thái duyệt và thao tác khóa hoặc mở khóa trên từng sân của chủ sân.
+            Theo dõi trạng thái phê duyệt, rà soát hồ sơ sân và xử lý nhanh các thao tác khóa hoặc
+            mở khóa đối với từng chủ sân.
           </p>
         </div>
 
         <div className="admin-owner-fields-filterCard">
           <span className="filterCardLabel">
             <FiFilter aria-hidden="true" />
-            Bộ lọc hiện tại
+            Bộ lọc đang áp dụng
           </span>
           <label className="filterField" htmlFor="owner-field-approval-filter">
             <span>Trạng thái</span>
@@ -225,7 +226,7 @@ const AdminOwnerFieldsView = ({
             <FiFileText />
           </span>
           <h2>Không có sân phù hợp</h2>
-          <p>Không tìm thấy sân nào theo bộ lọc “{selectedFilterLabel}”.</p>
+          <p>Không tìm thấy sân nào theo bộ lọc “{selectedFilterLabel}”. Hãy đổi bộ lọc hoặc chờ chủ sân gửi hồ sơ mới.</p>
         </div>
       ) : (
         <div className="fields-grid">

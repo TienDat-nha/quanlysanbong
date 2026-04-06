@@ -272,6 +272,11 @@ const rememberKnownFieldIds = (...fieldIds) =>
 const forgetKnownFieldId = (fieldId) =>
   setStoredKnownFieldIds(getStoredKnownFieldIds().filter((item) => item !== String(fieldId || "").trim()))
 
+const clearStoredFieldCaches = () => {
+  setStoredKnownFieldIds([])
+  setStoredFieldSnapshots({})
+}
+
 const isHtmlLike = (value) => {
   const trimmed = String(value || "").trim().toLowerCase()
   return trimmed.startsWith("<!doctype html") || trimmed.startsWith("<html")
@@ -2245,26 +2250,11 @@ export const getFields = async (token = "") => {
     token
   )
 
-  if (fields.length === 0 && knownFieldIds.length > 0) {
-    const rememberedFields = await getFieldByConfiguredIds(knownFieldIds, token)
-    if (rememberedFields.length > 0) {
-      return {
-        fields: rememberedFields,
-        message:
-          String(response?.message || "").trim()
-          || "Đang hiển thị các sân đã ghi nhớ trong khi API danh sách chưa trả dữ liệu.",
-      }
-    }
-  }
-
-  if (fields.length === 0 && storedSnapshotFields.length > 0) {
-    const hydratedSnapshotFields = await attachSubFieldsToFields(storedSnapshotFields, token)
-    rememberKnownFieldIds(hydratedSnapshotFields.map((field) => field?.id))
+  if (fields.length === 0) {
+    clearStoredFieldCaches()
     return {
-      fields: hydratedSnapshotFields,
-      message:
-        String(response?.message || "").trim()
-        || "Đang hiển thị các sân đã lưu cục bộ trong khi API danh sách chưa trả dữ liệu.",
+      fields: [],
+      message: String(response?.message || "").trim(),
     }
   }
 

@@ -1,17 +1,63 @@
 import React from "react"
 import { Link } from "react-router-dom"
 import {
+  FiEdit3,
+  FiHome,
+  FiLock,
+  FiMail,
+  FiRefreshCw,
+  FiShield,
+  FiTrash2,
+  FiUser,
+  FiUsers,
+} from "react-icons/fi"
+import {
   getApiRoleValue,
   getManagedUserRoleLabel,
   getManagedUserStatusLabel,
 } from "../../models/userModel"
 
 const createSummaryCards = (summary) => [
-  { key: "total", label: "Tổng tài khoản", value: summary.total, tone: "primary" },
-  { key: "users", label: "Người dùng", value: summary.customers, tone: "neutral" },
-  { key: "owners", label: "Chủ sân", value: summary.owners, tone: "warning" },
-  { key: "admins", label: "Quản trị", value: summary.admins, tone: "primary" },
-  { key: "locked", label: "Đang khóa", value: summary.locked, tone: "success" },
+  {
+    key: "total",
+    label: "Tổng tài khoản",
+    value: summary.total,
+    tone: "primary",
+    note: "Toàn bộ tài khoản hiện có",
+    icon: <FiUsers />,
+  },
+  {
+    key: "users",
+    label: "Người dùng",
+    value: summary.customers,
+    tone: "neutral",
+    note: "Tài khoản đặt sân",
+    icon: <FiUser />,
+  },
+  {
+    key: "owners",
+    label: "Chủ sân",
+    value: summary.owners,
+    tone: "warning",
+    note: "Tài khoản quản lý sân",
+    icon: <FiHome />,
+  },
+  {
+    key: "admins",
+    label: "Quản trị",
+    value: summary.admins,
+    tone: "primary",
+    note: "Tài khoản có quyền cao nhất",
+    icon: <FiShield />,
+  },
+  {
+    key: "locked",
+    label: "Đang khóa",
+    value: summary.locked,
+    tone: "success",
+    note: "Tài khoản đang bị hạn chế",
+    icon: <FiLock />,
+  },
 ]
 
 const controlClass = (error, baseClass = "") =>
@@ -78,22 +124,31 @@ const UsersView = ({
 
   const otpStatusLabel = otpState.verified
     ? "Đã xác nhận"
-    : otpState.codeHash
-      ? otpExpired
-        ? "Đã hết hạn"
-        : "Đang chờ xác nhận"
-      : "Chưa gửi mã"
+    : otpActionMode === "send"
+      ? "Đang gửi mã"
+      : otpState.feedback?.type === "error" && (otpState.targetEmail || formValues.email)
+        ? "Gửi mã thất bại"
+        : otpState.codeHash
+          ? otpExpired
+            ? "Đã hết hạn"
+            : "Đang chờ xác nhận"
+          : "Chưa gửi mã"
+
+  const summaryCards = createSummaryCards(summary)
 
   if (!isAuthenticated) {
     return (
       <section className="page section usersPage">
-        <div className="container pageHeader usersPageHeader">
-          <div>
-            <p className="usersEyebrow">Khu quản trị</p>
-            <h1>Quản lý người dùng và chủ sân</h1>
-            <p>
-              Vui lòng <Link to={loginPath}>đăng nhập</Link> bằng tài khoản admin để quản lý tài khoản.
-            </p>
+        <div className="container usersHeroShell">
+          <div className="usersHeroMain usersHeroMain--single">
+            <div className="usersHeroCopy">
+              <span className="usersEyebrow">Khu quản trị</span>
+              <h1>Quản lý người dùng và chủ sân</h1>
+              <p>
+                Vui lòng <Link to={loginPath}>đăng nhập</Link> bằng tài khoản admin để quản lý
+                tài khoản.
+              </p>
+            </div>
           </div>
         </div>
       </section>
@@ -103,11 +158,13 @@ const UsersView = ({
   if (!canManageUsers) {
     return (
       <section className="page section usersPage">
-        <div className="container pageHeader usersPageHeader">
-          <div>
-            <p className="usersEyebrow">Khu quản trị</p>
-            <h1>Quản lý người dùng và chủ sân</h1>
-            <p>Tài khoản {currentUser?.email} không có quyền truy cập khu quản trị tài khoản.</p>
+        <div className="container usersHeroShell">
+          <div className="usersHeroMain usersHeroMain--single">
+            <div className="usersHeroCopy">
+              <span className="usersEyebrow">Khu quản trị</span>
+              <h1>Quản lý người dùng và chủ sân</h1>
+              <p>Tài khoản {currentUser?.email} không có quyền truy cập khu quản trị tài khoản.</p>
+            </div>
           </div>
         </div>
       </section>
@@ -116,33 +173,55 @@ const UsersView = ({
 
   return (
     <section className="page section usersPage">
-      <div className="container pageHeader usersPageHeader">
-        <div>
-          <p className="usersEyebrow">Khu quản trị tài khoản</p>
-          <h1>Quản lý người dùng và chủ sân</h1>
-        </div>
+      <div className="container usersHeroShell">
+        <div className="usersHeroMain">
+          <div className="usersHeroCopy">
+            <span className="usersEyebrow">Khu quản trị tài khoản</span>
+            <h1>Quản lý người dùng và chủ sân</h1>
+            <p>
+              Tạo tài khoản mới, xác thực OTP cho luồng admin, khóa hoặc mở khóa truy cập, và
+              theo dõi toàn bộ trạng thái người dùng trong một màn hình.
+            </p>
+          </div>
 
-        <div className="usersHighlight">
-          <span>Admin đang đăng nhập</span>
-          <strong>{currentUser?.email || "ADMIN"}</strong>
+          <aside className="usersHighlight">
+            <span className="usersHighlightLabel">Admin đang đăng nhập</span>
+            <strong>{currentUser?.email || "ADMIN"}</strong>
+            <p>Khu vực này dành cho quản trị viên theo dõi tài khoản người dùng và chủ sân.</p>
+          </aside>
         </div>
       </div>
 
-      <div className="container adminDashboardStats">
-        {createSummaryCards(summary).map((card) => (
-          <article className={`adminStatCard adminStatCard--${card.tone}`} key={card.key}>
-            <span>{card.label}</span>
-            <strong>{card.value}</strong>
+      <div className="container usersSummaryGrid">
+        {summaryCards.map((card) => (
+          <article className={`usersSummaryCard usersSummaryCard--${card.tone}`} key={card.key}>
+            <span className="usersSummaryIcon" aria-hidden="true">
+              {card.icon}
+            </span>
+            <div className="usersSummaryMeta">
+              <span className="usersSummaryLabel">{card.label}</span>
+              <strong>{card.value}</strong>
+              <small>{card.note}</small>
+            </div>
           </article>
         ))}
       </div>
 
       <div className="container usersPageLayout">
         <aside className="usersSidebar">
-          <form className="formCard usersForm" onSubmit={onSubmit}>
+          <form className="formCard usersForm usersSurfaceCard" onSubmit={onSubmit}>
             <div className="usersPanelHeader">
-              <h2>{isEditing ? "Cập nhật tài khoản" : "Tạo tài khoản mới"}</h2>
-              <span>{isEditing ? "Chế độ sửa" : "Admin có OTP email"}</span>
+              <div className="usersPanelHeading">
+                <h2>{isEditing ? "Cập nhật tài khoản" : "Tạo tài khoản mới"}</h2>
+                <p className="usersPanelLead">
+                  {isEditing
+                    ? "Chỉnh sửa thông tin, phân quyền và trạng thái tài khoản hiện có."
+                    : "Tạo tài khoản người dùng hoặc chủ sân mới từ khu vực quản trị."}
+                </p>
+              </div>
+              <span className="usersPanelChip">
+                {isEditing ? "Chế độ sửa" : "Admin có OTP email"}
+              </span>
             </div>
 
             <label htmlFor="user-name">Tên tài khoản</label>
@@ -217,9 +296,14 @@ const UsersView = ({
 
             {!isEditing && (
               <section className="usersOtpCard">
-                <div className="usersPanelHeader usersOtpHeader">
-                  <h2>Xác thực OTP email</h2>
-                  <span>Bắt buộc khi tạo mới</span>
+                <div className="usersPanelHeader">
+                  <div className="usersPanelHeading">
+                    <h2>Xác thực OTP email</h2>
+                    <p className="usersPanelLead">
+                      Bắt buộc khi admin tạo tài khoản mới để tránh tạo nhầm hoặc trùng dữ liệu.
+                    </p>
+                  </div>
+                  <span className="usersPanelChip usersPanelChip--soft">Bắt buộc khi tạo mới</span>
                 </div>
 
                 {!otpEnabled && <p className="message warning">{otpSetupMessage}</p>}
@@ -233,8 +317,12 @@ const UsersView = ({
                     <strong>Trạng thái:</strong> {otpStatusLabel}
                   </p>
                   <div className="usersOtpStats">
-                    <span>Hết hạn sau: {otpSummary.countdownLabel}</span>
-                    <span>Gửi lại sau: {otpSummary.resendLabel}</span>
+                    <span>
+                      <FiMail aria-hidden="true" /> Hết hạn sau: {otpSummary.countdownLabel}
+                    </span>
+                    <span>
+                      <FiRefreshCw aria-hidden="true" /> Gửi lại sau: {otpSummary.resendLabel}
+                    </span>
                   </div>
                 </div>
 
@@ -320,23 +408,35 @@ const UsersView = ({
           {error && <p className="message error">{error}</p>}
 
           {loading ? (
-            <article className="usersPanel">
+            <article className="usersPanel usersSurfaceCard">
               <p>Đang tải danh sách tài khoản...</p>
             </article>
           ) : (
-            <article className="usersPanel">
+            <article className="usersPanel usersSurfaceCard">
               <div className="usersPanelHeader">
-                <h2>Danh sách hiện tại</h2>
+                <div className="usersPanelHeading">
+                  <h2>Danh sách hiện tại</h2>
+                  <p className="usersPanelLead">
+                    Theo dõi trạng thái, phân quyền và thao tác nhanh cho từng tài khoản.
+                  </p>
+                </div>
                 <div className="usersActionsRow">
-                  <span>{users.length} bản ghi</span>
+                  <span className="usersPanelChip usersPanelChip--count">{users.length} bản ghi</span>
                   <button className="outlineBtnInline" type="button" onClick={onRefresh}>
+                    <FiRefreshCw aria-hidden="true" />
                     Tải lại
                   </button>
                 </div>
               </div>
 
               {users.length === 0 ? (
-                <p className="usersEmptyState">Chưa có tài khoản nào trong danh sách.</p>
+                <div className="usersEmptyState">
+                  <span className="usersEmptyIcon" aria-hidden="true">
+                    <FiUsers />
+                  </span>
+                  <h3>Chưa có tài khoản nào trong danh sách</h3>
+                  <p>Tạo tài khoản mới ở cột bên trái để bắt đầu quản lý người dùng và chủ sân.</p>
+                </div>
               ) : (
                 <div className="usersTableWrap">
                   <table className="usersTable">
@@ -392,6 +492,7 @@ const UsersView = ({
                                   onClick={() => onEditUser(user)}
                                   disabled={submitting || isDeleting || isStatusLoading || isPrimaryAdmin}
                                 >
+                                  <FiEdit3 aria-hidden="true" />
                                   Sửa
                                 </button>
                                 <button
@@ -400,6 +501,7 @@ const UsersView = ({
                                   onClick={() => onToggleUserStatus(user)}
                                   disabled={submitting || isDeleting || isStatusLoading || isSelf || isPrimaryAdmin}
                                 >
+                                  <FiLock aria-hidden="true" />
                                   {isStatusLoading
                                     ? statusActionMode === "unlock"
                                       ? "Đang mở..."
@@ -414,6 +516,7 @@ const UsersView = ({
                                   onClick={() => onDeleteUser(user)}
                                   disabled={submitting || isDeleting || isStatusLoading || isSelf || isPrimaryAdmin}
                                 >
+                                  <FiTrash2 aria-hidden="true" />
                                   {isDeleting ? "Đang xóa..." : "Xóa"}
                                 </button>
                               </div>

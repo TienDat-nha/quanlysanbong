@@ -69,11 +69,18 @@
     flex-direction: column;
     justify-content: space-between;
     padding: 20px;
+    transition: transform 0.22s ease, box-shadow 0.22s ease, border-color 0.22s ease;
 
     strong {
       margin-top: 10px;
       font-size: 1.05rem;
       color: var(--owner-forest);
+    }
+
+    &:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 24px 52px rgba(17, 48, 40, 0.16);
+      border-color: rgba(201, 154, 46, 0.28);
     }
   }
 
@@ -136,6 +143,13 @@
     border: 1px solid var(--owner-line);
     border-radius: 20px;
     box-shadow: 0 10px 28px rgba(18, 63, 52, 0.08);
+    transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+
+    &:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 16px 34px rgba(18, 63, 52, 0.12);
+      border-color: rgba(18, 63, 52, 0.18);
+    }
 
     &--pending {
       background: linear-gradient(135deg, #fff7e5 0%, #fffdf7 100%);
@@ -239,6 +253,7 @@
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
     gap: 16px;
+    align-items: stretch;
   }
 
   .field-card {
@@ -332,10 +347,13 @@
 
   .field-card-body {
     padding: 16px 16px 15px;
+    display: grid;
+    gap: 14px;
+    height: 100%;
   }
 
   .field-card-owner {
-    margin-bottom: 10px;
+    margin-bottom: 0;
   }
 
   .owner-chip {
@@ -352,7 +370,7 @@
   }
 
   .field-card-heading {
-    margin-bottom: 12px;
+    margin-bottom: 0;
 
     h2 {
       margin: 0 0 6px;
@@ -376,7 +394,7 @@
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 10px;
-    margin-bottom: 14px;
+    margin-bottom: 0;
   }
 
   .metric-box {
@@ -413,7 +431,7 @@
   }
 
   .subfields-block {
-    margin-bottom: 14px;
+    margin-bottom: 0;
   }
 
   .subfields-list {
@@ -441,7 +459,7 @@
   }
 
   .field-description {
-    margin-bottom: 14px;
+    margin-bottom: 0;
 
     p {
       display: -webkit-box;
@@ -459,6 +477,7 @@
     display: flex;
     gap: 10px;
     flex-wrap: wrap;
+    margin-top: auto;
   }
 
   .field-action {
