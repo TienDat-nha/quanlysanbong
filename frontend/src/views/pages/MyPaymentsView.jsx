@@ -13,6 +13,7 @@ const MyPaymentsView = ({
   payments = [],
   loading = false,
   error = '',
+  feedback = null,
   onViewQR,
   onCancel,
   onRefresh,
@@ -33,6 +34,7 @@ const MyPaymentsView = ({
       </div>
 
       {error && <div className="error-alert">{error}</div>}
+      {feedback?.text && <div className={`error-alert error-alert--${feedback.type || 'warning'}`.trim()}>{feedback.text}</div>}
 
       {loading && <p className="loading-text">Đang tải danh sách thanh toán...</p>}
 

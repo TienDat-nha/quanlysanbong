@@ -1,14 +1,25 @@
-import React, { useCallback, useEffect, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useState } from 'react'
+import { useLocation, useNavigate } from 'react-router-dom'
 import MyPaymentsView from '../../views/pages/MyPaymentsView'
 import PaymentQRModal from '../../components/PaymentQRModal'
 import { usePaymentFlow } from '../../hooks/usePaymentFlow'
-import { getQR, cancelPayment, getMyPayments, confirmPayment } from '../../services/paymentService'
+import { getQR, cancelPayment, getMyPayments, confirmPayment, checkPaymentStatus } from '../../services/paymentService'
+
+const buildPendingMomoFeedback = (text = '') => ({
+  type: 'warning',
+  text:
+    String(text || '').trim()
+    || 'Đã mở cổng thanh toán MoMo ở tab mới. Hoàn tất giao dịch rồi quay lại trang này.',
+})
 
 const MyPaymentsController = ({ authToken }) => {
+  const location = useLocation()
+  const navigate = useNavigate()
   const [selectedPayment, setSelectedPayment] = useState(null)
   const [qrData, setQrData] = useState(null)
   const [cancelling, setCancelling] = useState({})
   const [localError, setLocalError] = useState('')
+  const [providerFeedback, setProviderFeedback] = useState(null)
   const [confirming, setConfirming] = useState(false)
   const {
     loading,
@@ -35,21 +46,140 @@ const MyPaymentsController = ({ authToken }) => {
     loadPayments()
   }, [authToken, loadPayments])
 
-  const openPaymentUrl = (value) => {
+  useEffect(() => {
+    const searchParams = new URLSearchParams(location.search || '')
+    const paymentStatus = String(searchParams.get('paymentStatus') || '').trim().toLowerCase()
+    const paymentMessage = String(searchParams.get('paymentMessage') || '').trim()
+
+    if (!paymentStatus && !paymentMessage) {
+      setProviderFeedback(null)
+      return
+    }
+
+    setProviderFeedback({
+      type: paymentStatus === 'success' ? 'success' : paymentStatus === 'pending' ? 'warning' : 'error',
+      text:
+        paymentMessage
+        || (
+          paymentStatus === 'success'
+            ? 'Thanh toán MoMo thành công.'
+            : paymentStatus === 'pending'
+              ? 'Đã mở cổng thanh toán MoMo.'
+              : 'Thanh toán MoMo chưa thành công.'
+        ),
+    })
+  }, [location.search])
+
+  const redirectedPaymentId = useMemo(() => {
+    const searchParams = new URLSearchParams(location.search || '')
+    return String(searchParams.get('paymentId') || '').trim()
+  }, [location.search])
+
+  const pendingMomoPayments = useMemo(
+    () => payments.filter((payment) =>
+      String(payment?.method || '').trim().toUpperCase() === 'MOMO'
+      && String(payment?.status || '').trim().toUpperCase() === 'PENDING'
+    ),
+    [payments]
+  )
+
+  useEffect(() => {
+    if (!authToken || pendingMomoPayments.length === 0) {
+      return undefined
+    }
+
+    let active = true
+
+    const interval = window.setInterval(async () => {
+      try {
+        await Promise.all(
+          pendingMomoPayments.map((payment) =>
+            checkPaymentStatus(authToken, payment.id).catch(() => null)
+          )
+        )
+
+        if (!active) {
+          return
+        }
+
+        await loadPayments()
+      } catch (_error) {
+        // Keep polling quietly while the user is waiting on MoMo.
+      }
+    }, 4000)
+
+    return () => {
+      active = false
+      window.clearInterval(interval)
+    }
+  }, [authToken, loadPayments, pendingMomoPayments])
+
+  useEffect(() => {
+    if (!authToken || !redirectedPaymentId) {
+      return undefined
+    }
+
+    let active = true
+
+    const syncRedirectedPayment = async () => {
+      try {
+        await checkPaymentStatus(authToken, redirectedPaymentId).catch(() => null)
+
+        if (!active) {
+          return
+        }
+
+        await loadPayments()
+      } catch (_error) {
+        // Fall back to the regular pending-payment polling loop.
+      }
+    }
+
+    syncRedirectedPayment()
+    return () => {
+      active = false
+    }
+  }, [authToken, loadPayments, redirectedPaymentId])
+
+  useEffect(() => {
+    if (!providerFeedback || !location.search) {
+      return undefined
+    }
+
+    const timer = window.setTimeout(() => {
+      navigate(location.pathname, { replace: true })
+    }, 5000)
+
+    return () => window.clearTimeout(timer)
+  }, [location.pathname, location.search, navigate, providerFeedback])
+
+  const openPaymentUrl = (value, popup = null) => {
     const actionUrl = String(value || '').trim()
     if (!actionUrl || typeof window === 'undefined') {
       return false
     }
 
-    window.location.assign(actionUrl)
-    return true
+    if (popup && !popup.closed) {
+      popup.location.replace(actionUrl)
+      return true
+    }
+
+    const openedWindow = window.open(actionUrl, '_blank')
+    return Boolean(openedWindow)
   }
 
   const handleViewQR = async (payment) => {
+    const normalizedMethod = String(payment?.method || '').trim().toUpperCase()
+    const momoPopup = (
+      normalizedMethod === 'MOMO'
+      && typeof window !== 'undefined'
+    )
+      ? window.open('about:blank', '_blank')
+      : null
+
     try {
       setLocalError('')
       const qr = await getQR(authToken, payment.id)
-      const normalizedMethod = String(payment?.method || '').trim().toUpperCase()
       const actionUrl = String(
         payment?.payUrl
         || qr?.payUrl
@@ -59,7 +189,8 @@ const MyPaymentsController = ({ authToken }) => {
       ).trim()
 
       if (normalizedMethod === 'MOMO') {
-        if (openPaymentUrl(actionUrl)) {
+        if (openPaymentUrl(actionUrl, momoPopup)) {
+          setProviderFeedback(buildPendingMomoFeedback())
           return
         }
 
@@ -69,6 +200,9 @@ const MyPaymentsController = ({ authToken }) => {
       setSelectedPayment(payment)
       setQrData(qr)
     } catch (err) {
+      if (momoPopup && !momoPopup.closed) {
+        momoPopup.close()
+      }
       setLocalError(err?.message || 'Loi lay ma QR')
     }
   }
@@ -131,6 +265,7 @@ const MyPaymentsController = ({ authToken }) => {
         payments={payments}
         loading={loading || confirming}
         error={localError || error}
+        feedback={providerFeedback}
         onViewQR={handleViewQR}
         onCancel={handleCancelPaymentClick}
         onRefresh={loadPayments}

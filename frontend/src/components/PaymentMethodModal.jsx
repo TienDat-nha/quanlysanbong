@@ -3,6 +3,7 @@ import { usePaymentFlow } from '../hooks/usePaymentFlow'
 import PaymentMethodForm from './PaymentMethodForm'
 import PaymentQRModal from './PaymentQRModal'
 import { getBookingPaymentSummaryVi } from '../models/bookingTextModel'
+import { ROUTES } from '../models/routeModel'
 import { cancelPayment, checkPaymentStatus, getPaymentByBooking, getQR } from '../services/paymentService'
 import { getBookingById, getMyBookings } from '../models/api'
 import './PaymentMethodModal.scss'
@@ -61,6 +62,37 @@ const resolveMomoActionUrl = (payment = null, qr = null) =>
     || qr?.deeplink
     || ''
   ).trim()
+
+const buildMyPaymentsUrl = ({
+  paymentId = '',
+  bookingId = '',
+  paymentStatus = '',
+  paymentMessage = '',
+} = {}) => {
+  if (typeof window === 'undefined') {
+    return ROUTES.myPayments
+  }
+
+  const nextUrl = new URL(`${window.location.origin}${ROUTES.myPayments}`)
+
+  if (paymentId) {
+    nextUrl.searchParams.set('paymentId', String(paymentId || '').trim())
+  }
+
+  if (bookingId) {
+    nextUrl.searchParams.set('bookingId', String(bookingId || '').trim())
+  }
+
+  if (paymentStatus) {
+    nextUrl.searchParams.set('paymentStatus', String(paymentStatus || '').trim())
+  }
+
+  if (paymentMessage) {
+    nextUrl.searchParams.set('paymentMessage', String(paymentMessage || '').trim())
+  }
+
+  return nextUrl.toString()
+}
 
 const isBookingPaymentConfirmed = (booking, paymentType = '') => {
   if (!booking || typeof booking !== 'object') {
@@ -323,9 +355,16 @@ const PaymentMethodModal = ({
   }
 
   const handleFormSubmit = async (_bkId, method, paymentFormType) => {
+    const normalizedMethod = normalizePaymentMethod(method)
+    const momoPopup = (
+      normalizedMethod === 'MOMO'
+      && typeof window !== 'undefined'
+    )
+      ? window.open('about:blank', '_blank')
+      : null
+
     try {
       setLocalError('')
-      const normalizedMethod = normalizePaymentMethod(method)
 
       const finalPaymentType = isFullPayment ? 'FULL' : normalizePaymentType(paymentFormType)
       const expectedAmount =
@@ -390,6 +429,25 @@ const PaymentMethodModal = ({
 
         if (actionUrl) {
           if (typeof window !== 'undefined') {
+            const historyUrl = buildMyPaymentsUrl({
+              paymentId: payment?.id || payment?._id || '',
+              bookingId: primaryBookingId,
+              paymentStatus: 'pending',
+              paymentMessage: 'Da mo cong thanh toan MoMo o tab moi. Hoan tat giao dich roi quay lai trang nay.',
+            })
+
+            if (momoPopup && !momoPopup.closed) {
+              momoPopup.location.replace(actionUrl)
+              window.location.assign(historyUrl)
+              return
+            }
+
+            const openedWindow = window.open(actionUrl, '_blank')
+            if (openedWindow) {
+              window.location.assign(historyUrl)
+              return
+            }
+
             window.location.assign(actionUrl)
             return
           }
@@ -406,6 +464,25 @@ const PaymentMethodModal = ({
         }
 
         if (typeof window !== 'undefined') {
+          const historyUrl = buildMyPaymentsUrl({
+            paymentId: payment?.id || payment?._id || '',
+            bookingId: primaryBookingId,
+            paymentStatus: 'pending',
+            paymentMessage: 'Da mo cong thanh toan MoMo o tab moi. Hoan tat giao dich roi quay lai trang nay.',
+          })
+
+          if (momoPopup && !momoPopup.closed) {
+            momoPopup.location.replace(actionUrl)
+            window.location.assign(historyUrl)
+            return
+          }
+
+          const openedWindow = window.open(actionUrl, '_blank')
+          if (openedWindow) {
+            window.location.assign(historyUrl)
+            return
+          }
+
           window.location.assign(actionUrl)
           return
         }
@@ -414,6 +491,9 @@ const PaymentMethodModal = ({
       applyQrState(payment, qr)
       setStep('qr')
     } catch (err) {
+      if (momoPopup && !momoPopup.closed) {
+        momoPopup.close()
+      }
       setLocalError(err?.message || 'Lỗi tạo thanh toán')
       console.error('Error creating payment:', err)
     }
