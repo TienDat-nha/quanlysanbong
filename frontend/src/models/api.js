@@ -65,6 +65,81 @@ const API_BASE_URL_CANDIDATES = (() => {
 
   return Array.from(candidates).filter(Boolean)
 })()
+const isDataImageLikeUrl = (value) => /^data:image\//i.test(String(value || "").trim())
+
+const getApiOriginFromBaseUrl = (value) => {
+  const normalizedValue = normalizeApiBaseUrl(value)
+
+  if (!normalizedValue) {
+    return ""
+  }
+
+  try {
+    return normalizeApiBaseUrl(new URL(normalizedValue).origin)
+  } catch (_error) {
+    return normalizeApiBaseUrl(normalizedValue.replace(/\/api$/i, ""))
+  }
+}
+
+const API_ASSET_ORIGIN = [
+  API_BASE_URL,
+  ...API_BASE_URL_CANDIDATES,
+]
+  .map((value) => getApiOriginFromBaseUrl(value))
+  .find(Boolean) || ""
+const API_ASSET_HOSTNAME = (() => {
+  if (!API_ASSET_ORIGIN) {
+    return ""
+  }
+
+  try {
+    return new URL(API_ASSET_ORIGIN).hostname
+  } catch (_error) {
+    return ""
+  }
+})()
+
+const resolveApiAssetUrl = (value) => {
+  const normalizedValue = String(value || "").trim()
+
+  if (!normalizedValue || isDataImageLikeUrl(normalizedValue) || /^blob:/i.test(normalizedValue)) {
+    return normalizedValue
+  }
+
+  if (/^https?:\/\//i.test(normalizedValue)) {
+    try {
+      const parsedUrl = new URL(normalizedValue)
+
+      if (!API_ASSET_ORIGIN) {
+        return parsedUrl.toString()
+      }
+
+      if (
+        !isLocalHostname(parsedUrl.hostname)
+        && (!API_ASSET_HOSTNAME || parsedUrl.hostname !== API_ASSET_HOSTNAME)
+      ) {
+        return parsedUrl.toString()
+      }
+
+      return new URL(
+        `${parsedUrl.pathname || ""}${parsedUrl.search || ""}${parsedUrl.hash || ""}`,
+        `${API_ASSET_ORIGIN}/`
+      ).toString()
+    } catch (_error) {
+      return normalizedValue
+    }
+  }
+
+  if (!API_ASSET_ORIGIN) {
+    return normalizedValue
+  }
+
+  try {
+    return new URL(normalizedValue, `${API_ASSET_ORIGIN}/`).toString()
+  } catch (_error) {
+    return normalizedValue
+  }
+}
 const CONFIGURED_FIELD_IDS = String(process.env.REACT_APP_FIELD_IDS || "")
   .split(",")
   .map((value) => String(value || "").trim())
@@ -545,22 +620,24 @@ const normalizeFieldItem = (field) => {
     ),
     rating: Number(field.rating || 0),
     article: String(field.article || field.description || "").trim(),
-    coverImage: String(
-      field.coverImage
-      || field.image
-      || field.thumbnail
-      || field.avatar
-      || ""
-    ).trim(),
+    coverImage: resolveApiAssetUrl(
+      String(
+        field.coverImage
+        || field.image
+        || field.thumbnail
+        || field.avatar
+        || ""
+      ).trim()
+    ),
     images:
       Array.isArray(field.images) && field.images.length > 0
-        ? field.images.filter(Boolean)
+        ? field.images.map((item) => resolveApiAssetUrl(item)).filter(Boolean)
         : Array.isArray(field.galleryImages) && field.galleryImages.length > 0
-          ? field.galleryImages.filter(Boolean)
+          ? field.galleryImages.map((item) => resolveApiAssetUrl(item)).filter(Boolean)
           : Array.isArray(field.gallery) && field.gallery.length > 0
-            ? field.gallery.filter(Boolean)
+            ? field.gallery.map((item) => resolveApiAssetUrl(item)).filter(Boolean)
             : String(field.coverImage || field.image || field.thumbnail || field.avatar || "").trim()
-              ? [String(field.coverImage || field.image || field.thumbnail || field.avatar || "").trim()]
+              ? [resolveApiAssetUrl(String(field.coverImage || field.image || field.thumbnail || field.avatar || "").trim())]
               : [],
     ownerUserId: normalizeId(field.ownerUserId, field.userId, field.owner?._id, field.owner?.id),
     userId: normalizeId(field.userId, field.ownerUserId, field.owner?._id, field.owner?.id),
@@ -1498,7 +1575,7 @@ const buildBookingPaymentShape = (booking, payment) => {
   }
 }
 
-const isDataImageUrl = (value) => /^data:image\//i.test(String(value || "").trim())
+const isDataImageUrl = (value) => isDataImageLikeUrl(value)
 
 const buildFieldMutationPayload = (payload = {}) => {
   const coverImage = String(payload.coverImage || payload.image || "").trim()
@@ -2484,10 +2561,10 @@ export const uploadAdminImage = async (token, file) => {
     body: formData,
   })
 
-  const imageUrl = String(
+  const imageUrl = resolveApiAssetUrl(String(
     pickFirstValue(response, ["url", "data.url", "file.url", "data.file.url"])
     || ""
-  ).trim()
+  ).trim())
 
   if (!imageUrl) {
     throw new Error("Không nhận được URL ảnh từ backend.")

@@ -135,6 +135,7 @@ const AdminOwnerFieldsView = ({
 }) => {
   const [rejectReason, setRejectReason] = useState("")
   const [rejectFieldId, setRejectFieldId] = useState(null)
+  const [failedImages, setFailedImages] = useState({})
 
   const approvalStatuses = [
     { value: "ALL", label: "Tất cả" },
@@ -148,6 +149,23 @@ const AdminOwnerFieldsView = ({
     approvalStatuses.find((status) => status.value === filterApprovalStatus)?.label || "Tất cả"
 
   const summaryCards = useMemo(() => getSummaryCards(fields), [fields])
+
+  const markImageAsFailed = (field) => {
+    const imageKey = `${field?.id || ""}:${String(field?.coverImage || "").trim()}`
+
+    if (!imageKey) {
+      return
+    }
+
+    setFailedImages((currentValue) =>
+      currentValue[imageKey]
+        ? currentValue
+        : {
+            ...currentValue,
+            [imageKey]: true,
+          }
+    )
+  }
 
   const handleSubmitReject = () => {
     if (!rejectFieldId) {
@@ -235,12 +253,18 @@ const AdminOwnerFieldsView = ({
             const fieldApprovalStatus = getApprovalStatusKey(field)
             const isProcessing = actionLoading === field?.id
             const subFields = Array.isArray(field?.subFields) ? field.subFields : []
+            const imageKey = `${field?.id || ""}:${String(field?.coverImage || "").trim()}`
+            const canRenderImage = Boolean(field?.coverImage) && !failedImages[imageKey]
 
             return (
               <article key={field?.id} className="field-card">
                 <div className="field-card-media">
-                  {field?.coverImage ? (
-                    <img src={field.coverImage} alt={field?.name || "Sân bóng"} />
+                  {canRenderImage ? (
+                    <img
+                      src={field.coverImage}
+                      alt={field?.name || "Sân bóng"}
+                      onError={() => markImageAsFailed(field)}
+                    />
                   ) : (
                     <div className="field-card-placeholder">
                       <FiImage aria-hidden="true" />
