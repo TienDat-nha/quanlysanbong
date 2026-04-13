@@ -641,7 +641,15 @@ const normalizeFieldItem = (field) => {
               : [],
     ownerUserId: normalizeId(field.ownerUserId, field.userId, field.owner?._id, field.owner?.id),
     userId: normalizeId(field.userId, field.ownerUserId, field.owner?._id, field.owner?.id),
-    ownerEmail: String(field.ownerEmail || field.userEmail || field.owner?.email || "").trim().toLowerCase(),
+    ownerEmail: String(
+      field.ownerEmail
+      || field.userEmail
+      || field.owner?.email
+      || field.user?.email
+      || field.ownerUserId?.email
+      || field.userId?.email
+      || ""
+    ).trim().toLowerCase(),
     ownerPhone: String(
       field.ownerPhone
       || field.userPhone
@@ -776,6 +784,9 @@ const mergeFieldSources = (field, snapshot) => {
       field?.ownerEmail,
       field?.userEmail,
       field?.owner?.email,
+      field?.user?.email,
+      field?.ownerUserId?.email,
+      field?.userId?.email,
       snapshot.ownerEmail
     ),
     ownerPhone: pickFirstNonEmptyString(
