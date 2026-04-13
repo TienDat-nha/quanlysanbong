@@ -9,9 +9,9 @@
   --owner-line: rgba(18, 63, 52, 0.12);
   --owner-shadow: 0 18px 48px rgba(17, 48, 40, 0.14);
 
-  max-width: 1160px;
+  max-width: 1440px;
   margin: 0 auto;
-  padding: 28px 18px 44px;
+  padding: 32px 24px 56px;
   color: var(--owner-ink);
 
   .admin-owner-fields-hero {
@@ -129,9 +129,9 @@
 
   .admin-owner-fields-summary {
     display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: 12px;
-    margin-bottom: 18px;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 14px;
+    margin-bottom: 20px;
   }
 
   .summary-card {
@@ -251,12 +251,14 @@
 
   .fields-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-    gap: 16px;
+    grid-template-columns: 1fr;
+    gap: 18px;
     align-items: stretch;
   }
 
   .field-card {
+    display: grid;
+    grid-template-columns: minmax(220px, 260px) minmax(0, 1fr);
     overflow: hidden;
     border: 1px solid var(--owner-line);
     border-radius: 22px;
@@ -272,8 +274,17 @@
 
   .field-card-media {
     position: relative;
-    height: 170px;
-    background: #dfe8e2;
+    min-height: 100%;
+    background:
+      linear-gradient(135deg, rgba(18, 63, 52, 0.12), rgba(229, 243, 235, 0.84)),
+      repeating-linear-gradient(
+        90deg,
+        rgba(255, 255, 255, 0.12) 0,
+        rgba(255, 255, 255, 0.12) 1px,
+        transparent 1px,
+        transparent 54px
+      ),
+      linear-gradient(180deg, #dfe8e2 0%, #eef4f0 100%);
 
     img,
     .field-card-placeholder {
@@ -297,9 +308,11 @@
       linear-gradient(135deg, #dfe8e2 0%, #f4f7f4 100%);
     color: rgba(18, 63, 52, 0.72);
     font-weight: 700;
+    text-align: center;
+    padding: 18px;
 
     svg {
-      font-size: 2rem;
+      font-size: 2.2rem;
     }
   }
 
@@ -346,10 +359,11 @@
   }
 
   .field-card-body {
-    padding: 16px 16px 15px;
+    padding: 20px 22px;
     display: grid;
-    gap: 14px;
+    gap: 16px;
     height: 100%;
+    align-content: start;
   }
 
   .field-card-owner {
@@ -367,6 +381,7 @@
     color: var(--owner-forest);
     font-size: 0.82rem;
     font-weight: 700;
+    max-width: 100%;
   }
 
   .field-card-heading {
@@ -380,8 +395,8 @@
     }
 
     p {
-      display: inline-flex;
-      align-items: center;
+      display: flex;
+      align-items: flex-start;
       gap: 6px;
       margin: 0;
       color: rgba(31, 42, 36, 0.72);
@@ -392,7 +407,7 @@
 
   .field-card-metrics {
     display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: repeat(4, minmax(0, 1fr));
     gap: 10px;
     margin-bottom: 0;
   }
@@ -414,9 +429,11 @@
     }
 
     strong {
+      display: block;
       color: var(--owner-forest);
       font-size: 0.9rem;
       line-height: 1.4;
+      word-break: break-word;
     }
   }
 
@@ -478,6 +495,7 @@
     gap: 10px;
     flex-wrap: wrap;
     margin-top: auto;
+    padding-top: 2px;
   }
 
   .field-action {
@@ -618,6 +636,18 @@
     .admin-owner-fields-summary {
       grid-template-columns: repeat(2, minmax(0, 1fr));
     }
+
+    .field-card {
+      grid-template-columns: 1fr;
+    }
+
+    .field-card-media {
+      min-height: 220px;
+    }
+
+    .field-card-metrics {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
   }
 
   @media (max-width: 720px) {
@@ -630,13 +660,12 @@
     }
 
     .admin-owner-fields-summary,
-    .fields-grid,
     .field-card-metrics {
       grid-template-columns: 1fr;
     }
 
     .field-card-media {
-      height: 160px;
+      min-height: 180px;
     }
 
     .field-card-body {
