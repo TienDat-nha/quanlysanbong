@@ -1,3 +1,25 @@
+/**
+
+ * Hook quản lý logic đăng nhập
+ * 
+ * Chức năng:
+ * - Quản lý form đăng nhập (email, password, loại tài khoản)
+ * - Xác thực dữ liệu form
+ * - Gọi API loginUser để xác thực tài khoản
+ * - Kiểm tra loại tài khoản khớp với yêu cầu (admin, owner, customer)
+ * - Lưu token xác thực vào localStorage
+ * - Xử lý các lỗi đăng nhập
+ * - Chuyển hướng đến trang chủ phù hợp sau khi đăng nhập thành công
+ * 
+ * Trả về:
+ * - form: Dữ liệu form đăng nhập
+ * - submitting: Trạng thái đang gửi request
+ * - error: Thông báo lỗi
+ * - infoMessage: Thông báo thông tin (ví dụ: đăng ký thành công)
+ * - handleFieldChange: Hàm cập nhật giá trị form
+ * - handleSubmit: Hàm xử lý submit form
+ */
+
 import { useState } from "react"
 import { useLocation, useNavigate } from "react-router-dom"
 import {

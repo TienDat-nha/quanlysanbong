@@ -1,3 +1,24 @@
+/**
+ 
+ * Giao diện trang xem yêu cầu tạo sân của chủ sân
+ * 
+ * Chức năng:
+ * - Hiển thị danh sách yêu cầu tạo sân của chủ sân hiện tại
+ * - Hiển thị bộ lọc theo trạng thái (Tất cả, Chờ duyệt, Đã duyệt, Bị từ chối)
+ * - Hiển thị thẻ thống kê: Tổng yêu cầu, Chờ duyệt, Đã duyệt, Bị từ chối
+ * - Hiển thị thông tin chi tiết sân (Tên, Địa chỉ, Loại sân)
+ * - Hiển thị badge trạng thái với màu sắc khác nhau
+ * - Hiển thị trạng thái tải, lỗi
+ * 
+ * Props:
+ * - fields: Danh sách yêu cầu sân
+ * - loading: Trạng thái đang tải
+ * - error: Thông báo lỗi
+ * - filterStatus: Bộ lọc hiện tại
+ * - setFilterStatus: Hàm thay đổi bộ lọc
+ * - stats: Thống kê yêu cầu
+ */
+
 import React from "react"
 import "./OwnerFieldRequestsView.scss"
 

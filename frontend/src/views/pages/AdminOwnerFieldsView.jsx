@@ -1,3 +1,25 @@
+/**
+ * Giao diện trang quản lý sân chủ sân (Admin)
+ * 
+ * Chức năng:
+ * - Hiển thị danh sách sân với thông tin: Tên sân, Địa chỉ, Chủ sân, Trạng thái duyệt
+ * - Hiển thị bộ lọc theo trạng thái duyệt (Chờ duyệt, Đã duyệt, Đã khóa, Từ chối)
+ * - Hiển thị hình ảnh sân (nếu có)
+ * - Hiển thị nút Duyệt, Từ chối, Khóa, Mở khóa
+ * - Hiển thị badge trạng thái với màu sắc khác nhau
+ * - Hiển thị modal để xác nhận hành động
+ * - Hiển thị trạng thái tải, lỗi
+ * 
+ * Props:
+ * - fields: Danh sách sân
+ * - loading: Trạng thái đang tải
+ * - error: Thông báo lỗi
+ * - filterApprovalStatus: Bộ lọc hiện tại
+ * - setFilterApprovalStatus: Hàm thay đổi bộ lọc
+ * - actionLoading: Trạng thái đang thực hiện action
+ * - Các hàm xử lý duyệt, từ chối, khóa, mở khóa
+ */
+
 import React, { useMemo, useState } from "react"
 import {
   FiCheckCircle,

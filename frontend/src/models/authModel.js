@@ -1,3 +1,26 @@
+/**
+ * Chức năng:
+ * - Quản lý token xác thực (lưu/lấy từ localStorage)
+ * - Quản lý loại tài khoản đăng nhập (customer, owner, admin)
+ * - Xác thực email hợp lệ
+ * - Tạo form đăng nhập, đăng ký
+ * - Xác định vai trò người dùng (isAdminUser, isOwnerUser)
+ * - Kiểm tra khớp giữa loại tài khoản và vai trò thực tế
+ * - Xử lý lỗi xác thực
+ * 
+ * Hằng số:
+ * - USER_ROLES: Các vai trò (customer, owner, admin)
+ * - LOGIN_ACCOUNT_TYPES: Các loại tài khoản đăng nhập
+ * 
+ * Hàm chính:
+ * - createLoginForm(): Tạo form đăng nhập mặc định
+ * - createRegisterForm(): Tạo form đăng ký mặc định
+ * - isValidEmail(): Kiểm tra email hợp lệ
+ * - getStoredAuthToken(): Lấy token từ localStorage
+ * - persistAuthToken(): Lưu token vào localStorage
+ * - isAdminUser(), isOwnerUser(): Kiểm tra vai trò
+ */
+
 const TOKEN_STORAGE_KEY = "sanbong_auth_token"
 const LOGIN_TYPE_STORAGE_KEY = "sanbong_login_account_type"
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/

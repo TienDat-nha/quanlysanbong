@@ -1,3 +1,24 @@
+/**
+ * Giao diện trang quản lý người dùng (Admin)
+ * 
+ * Chức năng:
+ * - Hiển thị danh sách người dùng với các cột: Tên, Email, SDT, Vai trò, Trạng thái
+ * - Hiển thị thẻ thống kê: Tổng tài khoản, Người dùng, Chủ sân, Quản trị
+ * - Hiển thị nút tạo người dùng mới
+ * - Hiển thị nút chỉnh sửa, xóa, gửi OTP cho mỗi người dùng
+ * - Hiển thị modal tạo/sửa người dùng
+ * - Hiển thị modal xác thực OTP
+ * - Hiển thị trạng thái tải dữ liệu, lỗi
+ * - Hiển thị form tạo/sửa người dùng với validate
+ * 
+ * Props:
+ * - users: Danh sách người dùng
+ * - loading: Trạng thái đang tải
+ * - error: Thông báo lỗi
+ * - Các state quản lý modal, form
+ * - Các hàm xử lý tạo, sửa, xóa, gửi OTP
+ */
+
 import React from "react"
 import { Link } from "react-router-dom"
 import {

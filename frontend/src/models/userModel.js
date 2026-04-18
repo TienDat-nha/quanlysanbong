@@ -1,3 +1,25 @@
+/**
+ * userModel.js
+ * ============
+ * Model quản lý dữ liệu người dùng (user data)
+ * 
+ * Chức năng:
+ * - Chuẩn hóa và validate dữ liệu người dùng
+ * - Xác định vai trò người dùng (USER, OWNER, ADMIN)
+ * - Kiểm tra trạng thái khóa/hoạt động của người dùng
+ * - Nhận dạng người dùng bị xóa hoặc vô hiệu hóa
+ * - Cung cấp nhãn và giá trị API cho vai trò
+ * - Cung cấp nhãn trạng thái người dùng (Hoạt động, Khóa, Vô hiệu hóa)
+ * 
+ * Hàm chính:
+ * - normalizeUser(): Chuẩn hóa dữ liệu người dùng từ API
+ * - getUserList(): Tạo danh sách người dùng từ mảng người dùng
+ * - getUserSummary(): Tính toán thống kê người dùng theo vai trò
+ * - getManagedUserRoleLabel(): Lấy nhãn vai trò người dùng
+ * - getManagedUserStatusLabel(): Lấy nhãn trạng thái người dùng
+ * - getApiRoleValue(): Lấy giá trị vai trò để gửi tới API
+ */
+
 const normalizeManagedUserRole = (value, email = "") => {
   const normalized = String(value || "USER").trim().toUpperCase()
 

@@ -1,3 +1,34 @@
+/**
+
+ * Giao diện trang đăng ký
+ * 
+ * Chức năng:
+ * - Hiển thị form đăng ký (họ tên, email, sdt, mật khẩu)
+ * - Hiển thị form gửi và xác thực OTP
+ * - Hiển thị lỗi validation cho từng trường
+ * - Hiển thị trạng thái OTP (chờ xác nhận, đã xác nhận, hết hạn)
+ * - Hiển thị timer countdown OTP
+ * - Hiển thị nút gửi mã OTP, xác thực, đăng ký
+ * - Hiển thị link đến trang đăng nhập
+ * 
+ * Props:
+ * - form: Dữ liệu form
+ * - submitting: Trạng thái đang xử lý
+ * - error: Thông báo lỗi
+ * - successMessage: Thông báo thành công
+ * - formErrors: Lỗi chi tiết cho từng trường
+ * - otpActionMode: Trạng thái gửi OTP (send, verify)
+ * - otpState: Trạng thái OTP
+ * - otpSummary: Thông tin tóm tắt OTP
+ * - canResendOtp: Có thể gửi lại OTP không
+ * - otpExpired: OTP đã hết hạn không
+ * - onFieldChange: Hàm xử lý thay đổi trường form
+ * - onOtpInputChange: Hàm xử lý thay đổi mã OTP
+ * - onRequestOtp: Hàm gửi OTP
+ * - onVerifyOtp: Hàm xác thực OTP
+ * - onSubmit: Hàm submit form đăng ký
+ */
+
 import React from "react"
 import { Link } from "react-router-dom"
 import { FiArrowRight, FiCheckCircle, FiMail } from "react-icons/fi"

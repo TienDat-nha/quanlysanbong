@@ -1,3 +1,24 @@
+/**
+
+ * Giao diện trang đăng nhập
+ * 
+ * Chức năng:
+ * - Hiển thị form đăng nhập với 3 tùy chọn loại tài khoản (Người dùng, Chủ sân, Admin)
+ * - Hiển thị trường email, mật khẩu
+ * - Hiển thị nút đăng nhập và link đăng ký
+ * - Hiển thị thông báo lỗi, thông báo thành công, thông tin
+ * - Hiển thị icon khác nhau cho mỗi loại tài khoản
+ * 
+ * Props:
+ * - form: Dữ liệu form hiện tại
+ * - submitting: Trạng thái đang gửi
+ * - error: Thông báo lỗi
+ * - infoMessage: Thông báo thông tin
+ * - onFieldChange: Hàm xử lý thay đổi trường form
+ * - onSubmit: Hàm xử lý submit form
+ * - registerPath: Đường dẫn đến trang đăng ký
+ */
+
 import React from "react"
 import { Link } from "react-router-dom"
 import { FiMapPin, FiShield, FiUser } from "react-icons/fi"
