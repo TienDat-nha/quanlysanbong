@@ -1,3 +1,26 @@
+/**
+ * Hook quản lý logic quản lý người dùng (Admin)
+ * 
+ * Chức năng:
+ * - Tải danh sách tất cả người dùng từ API
+ * - Quản lý form tạo/sửa người dùng (tên, email, sdt, mật khẩu, vai trò)
+ * - Xác thực dữ liệu form người dùng
+ * - Tạo, sửa, xóa người dùng
+ * - Gửi OTP xác thực cho người dùng
+ * - Xác thực OTP người dùng
+ * - Khóa/mở khóa tài khoản người dùng
+ * - Phân quyền người dùng (Admin, Owner, User)
+ * - Quản lý modal tạo/sửa người dùng, xác thực OTP
+ * - Tính toán thống kê người dùng theo vai trò
+ * 
+ * Trả về:
+ * - users: Danh sách người dùng
+ * - loading: Trạng thái đang tải
+ * - error: Thông báo lỗi
+ * - createUserModal/editUserModal: Trạng thái modal
+ * - Các hàm xử lý tạo, sửa, xóa người dùng
+ */
+
 import { useEffect, useMemo, useState } from "react"
 import { isAdminUser, isValidEmail } from "../../models/authModel"
 import {

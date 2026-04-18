@@ -8,7 +8,8 @@ const isLocalHostname = (hostname = "") =>
   || hostname === "127.0.0.1"
   || hostname === "::1"
   || /^\d{1,3}(\.\d{1,3}){3}$/.test(hostname)
-
+ 
+  // Thêm các hostname tùy chỉnh khác nếu cần thiết
 const ensureApiBaseUrl = (value) => {
   const normalizedValue = normalizeApiBaseUrl(value)
 
@@ -29,7 +30,7 @@ const ensureApiBaseUrl = (value) => {
       : `${normalizedValue}/api`
   }
 }
-
+// Hàm này sẽ xác định URL gốc của API dựa trên hostname hiện tại và biến môi trường
 const getDefaultApiOrigin = () => {
   const hostname = typeof window !== "undefined" ? String(window.location.hostname || "").trim() : ""
   const isLocalHost = isLocalHostname(hostname)

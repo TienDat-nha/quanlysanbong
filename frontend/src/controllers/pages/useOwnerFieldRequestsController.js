@@ -1,3 +1,25 @@
+/**
+ 
+
+ * Hook quản lý logic xem yêu cầu tạo sân của chủ sân
+ * 
+ * Chức năng:
+ * - Tải danh sách yêu cầu tạo sân của chủ sân hiện tại từ API
+ * - Lọc chỉ những sân thuộc về chủ sân hiện tại
+ * - Lọc theo trạng thái yêu cầu (ALL, PENDING, APPROVED, REJECTED)
+ * - Tính toán thống kê yêu cầu theo trạng thái
+ * - Quản lý trạng thái tải, lỗi
+ * 
+ * Trả về:
+ * - fields: Danh sách yêu cầu sân của chủ sân (đã lọc)
+ * - allFields: Danh sách yêu cầu sân toàn bộ (không lọc)
+ * - loading: Trạng thái đang tải
+ * - error: Thông báo lỗi
+ * - filterStatus: Bộ lọc trạng thái
+ * - setFilterStatus: Hàm thay đổi bộ lọc
+ * - stats: Thống kê yêu cầu
+ */
+
 import { useCallback, useEffect, useState } from "react"
 import * as API from "../../models/api"
 

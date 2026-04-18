@@ -13,7 +13,6 @@ export const LOGIN_ACCOUNT_TYPES = Object.freeze({
   owner: "owner",
   admin: "admin",
 })
-
 const LOGIN_ACCOUNT_TYPE_VALUES = Object.values(LOGIN_ACCOUNT_TYPES)
 
 const normalizeEmailValue = (value) => String(value || "").trim().toLowerCase()

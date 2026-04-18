@@ -85,7 +85,7 @@ export const getUserSummary = (users) => {
     locked: list.filter((user) => user?.isLocked).length,
   }
 }
-
+//
 export const getUserList = (payload) => {
   const source = Array.isArray(payload) ? payload : Array.isArray(payload?.users) ? payload.users : []
 

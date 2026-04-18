@@ -1,5 +1,6 @@
 import { getTodayBookingDate, normalizeBookingDateValue } from "./bookingModel"
 
+
 export const EMPTY_ADMIN_STATS = Object.freeze({
   totalFields: 0,
   totalBookings: 0,
@@ -10,6 +11,7 @@ export const EMPTY_ADMIN_STATS = Object.freeze({
   totalRevenue: 0,
   totalDepositsPaid: 0,
 })
+
 
 export const createAdminDashboardDate = () => getTodayBookingDate()
 

@@ -1,0 +1,75 @@
+{
+  "common": {
+    "login": "Login",
+    "register": "Register",
+    "logout": "Logout",
+    "email": "Email",
+    "password": "Password",
+    "fullName": "Full Name",
+    "phone": "Phone",
+    "confirmPassword": "Confirm Password",
+    "accountType": "Account Type",
+    "customer": "Customer",
+    "owner": "Owner",
+    "admin": "Admin",
+    "submit": "Submit",
+    "cancel": "Cancel",
+    "loading": "Loading...",
+    "error": "Error",
+    "success": "Success",
+    "warning": "Warning",
+    "info": "Info"
+  },
+  "auth": {
+    "loginTitle": "Login to Account",
+    "registerTitle": "Register New Account",
+    "forgotPassword": "Forgot Password?",
+    "rememberMe": "Remember Me",
+    "loginSuccess": "Login successful",
+    "registerSuccess": "Registration successful",
+    "invalidCredentials": "Invalid email or password",
+    "emailRequired": "Email is required",
+    "passwordRequired": "Password is required",
+    "emailInvalid": "Invalid email format",
+    "passwordMinLength": "Password must be at least 6 characters",
+    "confirmPasswordMismatch": "Passwords do not match",
+    "phoneInvalid": "Invalid phone number",
+    "fullNameRequired": "Full name is required"
+  },
+  "booking": {
+    "title": "Book Field",
+    "selectField": "Select Field",
+    "selectDate": "Select Date",
+    "selectTime": "Select Time",
+    "confirmBooking": "Confirm Booking",
+    "bookingSuccess": "Booking successful",
+    "bookingFailed": "Booking failed",
+    "available": "Available",
+    "booked": "Booked",
+    "pending": "Pending"
+  },
+  "payment": {
+    "title": "Payment",
+    "amount": "Amount",
+    "method": "Payment Method",
+    "payNow": "Pay Now",
+    "paymentSuccess": "Payment successful",
+    "paymentFailed": "Payment failed",
+    "qrCode": "Payment QR Code"
+  },
+  "field": {
+    "name": "Field Name",
+    "type": "Field Type",
+    "price": "Price",
+    "location": "Location",
+    "description": "Description",
+    "availableTimes": "Available Times"
+  },
+  "dashboard": {
+    "title": "Dashboard",
+    "welcome": "Welcome",
+    "totalBookings": "Total Bookings",
+    "totalRevenue": "Total Revenue",
+    "activeFields": "Active Fields"
+  }
+}

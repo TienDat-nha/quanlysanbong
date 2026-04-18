@@ -1,3 +1,17 @@
+/**
+
+ * Component điều khiển trang đăng ký
+ * 
+ * Chức năng:
+ * - Kết nối logic đăng ký (useRegisterController hook) với giao diện (RegisterView)
+ * - Quản lý dữ liệu form đăng ký (họ tên, email, sdt, mật khẩu)
+ * - Quản lý quá trình xác thực OTP
+ * - Xử lý sự kiện submit form
+ * - Hiển thị lỗi, thông báo thành công
+ * 
+ * Props: Không có props
+ */
+
 import React from "react"
 import RegisterView from "../../views/pages/RegisterView"
 import { useRegisterController } from "./useRegisterController"

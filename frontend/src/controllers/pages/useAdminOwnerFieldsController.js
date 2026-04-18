@@ -1,3 +1,26 @@
+/**
+ * Hook quản lý logic quản lý sân chủ sân (Admin)
+ * 
+ * Chức năng:
+ * - Tải danh sách tất cả sân từ API
+ * - Lọc sân theo trạng thái duyệt (ALL, PENDING, APPROVED, LOCKED, REJECTED)
+ * - Duyệt sân (thay đổi trạng thái từ PENDING thành APPROVED)
+ * - Từ chối sân (thay đổi trạng thái thành REJECTED)
+ * - Khóa sân (thay đổi trạng thái thành LOCKED)
+ * - Mở khóa sân (quay lại trạng thái APPROVED)
+ * - Quản lý trạng thái tải, lỗi, thực hiện action
+ * - Xử lý các lỗi như "sân đã được khóa" hoặc "sân chưa bị khóa"
+ * 
+ * Trả về:
+ * - fields: Danh sách sân (đã lọc)
+ * - loading: Trạng thái đang tải
+ * - error: Thông báo lỗi
+ * - filterApprovalStatus: Bộ lọc trạng thái duyệt
+ * - setFilterApprovalStatus: Hàm thay đổi bộ lọc
+ * - actionLoading: Trạng thái đang thực hiện action (fieldId hoặc null)
+ * - Các hàm xử lý duyệt, từ chối, khóa, mở khóa sân
+ */
+
 import { useEffect, useState } from "react"
 import {
   approveAdminField,

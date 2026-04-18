@@ -1,0 +1,75 @@
+{
+  "common": {
+    "login": "Đăng nhập",
+    "register": "Đăng ký",
+    "logout": "Đăng xuất",
+    "email": "Email",
+    "password": "Mật khẩu",
+    "fullName": "Họ tên",
+    "phone": "Số điện thoại",
+    "confirmPassword": "Xác nhận mật khẩu",
+    "accountType": "Loại tài khoản",
+    "customer": "Khách hàng",
+    "owner": "Chủ sân",
+    "admin": "Quản trị viên",
+    "submit": "Gửi",
+    "cancel": "Hủy",
+    "loading": "Đang tải...",
+    "error": "Lỗi",
+    "success": "Thành công",
+    "warning": "Cảnh báo",
+    "info": "Thông tin"
+  },
+  "auth": {
+    "loginTitle": "Đăng nhập tài khoản",
+    "registerTitle": "Đăng ký tài khoản mới",
+    "forgotPassword": "Quên mật khẩu?",
+    "rememberMe": "Ghi nhớ đăng nhập",
+    "loginSuccess": "Đăng nhập thành công",
+    "registerSuccess": "Đăng ký thành công",
+    "invalidCredentials": "Email hoặc mật khẩu không đúng",
+    "emailRequired": "Vui lòng nhập email",
+    "passwordRequired": "Vui lòng nhập mật khẩu",
+    "emailInvalid": "Email không hợp lệ",
+    "passwordMinLength": "Mật khẩu tối thiểu 6 ký tự",
+    "confirmPasswordMismatch": "Xác nhận mật khẩu không khớp",
+    "phoneInvalid": "Số điện thoại không hợp lệ",
+    "fullNameRequired": "Vui lòng nhập họ tên"
+  },
+  "booking": {
+    "title": "Đặt sân",
+    "selectField": "Chọn sân",
+    "selectDate": "Chọn ngày",
+    "selectTime": "Chọn giờ",
+    "confirmBooking": "Xác nhận đặt sân",
+    "bookingSuccess": "Đặt sân thành công",
+    "bookingFailed": "Đặt sân thất bại",
+    "available": "Có sẵn",
+    "booked": "Đã đặt",
+    "pending": "Đang chờ"
+  },
+  "payment": {
+    "title": "Thanh toán",
+    "amount": "Số tiền",
+    "method": "Phương thức thanh toán",
+    "payNow": "Thanh toán ngay",
+    "paymentSuccess": "Thanh toán thành công",
+    "paymentFailed": "Thanh toán thất bại",
+    "qrCode": "Mã QR thanh toán"
+  },
+  "field": {
+    "name": "Tên sân",
+    "type": "Loại sân",
+    "price": "Giá",
+    "location": "Địa điểm",
+    "description": "Mô tả",
+    "availableTimes": "Giờ có sẵn"
+  },
+  "dashboard": {
+    "title": "Bảng điều khiển",
+    "welcome": "Chào mừng",
+    "totalBookings": "Tổng số đặt sân",
+    "totalRevenue": "Tổng doanh thu",
+    "activeFields": "Sân đang hoạt động"
+  }
+}

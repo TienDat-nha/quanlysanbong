@@ -1,3 +1,26 @@
+/**
+ * Hook quản lý logic đăng ký người dùng
+ * 
+ * Chức năng:
+ * - Quản lý form đăng ký (họ tên, email, sdt, mật khẩu, xác nhận mật khẩu)
+ * - Xác thực dữ liệu form (kiểm tra email hợp lệ, sdt đúng format, mật khẩu khớp)
+ * - Quản lý quá trình OTP (gửi mã, xác nhận mã, thời gian hết hạn)
+ * - Tính toán thời gian countdown OTP
+ * - Gọi API để đăng ký tài khoản
+ * - Xử lý các lỗi đăng ký
+ * - Chuyển hướng đến trang đăng nhập sau khi đăng ký thành công
+ * 
+ * Trả về:
+ * - form: Dữ liệu form đăng ký
+ * - submitting: Trạng thái đang xử lý
+ * - error: Thông báo lỗi
+ * - successMessage: Thông báo thành công
+ * - formErrors: Lỗi chi tiết cho từng trường
+ * - otpState: Trạng thái OTP
+ * - otpSummary: Thông tin tóm tắt OTP
+ * - Các hàm xử lý thay đổi form, OTP, submit
+ */
+
 import { useEffect, useMemo, useRef, useState } from "react"
 import { useNavigate } from "react-router-dom"
 import { createRegisterForm, isValidEmail } from "../../models/authModel"
