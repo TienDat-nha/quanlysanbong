@@ -2440,15 +2440,6 @@ export const getAdminDashboard = async (token, params = {}) => {
   }
 }
 
-export const getAdminContacts = async () => ({
-  contacts: [],
-  message: "Backend hiện tại không cung cấp API liên hệ.",
-})
-
-export const deleteAdminContact = async () => {
-  throw new Error("Backend hiện tại không cung cấp API xóa liên hệ.")
-}
-
 export const confirmAdminBooking = async (token, bookingId) =>
   requestFirstSuccess(BOOKING_CONFIRM_PATHS(bookingId), {
     method: "POST",
@@ -3277,23 +3268,3 @@ export const createVnpayDepositPayment = async (token, bookingId) =>
 
 export const createMomoDepositPayment = async (token, bookingId) =>
   createBookingPayment(token, bookingId, "QR")
-
-export const sendContact = async (contactData) => {
-  const response = await request("/contact/sendContact", {
-    method: "POST",
-    body: JSON.stringify({
-      name: String(contactData.name || "").trim(),
-      email: String(contactData.email || "").trim(),
-      phone: String(contactData.phone || "").trim(),
-      message: String(contactData.message || "").trim(),
-    }),
-  })
-  
-  const message = response.message || "Có lỗi [all] khi gửi"
-  
-  if (response.status !== 201 && !response.success) {
-    throw new Error(message)
-  }
-  
-  return response.data
-}

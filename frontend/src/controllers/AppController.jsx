@@ -93,7 +93,6 @@ const AppController = () => {
           path={`${ROUTES.depositPayment}/:bookingId`}
           element={<DepositPaymentController authToken={authToken} currentUser={currentUser} />}
         />
-        <Route path={ROUTES.contact} element={<Navigate to={ROUTES.home} replace />} />
         <Route
           path={ROUTES.login}
           element={<LoginController onLoginSuccess={handleLoginSuccess} />}

@@ -270,20 +270,41 @@ const MyPaymentsController = ({ authToken }) => {
     }
   }
 
-  const handleCancelPaymentClick = async (payment) => {
+  const handleCancelPaymentClick = async (paymentOrId) => {
+    const paymentId = String(
+      typeof paymentOrId === 'object'
+        ? paymentOrId?.id || paymentOrId?._id || paymentOrId?.paymentId || ''
+        : paymentOrId || ''
+    ).trim()
+
+    if (!paymentId) {
+      setLocalError('Khong tim thay ma thanh toan de huy')
+      return
+    }
+
     if (!window.confirm('Ban chac chan muon huy thanh toan nay?')) {
       return
     }
 
     try {
-      setCancelling((prev) => ({ ...prev, [payment.id]: true }))
+      setCancelling((prev) => ({ ...prev, [paymentId]: true }))
       setLocalError('')
-      await cancelPayment(authToken, payment.id)
+      await cancelPayment(authToken, paymentId)
+      setSelectedPayment((currentPayment) =>
+        String(currentPayment?.id || currentPayment?._id || '').trim() === paymentId
+          ? null
+          : currentPayment
+      )
+      setQrData((currentQrData) =>
+        String(selectedPayment?.id || selectedPayment?._id || '').trim() === paymentId
+          ? null
+          : currentQrData
+      )
       await loadPayments()
     } catch (err) {
       setLocalError(err?.message || 'Loi huy thanh toan')
     } finally {
-      setCancelling((prev) => ({ ...prev, [payment.id]: false }))
+      setCancelling((prev) => ({ ...prev, [paymentId]: false }))
     }
   }
 

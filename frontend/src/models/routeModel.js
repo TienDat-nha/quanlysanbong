@@ -10,7 +10,6 @@ export const ROUTES = Object.freeze({
   adminFieldRequests: "/duyet-yeu-cau-tao-san",
   ownerFieldRequests: "/yeu-cau-tao-san-cua-toi",
   fields: "/san-bong",
-  contact: "/lien-he",
   booking: "/dat-san",
   depositPayment: "/thanh-toan-dat-coc",
   myPayments: "/thanh-toan-cua-toi",

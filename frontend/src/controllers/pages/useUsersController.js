@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react"
-import { isAdminUser, isPrimaryAdminEmail, isValidEmail } from "../../models/authModel"
+import { isAdminUser, isValidEmail } from "../../models/authModel"
 import {
   canSendManagedUserOtp,
   createPublicUser,
@@ -606,8 +606,8 @@ export const useUsersController = ({ authToken, currentUser }) => {
       return
     }
 
-    if (isPrimaryAdminEmail(user?.email) || getApiRoleValue(user?.role, user?.email) === "ADMIN") {
-      setError("Tài khoản admin chính không chỉnh sửa ở màn này.")
+    if (getApiRoleValue(user?.role, user?.email) === "ADMIN") {
+      setError("Tài khoản admin không chỉnh sửa ở màn này.")
       return
     }
 

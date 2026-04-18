@@ -1,10 +1,9 @@
 import React, { useEffect, useState } from 'react'
+import QRCode from 'qrcode'
 import { calculateCountdown, formatDateTimeVi, getPaymentStatusInfo } from '../utils/paymentHelpers'
 import { getEffectivePaymentStatus } from '../models/paymentModel'
 import PaymentStatusBadge from './PaymentStatusBadge'
 import './PaymentQRModal.scss'
-
-const QR_PREVIEW_BASE_URL = 'https://api.qrserver.com/v1/create-qr-code/?size=400x400&data='
 
 const isDirectImageUrl = (value = '') => {
   const normalizedValue = String(value || '').trim()
@@ -19,29 +18,39 @@ const isDirectImageUrl = (value = '') => {
 
   try {
     const parsedUrl = new URL(normalizedValue)
-    return (
-      ['img.vietqr.io', 'api.qrserver.com'].includes(parsedUrl.hostname)
+    if (parsedUrl.hostname === 'api.qrserver.com') {
+      return false
+    }
+
+    return parsedUrl.hostname === 'img.vietqr.io'
       || /\.(png|jpe?g|gif|webp|svg)$/i.test(parsedUrl.pathname)
-    )
   } catch (_error) {
     return false
   }
 }
 
-const buildQrPreviewUrl = (payment, qrImage) => {
-  const rawQrImage = String(qrImage || payment?.qrImage || '').trim()
-  const qrText = String(payment?.qrText || '').trim()
-  const qrPayload = qrText || rawQrImage
-
-  if (!qrPayload) {
+const getQrServerPayload = (value = '') => {
+  try {
+    const parsedUrl = new URL(String(value || '').trim())
+    return parsedUrl.hostname === 'api.qrserver.com'
+      ? String(parsedUrl.searchParams.get('data') || '').trim()
+      : ''
+  } catch (_error) {
     return ''
   }
+}
 
-  if (isDirectImageUrl(rawQrImage)) {
-    return rawQrImage
-  }
+const getDirectQrImageUrl = (payment, qrImage) => {
+  const rawQrImage = String(qrImage || payment?.qrImage || '').trim()
 
-  return `${QR_PREVIEW_BASE_URL}${encodeURIComponent(qrPayload)}`
+  return isDirectImageUrl(rawQrImage) ? rawQrImage : ''
+}
+
+const getQrPayload = (payment, qrImage) => {
+  const rawQrImage = String(qrImage || payment?.qrImage || '').trim()
+  const qrText = String(payment?.qrText || '').trim()
+
+  return qrText || getQrServerPayload(rawQrImage) || (isDirectImageUrl(rawQrImage) ? '' : rawQrImage)
 }
 
 const PaymentQRModal = ({
@@ -56,9 +65,13 @@ const PaymentQRModal = ({
 }) => {
   const [countdown, setCountdown] = useState(null)
   const [confirmCancel, setConfirmCancel] = useState(false)
+  const [localQrDataUrl, setLocalQrDataUrl] = useState('')
+  const [qrRenderError, setQrRenderError] = useState('')
   const effectiveStatus = getEffectivePaymentStatus(payment?.status, payment?.expiredAt, payment?.createdAt)
   const paymentStatusInfo = getPaymentStatusInfo(payment?.status, payment?.expiredAt, payment?.createdAt)
-  const displayQrImage = buildQrPreviewUrl(payment, qrImage)
+  const directQrImage = getDirectQrImageUrl(payment, qrImage)
+  const qrPayload = directQrImage ? '' : getQrPayload(payment, qrImage)
+  const displayQrImage = directQrImage || localQrDataUrl
   const momoActionUrl = String(payment?.deeplink || payment?.payUrl || '').trim()
   const isMomoPayment = String(payment?.method || '').trim().toUpperCase() === 'MOMO'
   const confirmButtonLabel = isMomoPayment ? 'Kiểm tra ngay' : 'Kiểm tra thanh toán'
@@ -76,6 +89,43 @@ const PaymentQRModal = ({
 
     return () => clearInterval(interval)
   }, [payment?.expiredAt])
+
+  useEffect(() => {
+    let active = true
+
+    setLocalQrDataUrl('')
+    setQrRenderError('')
+
+    if (!qrPayload) {
+      return () => {
+        active = false
+      }
+    }
+
+    QRCode.toDataURL(qrPayload, {
+      errorCorrectionLevel: 'M',
+      margin: 2,
+      width: 400,
+      color: {
+        dark: '#111827',
+        light: '#ffffff',
+      },
+    })
+      .then((dataUrl) => {
+        if (active) {
+          setLocalQrDataUrl(dataUrl)
+        }
+      })
+      .catch(() => {
+        if (active) {
+          setQrRenderError('Không thể tạo mã QR trên trình duyệt. Vui lòng tải lại QR.')
+        }
+      })
+
+    return () => {
+      active = false
+    }
+  }, [qrPayload])
 
   const isExpired = countdown?.isExpired || false
   const canCancel = effectiveStatus === 'PENDING' && !isExpired
@@ -131,6 +181,10 @@ const PaymentQRModal = ({
             </div>
           )}
 
+          {!displayQrImage && qrPayload && !qrRenderError && (
+            <div className="info-message">Đang tạo mã QR trên trình duyệt...</div>
+          )}
+
           {countdown && !isExpired && (
             <div className="countdown-section">
               <p className="countdown-label">Hết hạn trong:</p>
@@ -184,6 +238,7 @@ const PaymentQRModal = ({
           </div>
 
           {error && <div className="error-message">{error}</div>}
+          {qrRenderError && <div className="error-message">{qrRenderError}</div>}
 
           {paymentStatusInfo?.color === 'warning' && !isExpired && (
             <div className="info-message">

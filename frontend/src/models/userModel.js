@@ -1,18 +1,15 @@
-import { isPrimaryAdminEmail } from "./authModel"
-
 const normalizeManagedUserRole = (value, email = "") => {
   const normalized = String(value || "USER").trim().toUpperCase()
-  const normalizedEmail = String(email || "").trim().toLowerCase()
-
-  if (isPrimaryAdminEmail(normalizedEmail)) {
-    return "ADMIN"
-  }
 
   if (normalized === "CLIENT" || normalized === "CUSTOMER" || normalized === "USER") {
     return "USER"
   }
 
-  if (["OWNER", "FIELD_OWNER", "FIELD-OWNER", "ADMIN"].includes(normalized)) {
+  if (normalized === "ADMIN" || normalized === "SUPER_ADMIN" || normalized === "SUPER-ADMIN") {
+    return "ADMIN"
+  }
+
+  if (["OWNER", "FIELD_OWNER", "FIELD-OWNER"].includes(normalized)) {
     return "OWNER"
   }
 

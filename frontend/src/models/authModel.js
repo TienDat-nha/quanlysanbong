@@ -15,11 +15,8 @@ export const LOGIN_ACCOUNT_TYPES = Object.freeze({
 })
 
 const LOGIN_ACCOUNT_TYPE_VALUES = Object.values(LOGIN_ACCOUNT_TYPES)
-export const PRIMARY_ADMIN_EMAIL = "tiendat82282@gmail.com"
 
 const normalizeEmailValue = (value) => String(value || "").trim().toLowerCase()
-
-export const isPrimaryAdminEmail = (value) => normalizeEmailValue(value) === PRIMARY_ADMIN_EMAIL
 
 export const createLoginForm = () => ({
   email: "",
@@ -82,11 +79,6 @@ export const getAuthCheckingMessage = () => "Đang xác thực tài khoản..."
 
 export const getRoleBasedLoginAccountType = (user) => {
   const normalizedRole = String(user?.role || "").trim().toLowerCase()
-  const normalizedEmail = normalizeEmailValue(user?.email || user?.username)
-
-  if (isPrimaryAdminEmail(normalizedEmail)) {
-    return LOGIN_ACCOUNT_TYPES.admin
-  }
 
   if (["admin", "super_admin", "super-admin"].includes(normalizedRole)) {
     return LOGIN_ACCOUNT_TYPES.admin
