@@ -3,6 +3,7 @@ import { normalizeFieldType } from "./fieldTypeModel"
 const BOOKING_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/
 const TIME_SLOT_PATTERN = /^([01]\d|2[0-3]):([0-5]\d)\s*-\s*([01]\d|2[0-3]):([0-5]\d)$/
 const MONGO_OBJECT_ID_PATTERN = /^[a-f0-9]{24}$/i
+const MINUTES_PER_DAY = 24 * 60
 
 const padTime = (value) => String(value).padStart(2, "0")
 
@@ -66,13 +67,45 @@ const normalizeSubFields = (field) => {
 
 const normalizeTimeSlotId = (value, fallback = "") => String(value || fallback || "").trim()
 
+const normalizeTimeRangeMinutes = (startValue, endValue, { allowOvernight = false } = {}) => {
+  const startMinutes = Number(startValue)
+  const endMinutes = Number(endValue)
+
+  if (!Number.isFinite(startMinutes) || !Number.isFinite(endMinutes)) {
+    return null
+  }
+
+  if (endMinutes === startMinutes) {
+    return null
+  }
+
+  if (endMinutes < startMinutes) {
+    if (!allowOvernight) {
+      return null
+    }
+
+    return {
+      startMinutes,
+      endMinutes: endMinutes + MINUTES_PER_DAY,
+    }
+  }
+
+  return {
+    startMinutes,
+    endMinutes,
+  }
+}
+
 const normalizeTimelineSlot = (slot, index = 0) => {
   if (!slot || typeof slot !== "object") {
     return null
   }
 
   const timeSlot = String(slot.timeSlot || slot.label || "").trim()
-  const parsedRange = parseTimeSlot(timeSlot)
+  const parsedRange = parseTimeSlot(timeSlot, { allowOvernight: true })
+  const normalizedRange = normalizeTimeRangeMinutes(slot.startMinutes, slot.endMinutes, {
+    allowOvernight: true,
+  })
 
   return {
     ...slot,
@@ -80,20 +113,18 @@ const normalizeTimelineSlot = (slot, index = 0) => {
     key: normalizeTimeSlotId(slot.id, `slot-${index + 1}`),
     label: String(slot.label || timeSlot || "").trim() || `Khung giờ ${index + 1}`,
     timeSlot,
-    startMinutes:
-      Number.isFinite(Number(slot.startMinutes))
-        ? Number(slot.startMinutes)
-        : parsedRange?.startMinutes ?? null,
-    endMinutes:
-      Number.isFinite(Number(slot.endMinutes))
-        ? Number(slot.endMinutes)
-        : parsedRange?.endMinutes ?? null,
+    startMinutes: normalizedRange ? normalizedRange.startMinutes : parsedRange?.startMinutes ?? null,
+    endMinutes: normalizedRange ? normalizedRange.endMinutes : parsedRange?.endMinutes ?? null,
   }
 }
 
 export const minutesToTimeLabel = (totalMinutes) => {
-  const hours = Math.floor(totalMinutes / 60)
-  const minutes = totalMinutes % 60
+  const normalizedMinutes =
+    Number.isFinite(Number(totalMinutes))
+      ? ((Number(totalMinutes) % MINUTES_PER_DAY) + MINUTES_PER_DAY) % MINUTES_PER_DAY
+      : 0
+  const hours = Math.floor(normalizedMinutes / 60)
+  const minutes = normalizedMinutes % 60
   return `${padTime(hours)}:${padTime(minutes)}`
 }
 
@@ -187,7 +218,7 @@ export const parseBookingDate = (value) => {
   return date
 }
 
-export const parseTimeSlot = (value) => {
+export const parseTimeSlot = (value, { allowOvernight = false } = {}) => {
   const match = String(value || "").trim().match(TIME_SLOT_PATTERN)
   if (!match) {
     return null
@@ -196,18 +227,11 @@ export const parseTimeSlot = (value) => {
   const startMinutes = Number(match[1]) * 60 + Number(match[2])
   const endMinutes = Number(match[3]) * 60 + Number(match[4])
 
-  if (endMinutes <= startMinutes) {
-    return null
-  }
-
-  return {
-    startMinutes,
-    endMinutes,
-  }
+  return normalizeTimeRangeMinutes(startMinutes, endMinutes, { allowOvernight })
 }
 
 export const getBookingDurationMinutes = (timeSlot) => {
-  const parsed = parseTimeSlot(timeSlot)
+  const parsed = parseTimeSlot(timeSlot, { allowOvernight: true })
   if (!parsed) {
     return 0
   }
@@ -276,7 +300,7 @@ export const validateBookingForm = (form, now = new Date()) => {
     return "Ngày đặt không hợp lệ."
   }
 
-  const parsedTimeSlot = parseTimeSlot(timeSlot)
+  const parsedTimeSlot = parseTimeSlot(timeSlot, { allowOvernight: true })
   if (!parsedTimeSlot) {
     return "Khung giờ phải theo định dạng HH:mm - HH:mm."
   }
@@ -332,7 +356,7 @@ export const createFallbackBookingTimeline = (
     defaultEndMinutes = 24 * 60,
   } = {}
 ) => {
-  const parsedOpenHours = parseTimeSlot(openHours)
+  const parsedOpenHours = parseOpenHours(openHours)
   const startMinutes = parsedOpenHours?.startMinutes ?? defaultStartMinutes
   const endMinutes = parsedOpenHours?.endMinutes ?? defaultEndMinutes
 
@@ -362,7 +386,15 @@ export const createFallbackBookingTimeline = (
   return timeline.filter(Boolean)
 }
 
-const parseOpenHours = (value) => parseTimeSlot(value)
+const parseOpenHours = (value) => parseTimeSlot(value, { allowOvernight: true })
+
+const isTimeRangeWithinOpenHours = (timeRange, openHours) =>
+  [0, -MINUTES_PER_DAY, MINUTES_PER_DAY].some((offset) => {
+    const shiftedStart = Number(timeRange.startMinutes) + offset
+    const shiftedEnd = Number(timeRange.endMinutes) + offset
+
+    return shiftedStart >= Number(openHours.startMinutes) && shiftedEnd <= Number(openHours.endMinutes)
+  })
 
 const normalizeBookingStatusKey = (value) => String(value || "").trim().toLowerCase()
 
@@ -393,21 +425,21 @@ const isBlockingBooking = (booking, now = new Date()) => {
 const getBookingTimeRange = (booking) => {
   const timeSlotInfo = booking?.timeSlotInfo
 
-  if (
-    Number.isFinite(Number(timeSlotInfo?.startMinutes))
-    && Number.isFinite(Number(timeSlotInfo?.endMinutes))
-  ) {
-    return {
-      startMinutes: Number(timeSlotInfo.startMinutes),
-      endMinutes: Number(timeSlotInfo.endMinutes),
-    }
+  const normalizedRangeFromInfo = normalizeTimeRangeMinutes(
+    timeSlotInfo?.startMinutes,
+    timeSlotInfo?.endMinutes,
+    { allowOvernight: true }
+  )
+  if (normalizedRangeFromInfo) {
+    return normalizedRangeFromInfo
   }
 
   return parseTimeSlot(
     booking?.timeSlot
     || timeSlotInfo?.timeSlot
     || timeSlotInfo?.label
-    || ""
+    || "",
+    { allowOvernight: true }
   )
 }
 
@@ -476,17 +508,28 @@ const doesBookingMatchSubField = (booking, subField) => {
 }
 
 const doesTimeRangesOverlap = (bookingRange, slot) => {
-  if (
-    !bookingRange
-    || !Number.isFinite(bookingRange.startMinutes)
-    || !Number.isFinite(bookingRange.endMinutes)
-    || !Number.isFinite(slot?.startMinutes)
-    || !Number.isFinite(slot?.endMinutes)
-  ) {
+  const normalizedBookingRange = normalizeTimeRangeMinutes(
+    bookingRange?.startMinutes,
+    bookingRange?.endMinutes,
+    { allowOvernight: true }
+  )
+  const normalizedSlotRange = normalizeTimeRangeMinutes(
+    slot?.startMinutes,
+    slot?.endMinutes,
+    { allowOvernight: true }
+  )
+
+  if (!normalizedBookingRange || !normalizedSlotRange) {
     return false
   }
 
-  return bookingRange.startMinutes < slot.endMinutes && bookingRange.endMinutes > slot.startMinutes
+  return [0, -MINUTES_PER_DAY, MINUTES_PER_DAY].some((offset) => {
+    const shiftedSlotStart = normalizedSlotRange.startMinutes + offset
+    const shiftedSlotEnd = normalizedSlotRange.endMinutes + offset
+
+    return normalizedBookingRange.startMinutes < shiftedSlotEnd
+      && normalizedBookingRange.endMinutes > shiftedSlotStart
+  })
 }
 
 export const buildBookingScheduleRows = ({
@@ -526,11 +569,13 @@ export const buildBookingScheduleRows = ({
     field,
     subField,
     slots: (Array.isArray(timeline) ? timeline : []).map((slot) => {
+      const slotTimeRange = normalizeTimeRangeMinutes(slot?.startMinutes, slot?.endMinutes, {
+        allowOvernight: true,
+      })
       const isOutsideOpenHours =
         openHours
-        && Number.isFinite(slot.startMinutes)
-        && Number.isFinite(slot.endMinutes)
-        && (slot.startMinutes < openHours.startMinutes || slot.endMinutes > openHours.endMinutes)
+        && slotTimeRange
+        && !isTimeRangeWithinOpenHours(slotTimeRange, openHours)
       const isPast =
         Boolean(bookingDate)
         && bookingDate.getTime() === today.getTime()

@@ -283,7 +283,7 @@ const getUserBookingActionIds = (bookingOrId) => {
 }
 
 const getUserBookingTimeRange = (booking) => {
-  const parsed = parseTimeSlot(String(booking?.timeSlot || "").trim())
+  const parsed = parseTimeSlot(String(booking?.timeSlot || "").trim(), { allowOvernight: true })
   if (parsed) {
     return parsed
   }
@@ -291,8 +291,14 @@ const getUserBookingTimeRange = (booking) => {
   const startMinutes = Number(booking?.timeSlotInfo?.startMinutes)
   const endMinutes = Number(booking?.timeSlotInfo?.endMinutes)
 
-  if (Number.isFinite(startMinutes) && Number.isFinite(endMinutes) && endMinutes > startMinutes) {
-    return { startMinutes, endMinutes }
+  if (Number.isFinite(startMinutes) && Number.isFinite(endMinutes)) {
+    if (endMinutes > startMinutes) {
+      return { startMinutes, endMinutes }
+    }
+
+    if (endMinutes < startMinutes) {
+      return { startMinutes, endMinutes: endMinutes + 24 * 60 }
+    }
   }
 
   return null

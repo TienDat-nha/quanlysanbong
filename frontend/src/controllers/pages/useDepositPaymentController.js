@@ -207,22 +207,30 @@ const isNavigationEventLike = (value) =>
   )
 
 const getBookingTimeRange = (booking) => {
-  const parsedRange = parseTimeSlot(String(booking?.timeSlot || "").trim())
+  const parsedRange = parseTimeSlot(String(booking?.timeSlot || "").trim(), { allowOvernight: true })
   if (parsedRange) {
     return parsedRange
   }
 
   const startTime = String(booking?.timeSlotInfo?.startTime || "").trim()
   const endTime = String(booking?.timeSlotInfo?.endTime || "").trim()
-  const parsedFromInfo = parseTimeSlot(startTime && endTime ? `${startTime} - ${endTime}` : "")
+  const parsedFromInfo = parseTimeSlot(startTime && endTime ? `${startTime} - ${endTime}` : "", {
+    allowOvernight: true,
+  })
   if (parsedFromInfo) {
     return parsedFromInfo
   }
 
   const startMinutes = Number(booking?.timeSlotInfo?.startMinutes)
   const endMinutes = Number(booking?.timeSlotInfo?.endMinutes)
-  if (Number.isFinite(startMinutes) && Number.isFinite(endMinutes) && endMinutes > startMinutes) {
-    return { startMinutes, endMinutes }
+  if (Number.isFinite(startMinutes) && Number.isFinite(endMinutes)) {
+    if (endMinutes > startMinutes) {
+      return { startMinutes, endMinutes }
+    }
+
+    if (endMinutes < startMinutes) {
+      return { startMinutes, endMinutes: endMinutes + 24 * 60 }
+    }
   }
 
   return null

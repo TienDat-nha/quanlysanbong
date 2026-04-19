@@ -146,7 +146,7 @@ const getManagedBookingGroupKey = (booking) =>
     .join("|")
 
 const getManagedBookingTimeRange = (booking) => {
-  const parsed = parseTimeSlot(String(booking?.timeSlot || "").trim())
+  const parsed = parseTimeSlot(String(booking?.timeSlot || "").trim(), { allowOvernight: true })
   if (parsed) {
     return parsed
   }
@@ -154,8 +154,14 @@ const getManagedBookingTimeRange = (booking) => {
   const startMinutes = Number(booking?.timeSlotInfo?.startMinutes)
   const endMinutes = Number(booking?.timeSlotInfo?.endMinutes)
 
-  if (Number.isFinite(startMinutes) && Number.isFinite(endMinutes) && endMinutes > startMinutes) {
-    return { startMinutes, endMinutes }
+  if (Number.isFinite(startMinutes) && Number.isFinite(endMinutes)) {
+    if (endMinutes > startMinutes) {
+      return { startMinutes, endMinutes }
+    }
+
+    if (endMinutes < startMinutes) {
+      return { startMinutes, endMinutes: endMinutes + 24 * 60 }
+    }
   }
 
   return null
