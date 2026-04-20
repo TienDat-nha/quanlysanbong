@@ -1,10 +1,9 @@
 import { useEffect, useState } from "react"
 import {
   approveAdminField,
+  deleteAdminField,
   getAllFieldForAdmin,
-  lockAdminField,
   rejectAdminField,
-  unlockAdminField,
 } from "../../models/api"
 
 const getApprovalStatusKey = (field) => {
@@ -59,19 +58,6 @@ const patchFieldStatus = (fields = [], fieldId, nextStatus) =>
     }
   })
 
-const normalizeErrorKey = (value = "") =>
-  String(value || "")
-    .trim()
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-
-const isAlreadyLockedError = (value = "") =>
-  normalizeErrorKey(value).includes("chi duoc khoa san da duyet")
-
-const isAlreadyUnlockedError = (value = "") =>
-  normalizeErrorKey(value).includes("san chua bi khoa")
-
 const fetchFilteredFields = async (token, filterApprovalStatus = "ALL") => {
   const response = await getAllFieldForAdmin(token)
   return filterFieldsByApprovalStatus(response?.fields || [], filterApprovalStatus)
@@ -91,7 +77,7 @@ export const useAdminOwnerFieldsController = ({ authToken }) => {
         setError(null)
         setFields(await fetchFilteredFields(authToken, filterApprovalStatus))
       } catch (err) {
-        setError(err?.message || "Lỗi tải danh sách sân của chủ sân")
+        setError(err?.message || "Lá»—i táº£i danh sÃ¡ch sÃ¢n cá»§a chá»§ sÃ¢n")
       } finally {
         setLoading(false)
       }
@@ -120,7 +106,7 @@ export const useAdminOwnerFieldsController = ({ authToken }) => {
       )
       setFields(await fetchFilteredFields(authToken, filterApprovalStatus))
     } catch (err) {
-      setError(err?.message || "Lỗi phê duyệt sân")
+      setError(err?.message || "Lá»—i phÃª duyá»‡t sÃ¢n")
     } finally {
       setActionLoading(null)
     }
@@ -139,55 +125,39 @@ export const useAdminOwnerFieldsController = ({ authToken }) => {
       )
       setFields(await fetchFilteredFields(authToken, filterApprovalStatus))
     } catch (err) {
-      setError(err?.message || "Lỗi từ chối sân")
+      setError(err?.message || "Lá»—i tá»« chá»‘i sÃ¢n")
     } finally {
       setActionLoading(null)
     }
   }
 
-  const handleLockField = async (fieldId) => {
-    try {
-      setActionLoading(fieldId)
-      setError(null)
-      await lockAdminField(authToken, fieldId)
-      setFields((currentFields) =>
-        filterFieldsByApprovalStatus(
-          patchFieldStatus(currentFields, fieldId, "LOCKED"),
-          filterApprovalStatus
-        )
-      )
-      setFields(await fetchFilteredFields(authToken, filterApprovalStatus))
-    } catch (err) {
-      setFields(await fetchFilteredFields(authToken, filterApprovalStatus))
-      setError(
-        isAlreadyLockedError(err?.message)
-          ? "Sân này đang ở trạng thái đã khóa. Bạn có thể bấm mở khóa để kích hoạt lại."
-          : err?.message || "Lỗi khóa sân"
-      )
-    } finally {
-      setActionLoading(null)
+  const handleDeleteField = async (fieldId, fieldName = "") => {
+    const normalizedFieldId = String(fieldId || "").trim()
+    if (!normalizedFieldId) {
+      return
     }
-  }
 
-  const handleUnlockField = async (fieldId) => {
+    const normalizedFieldName = String(fieldName || "").trim()
+    const confirmMessage = normalizedFieldName
+      ? `XÃ¡c nháº­n xÃ³a sÃ¢n "${normalizedFieldName}"?`
+      : "XÃ¡c nháº­n xÃ³a sÃ¢n nÃ y?"
+
+    if (!window.confirm(confirmMessage)) {
+      return
+    }
+
     try {
-      setActionLoading(fieldId)
+      setActionLoading(normalizedFieldId)
       setError(null)
-      await unlockAdminField(authToken, fieldId)
+      await deleteAdminField(authToken, normalizedFieldId)
       setFields((currentFields) =>
-        filterFieldsByApprovalStatus(
-          patchFieldStatus(currentFields, fieldId, "APPROVED"),
-          filterApprovalStatus
+        (Array.isArray(currentFields) ? currentFields : []).filter(
+          (field) => String(field?.id || "") !== normalizedFieldId
         )
       )
       setFields(await fetchFilteredFields(authToken, filterApprovalStatus))
     } catch (err) {
-      setFields(await fetchFilteredFields(authToken, filterApprovalStatus))
-      setError(
-        isAlreadyUnlockedError(err?.message)
-          ? "Sân này hiện không ở trạng thái khóa."
-          : err?.message || "Lỗi mở khóa sân"
-      )
+      setError(err?.message || "Lá»—i xÃ³a sÃ¢n")
     } finally {
       setActionLoading(null)
     }
@@ -201,8 +171,7 @@ export const useAdminOwnerFieldsController = ({ authToken }) => {
     setFilterApprovalStatus,
     handleApproveField,
     handleRejectField,
-    handleLockField,
-    handleUnlockField,
+    handleDeleteField,
     actionLoading,
   }
 }

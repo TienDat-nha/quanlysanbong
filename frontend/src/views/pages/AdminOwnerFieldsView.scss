@@ -535,17 +535,10 @@
       box-shadow: 0 14px 24px rgba(178, 79, 79, 0.22);
     }
 
-    &--lock {
-      background: linear-gradient(135deg, #f3ba46 0%, #d69721 100%);
-      color: #462c00;
-      box-shadow: 0 14px 24px rgba(214, 151, 33, 0.22);
-    }
-
-    &--unlock {
-      border-color: rgba(18, 63, 52, 0.15);
-      background: white;
-      color: var(--owner-forest);
-      box-shadow: 0 10px 18px rgba(18, 63, 52, 0.09);
+    &--delete {
+      background: linear-gradient(135deg, #e35a5a 0%, #bf3f3f 100%);
+      color: #fff;
+      box-shadow: 0 14px 24px rgba(191, 63, 63, 0.28);
     }
   }
 
