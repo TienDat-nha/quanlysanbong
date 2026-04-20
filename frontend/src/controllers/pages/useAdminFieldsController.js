@@ -7,9 +7,11 @@ import {
   confirmAdminBookingDeposit,
   confirmAdminBookingPayment,
   createAdminField,
+  createAdminSubField,
   deleteAdminField,
   getAdminDashboard,
   getAllFieldForOwner,
+  getSubFieldsByField,
   lockAdminField,
   rejectAdminField,
   unlockAdminField,
@@ -28,7 +30,7 @@ import {
   validateAdminFieldForm,
 } from "../../models/adminFieldModel"
 import { canManageFields, isAdminUser, isOwnerUser } from "../../models/authModel"
-import { getTodayBookingDate, normalizeBookingDateValue } from "../../models/bookingModel"
+import { getTodayBookingDate, isMongoObjectId, normalizeBookingDateValue } from "../../models/bookingModel"
 import { normalizeFieldType } from "../../models/fieldTypeModel"
 import {
   createAdminFieldsSectionRoute,
@@ -88,6 +90,22 @@ const getFieldModerationState = (field) => {
 const normalizeManagedFieldId = (field) =>
   String(field?.id || field?._id || field?.fieldId || "")
     .trim()
+
+const normalizeManagedSubFieldId = (subField) =>
+  String(subField?.id || subField?._id || subField?.subFieldId || "")
+    .trim()
+
+const buildSubFieldCreatePayload = (fieldId, subField, fallbackValues = {}) => ({
+  fieldId,
+  key: String(subField?.key || "").trim(),
+  name: String(subField?.name || "").trim(),
+  type: normalizeFieldType(subField?.type || "", normalizeFieldType(fallbackValues?.type || "", "")),
+  pricePerHour: Math.max(
+    Math.round(Number(subField?.pricePerHour || fallbackValues?.pricePerHour || 0)),
+    0
+  ),
+  openHours: String(subField?.openHours || fallbackValues?.openHours || "").trim(),
+})
 
 const filterFieldsForPortal = (fields, currentUser, isOwnerPortal) => {
   const nextFields = Array.isArray(fields) ? fields : []
@@ -409,6 +427,45 @@ export const useAdminFieldsController = ({ authToken, currentUser }) => {
           : item
       ),
     }))
+  }
+
+  const createMissingSubFields = async (fieldId, desiredSubFields = [], fallbackValues = {}) => {
+    const normalizedFieldId = String(fieldId || "").trim()
+    if (!normalizedFieldId) {
+      return
+    }
+
+    const { subFields: existingSubFields } = await getSubFieldsByField(normalizedFieldId, authToken)
+    const existingSubFieldIds = new Set(
+      (Array.isArray(existingSubFields) ? existingSubFields : [])
+        .map((subField) => normalizeManagedSubFieldId(subField))
+        .filter((id) => isMongoObjectId(id))
+    )
+    const existingSubFieldKeys = new Set(
+      (Array.isArray(existingSubFields) ? existingSubFields : [])
+        .map((subField) => String(subField?.key || "").trim().toLowerCase())
+        .filter(Boolean)
+    )
+
+    for (const subField of Array.isArray(desiredSubFields) ? desiredSubFields : []) {
+      const persistedSubFieldId = normalizeManagedSubFieldId(subField)
+      if (isMongoObjectId(persistedSubFieldId) && existingSubFieldIds.has(persistedSubFieldId)) {
+        continue
+      }
+
+      const payload = buildSubFieldCreatePayload(normalizedFieldId, subField, fallbackValues)
+      const normalizedKey = String(payload?.key || "").trim().toLowerCase()
+      if (!payload.name || !payload.type || !normalizedKey) {
+        continue
+      }
+
+      if (existingSubFieldKeys.has(normalizedKey)) {
+        continue
+      }
+
+      await createAdminSubField(authToken, payload)
+      existingSubFieldKeys.add(normalizedKey)
+    }
   }
 
   useEffect(() => {
@@ -812,6 +869,13 @@ export const useAdminFieldsController = ({ authToken, currentUser }) => {
       const response = editingFieldId
         ? await updateAdminField(authToken, editingFieldId, payload)
         : await createAdminField(authToken, payload)
+      const fieldId = normalizeManagedFieldId(response?.field) || String(editingFieldId || "").trim()
+
+      await createMissingSubFields(fieldId, payload.subFields, {
+        type: payload.type,
+        pricePerHour: payload.pricePerHour,
+        openHours: payload.openHours,
+      })
 
       resetForm()
       const fallbackMessage = isEditingMode

@@ -1947,6 +1947,32 @@ export const getSubFieldsByField = async (fieldId, token = "") => {
   }
 }
 
+export const createAdminSubField = async (token, payload = {}) => {
+  const response = await requestWithTransientRetry(
+    "/subField/createSubField",
+    {
+      method: "POST",
+      headers: createTokenHeaders(token),
+      body: JSON.stringify({
+        fieldId: String(payload?.fieldId || "").trim(),
+        key: String(payload?.key || "").trim(),
+        name: String(payload?.name || "").trim(),
+        type: normalizeFieldType(payload?.type || "", ""),
+        pricePerHour: Math.max(Math.round(Number(payload?.pricePerHour || 0)), 0),
+        openHours: normalizeOpenHoursValue(payload?.openHours || "", ""),
+      }),
+    },
+    RENDER_SHORT_READ_RETRY_CONFIG
+  )
+
+  return {
+    subField:
+      normalizeSubFieldItem(getObjectFromResponse(response, ["subField", "item", "record", "result"]))
+      || normalizeSubFieldItem(unwrapResponseData(response)),
+    message: String(response?.message || "").trim(),
+  }
+}
+
 const attachSubFieldsToField = async (field, token = "") => {
   const normalizedField = normalizeFieldItem(field)
   if (!normalizedField?.id) {

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+ import React, { useEffect, useState } from 'react'
 import QRCode from 'qrcode'
 import { calculateCountdown } from '../utils/paymentHelpers'
 import PaymentStatusBadge from './PaymentStatusBadge'
