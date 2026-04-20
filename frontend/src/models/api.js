@@ -59,7 +59,6 @@ const API_BASE_URL_CANDIDATES = (() => {
     const hostname = String(window.location.hostname || "").trim()
     if (isLocalHostname(hostname)) {
       candidates.add(ensureApiBaseUrl(`http://${hostname || "localhost"}:5555`))
-      candidates.add(ensureApiBaseUrl(`http://${hostname || "localhost"}:5000`))
     }
   }
 
@@ -2592,9 +2591,7 @@ export const getMyBookings = async (token) => {
   const response = await requestFirstSuccessWithTransientRetry(
     BOOKING_MY_LIST_PATHS,
     {
-      method: "POST",
       headers: createTokenHeaders(token),
-      body: JSON.stringify({}),
     },
     RENDER_LONG_READ_RETRY_CONFIG
   )

@@ -982,7 +982,10 @@ export const useBookingController = ({ authToken, currentUser }) => {
     }
 
     const subFields = Array.isArray(selectedField.subFields) ? selectedField.subFields : []
-    if (subFields.length === 0 || subFields.every((subField) => isMongoObjectId(subField?.id))) {
+    const hasOnlyValidSubFieldIds =
+      subFields.length > 0 && subFields.every((subField) => isMongoObjectId(subField?.id))
+
+    if (hasOnlyValidSubFieldIds) {
       return undefined
     }
 
@@ -990,7 +993,7 @@ export const useBookingController = ({ authToken, currentUser }) => {
 
     getSubFieldsByField(selectedField.id, authToken)
       .then((data) => {
-        if (!mounted || !Array.isArray(data?.subFields) || data.subFields.length === 0) {
+        if (!mounted || !Array.isArray(data?.subFields)) {
           return
         }
 
@@ -1440,6 +1443,5 @@ export const useBookingController = ({ authToken, currentUser }) => {
     handleSubmit,
   }
 }
-
 
 
