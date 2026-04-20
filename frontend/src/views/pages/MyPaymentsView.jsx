@@ -5,7 +5,7 @@ import {
   getPaymentMethodLabel,
   getPaymentTypeLabel,
 } from '../../utils/paymentHelpers'
-import { getEffectivePaymentStatus } from '../../models/paymentModel'
+// LƯU Ý: Đã loại bỏ import getEffectivePaymentStatus vì FE không tự tính trạng thái nữa
 import PaymentStatusBadge from '../../components/PaymentStatusBadge'
 import './MyPaymentsView.scss'
 
@@ -29,71 +29,65 @@ const MyPaymentsView = ({
           disabled={loading}
           title="Làm mới danh sách"
         >
-          🔄
+          🔄 Tải lại
         </button>
       </div>
 
-      {error && <div className="error-alert">{error}</div>}
-      {feedback?.text && <div className={`error-alert error-alert--${feedback.type || 'warning'}`.trim()}>{feedback.text}</div>}
+      {error && <div className="alert alert--error">{error}</div>}
+      
+      {feedback?.text && (
+        <div className={`alert alert--${feedback.type || 'warning'}`}>
+          {feedback.text}
+        </div>
+      )}
 
-      {loading && <p className="loading-text">Đang tải danh sách thanh toán...</p>}
+      {loading && <div className="loading-state">Đang tải danh sách thanh toán...</div>}
 
       {!loading && payments.length === 0 && (
         <div className="empty-state">
-          <p>Bạn chưa có lịch sử thanh toán nào</p>
+          <p>Bạn chưa có giao dịch thanh toán nào.</p>
         </div>
       )}
 
       {!loading && payments.length > 0 && (
         <div className="payments-list">
           {payments.map((payment) => {
-            const effectiveStatus = getEffectivePaymentStatus(
-              payment.status,
-              payment.expiredAt,
-              payment.createdAt
-            )
-            const isPending = effectiveStatus === 'PENDING'
-            const normalizedMethod = String(payment.method || '').trim().toUpperCase()
-            const canOpenPayment = isPending && normalizedMethod !== 'CASH'
+            // --- THAY ĐỔI QUAN TRỌNG: Lấy status trực tiếp từ Backend ---
+            const status = String(payment.status || 'PENDING').toUpperCase()
+            const isPending = status === 'PENDING'
+            const method = String(payment.method || '').toUpperCase()
+            
+            // Chỉ hiện nút thanh toán nếu đơn đang chờ và không phải trả tiền mặt
+            const canAction = isPending && method !== 'CASH'
             const isCancelling = cancelling[payment.id]
 
             return (
-              <div key={payment.id} className="payment-item">
+              <div key={payment.id} className={`payment-item status-${status.toLowerCase()}`}>
                 <div className="payment-main">
                   <div className="payment-info">
                     <div className="info-row">
-                      <span className="label">Booking:</span>
-                      <span className="value bookmark-id" title={payment.bookingId}>
-                        {payment.bookingId?.slice(0, 12)}...
-                      </span>
+                      <span className="label">Mã Booking:</span>
+                      <span className="value code-text">{payment.bookingId?.slice(-10)}</span>
                     </div>
                     <div className="info-row">
-                      <span className="label">Phương thức:</span>
-                      <span className="value">
-                        {getPaymentMethodLabel(payment.method)}
-                      </span>
+                      <span className="label">Hình thức:</span>
+                      <span className="value">{getPaymentMethodLabel(payment.method)}</span>
                     </div>
                     <div className="info-row">
-                      <span className="label">Loại:</span>
-                      <span className="value">
-                        {getPaymentTypeLabel(payment.paymentType)}
-                      </span>
+                      <span className="label">Nội dung:</span>
+                      <span className="value">{getPaymentTypeLabel(payment.paymentType)}</span>
                     </div>
-                    <div className="info-row">
+                    <div className="info-row amount-row">
                       <span className="label">Số tiền:</span>
-                      <span className="value amount">
-                        {formatCurrencyVi(payment.amount)}
-                      </span>
+                      <span className="value amount-text">{formatCurrencyVi(payment.amount)}</span>
                     </div>
                     <div className="info-row">
-                      <span className="label">Ngày:</span>
-                      <span className="value">
-                        {formatDateTimeVi(payment.createdAt)}
-                      </span>
+                      <span className="label">Thời gian:</span>
+                      <span className="value">{formatDateTimeVi(payment.createdAt)}</span>
                     </div>
                   </div>
 
-                  <div className="payment-status">
+                  <div className="payment-status-area">
                     <PaymentStatusBadge
                       status={payment.status}
                       expiredAt={payment.expiredAt}
@@ -102,29 +96,29 @@ const MyPaymentsView = ({
                   </div>
                 </div>
 
-                <div className="payment-actions">
-                  {canOpenPayment && (
+                <div className="payment-footer-actions">
+                  {canAction && (
                     <button
-                      className="btn btn-action btn-view-qr"
+                      className="btn-action btn-pay"
                       onClick={() => onViewQR(payment)}
-                      disabled={loading}
+                      disabled={loading || isCancelling}
                     >
-                      {normalizedMethod === 'MOMO' ? 'Mở MoMo' : 'Xem QR'}
+                      {method === 'MOMO' ? 'Tiếp tục thanh toán MoMo' : 'Xem mã QR'}
                     </button>
                   )}
 
                   {isPending && (
                     <button
-                      className="btn btn-action btn-cancel"
-                      onClick={() => onCancel(payment)}
+                      className="btn-action btn-cancel-payment"
+                      onClick={() => onCancel(payment.id)}
                       disabled={loading || isCancelling}
                     >
-                      {isCancelling ? 'Đang huỷ...' : 'Huỷ'}
+                      {isCancelling ? 'Đang hủy...' : 'Hủy yêu cầu'}
                     </button>
                   )}
 
                   {!isPending && (
-                    <span className="action-placeholder">Không thể thao tác</span>
+                    <span className="status-note">Giao dịch đã đóng</span>
                   )}
                 </div>
               </div>

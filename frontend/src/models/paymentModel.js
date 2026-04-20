@@ -11,55 +11,29 @@ const PAYMENT_PATHS = {
 const PAYMENT_METHODS = ['MOMO', 'BANK', 'CASH']
 const PAYMENT_TYPES = ['DEPOSIT', 'FULL']
 const PAYMENT_STATUSES = ['PENDING', 'PAID', 'CANCELLED', 'EXPIRED', 'FAILED']
-const DEFAULT_PENDING_PAYMENT_MINUTES = 5
 
 const normalizePaymentDate = (value) => {
-  if (!value) {
-    return null
-  }
-
+  if (!value) return null
   const date = value instanceof Date ? new Date(value.getTime()) : new Date(value)
   return Number.isNaN(date.getTime()) ? null : date
 }
 
-const getEffectivePaymentStatus = (status, expiredAt = null, createdAt = null, now = Date.now()) => {
-  const normalizedStatus = String(status || '').trim().toUpperCase()
-  const normalizedExpiredAt = normalizePaymentDate(expiredAt)
-  const normalizedCreatedAt = normalizePaymentDate(createdAt)
-  const derivedExpiredAt =
-    normalizedExpiredAt
-    || (
-      normalizedCreatedAt
-        ? new Date(normalizedCreatedAt.getTime() + DEFAULT_PENDING_PAYMENT_MINUTES * 60 * 1000)
-        : null
-    )
-
-  if (
-    ['PENDING', 'EXPIRED', 'FAILED'].includes(normalizedStatus)
-    && derivedExpiredAt
-    && derivedExpiredAt.getTime() <= now
-  ) {
-    return 'CANCELLED'
-  }
-
-  return normalizedStatus
-}
-
+/**
+ * HÀM CHUẨN HÓA DỮ LIỆU (MAPPING)
+ * FE chỉ nên format lại dữ liệu cho đẹp, không nên tự chế logic trạng thái.
+ */
 const normalizePaymentItem = (payment) => {
-  if (!payment || typeof payment !== 'object') {
-    return null
-  }
+  if (!payment || typeof payment !== 'object') return null
 
   const id = String(payment.id || payment._id || payment.paymentId || '').trim()
   const bookingId = String(payment.bookingId || '').trim()
 
-  if (!id && !bookingId) {
-    return null
-  }
+  if (!id && !bookingId) return null
 
-  const expiredAt = normalizePaymentDate(payment.expiredAt)
-  const createdAt = normalizePaymentDate(payment.createdAt)
-  const status = getEffectivePaymentStatus(payment.status, expiredAt, createdAt)
+  // --- THAY ĐỔI QUAN TRỌNG ---
+  // FE chỉ tin vào field status mà BE trả về. 
+  // Nếu BE báo PENDING, FE hiện PENDING. Nếu BE báo EXPIRED, FE hiện EXPIRED.
+  const status = String(payment.status || 'PENDING').trim().toUpperCase()
 
   return {
     ...payment,
@@ -69,17 +43,18 @@ const normalizePaymentItem = (payment) => {
     bookingIds: Array.isArray(payment.bookingIds)
       ? payment.bookingIds.map((item) => String(item || '').trim()).filter(Boolean)
       : [],
-    amount: Number(payment.amount || 0),
+    // Đảm bảo số tiền luôn là kiểu số để format currency
+    amount: Number(payment.amount || 0), 
     method: String(payment.method || '').trim().toUpperCase(),
     paymentType: String(payment.paymentType || payment.type || '').trim().toUpperCase(),
-    status,
+    status, // Lấy trạng thái thật từ Server
     qrImage: String(payment.qrImage || payment.qr || '').trim(),
     qrText: String(payment.qrText || payment.qrCode || payment.content || '').trim(),
     payUrl: String(payment.payUrl || payment.paymentUrl || '').trim(),
     deeplink: String(payment.deeplink || payment.deepLink || '').trim(),
     transactionCode: String(payment.transactionCode || '').trim(),
-    expiredAt,
-    createdAt,
+    expiredAt: normalizePaymentDate(payment.expiredAt),
+    createdAt: normalizePaymentDate(payment.createdAt),
   }
 }
 
@@ -88,6 +63,5 @@ export {
   PAYMENT_METHODS, 
   PAYMENT_TYPES, 
   PAYMENT_STATUSES,
-  getEffectivePaymentStatus,
   normalizePaymentItem,
 }

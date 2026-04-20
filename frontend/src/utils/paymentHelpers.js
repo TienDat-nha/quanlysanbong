@@ -1,5 +1,6 @@
-import { getEffectivePaymentStatus } from '../models/paymentModel'
-
+/**
+ * ĐỊNH DẠNG TIỀN TỆ (VND)
+ */
 const formatCurrencyVi = (value) => {
   const num = Number(value || 0)
   return new Intl.NumberFormat('vi-VN', {
@@ -9,6 +10,9 @@ const formatCurrencyVi = (value) => {
   }).format(num)
 }
 
+/**
+ * ĐỊNH DẠNG NGÀY GIỜ (DD/MM/YYYY HH:mm:ss)
+ */
 const formatDateTimeVi = (dateInput) => {
   if (!dateInput) return ''
   try {
@@ -42,20 +46,30 @@ const formatDateVi = (dateInput) => {
   }
 }
 
-const getPaymentStatusInfo = (status, expiredAt = null, createdAt = null) => {
-  const normalized = getEffectivePaymentStatus(status, expiredAt, createdAt)
+/**
+ * LẤY THÔNG TIN HIỂN THỊ TRẠNG THÁI (ĐÃ SỬA: KHÔNG LẤN SÂN)
+ * FE chỉ nhận trạng thái từ BE và gán Màu sắc/Icon tương ứng.
+ */
+const getPaymentStatusInfo = (status) => {
+  // Chuẩn hóa status nhận từ Backend
+  const normalized = String(status || 'PENDING').trim().toUpperCase()
   
   const statusMap = {
-    PENDING: { label: 'Chưa thanh toán', color: 'warning', icon: '⏳' },
+    PENDING: { label: 'Chờ thanh toán', color: 'warning', icon: '⏳' },
     PAID: { label: 'Đã thanh toán', color: 'success', icon: '✓' },
+    SUCCESS: { label: 'Thanh toán thành công', color: 'success', icon: '✓' },
     CANCELLED: { label: 'Đã hủy', color: 'danger', icon: '✕' },
+    CANCELED: { label: 'Đã hủy', color: 'danger', icon: '✕' },
     EXPIRED: { label: 'Hết hạn', color: 'secondary', icon: '⏱' },
-    FAILED: { label: 'Thanh toán thất bại', color: 'danger', icon: '!' },
+    FAILED: { label: 'Thất bại', color: 'danger', icon: '!' },
   }
 
   return statusMap[normalized] || { label: normalized, color: 'secondary', icon: '?' }
 }
 
+/**
+ * TÍNH TOÁN ĐẾM NGƯỢC
+ */
 const calculateCountdown = (expiredAt) => {
   if (!expiredAt) return { minutes: 0, seconds: 0, isExpired: true }
   
@@ -78,12 +92,15 @@ const calculateCountdown = (expiredAt) => {
   }
 }
 
+/**
+ * CHUYỂN ĐỔI NHÃN PHƯƠNG THỨC & LOẠI
+ */
 const getPaymentMethodLabel = (method) => {
   const normalized = String(method || '').trim().toUpperCase()
   const methodMap = {
     MOMO: 'Ví MoMo',
-    BANK: 'Chuyển khoản ngân hàng',
-    CASH: 'Thanh toán tại chỗ',
+    BANK: 'Chuyển khoản',
+    CASH: 'Tiền mặt/Tại chỗ',
   }
   return methodMap[normalized] || method
 }
@@ -91,8 +108,8 @@ const getPaymentMethodLabel = (method) => {
 const getPaymentTypeLabel = (type) => {
   const normalized = String(type || '').trim().toUpperCase()
   const typeMap = {
-    DEPOSIT: 'Thanh toán đặt cọc',
-    FULL: 'Thanh toán toàn bộ',
+    DEPOSIT: 'Đặt cọc (40%)',
+    FULL: 'Thanh toán đủ',
   }
   return typeMap[normalized] || type
 }

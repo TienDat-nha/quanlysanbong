@@ -5,54 +5,6 @@ import { getEffectivePaymentStatus } from '../models/paymentModel'
 import PaymentStatusBadge from './PaymentStatusBadge'
 import './PaymentQRModal.scss'
 
-const isDirectImageUrl = (value = '') => {
-  const normalizedValue = String(value || '').trim()
-
-  if (!normalizedValue) {
-    return false
-  }
-
-  if (/^data:image\//i.test(normalizedValue)) {
-    return true
-  }
-
-  try {
-    const parsedUrl = new URL(normalizedValue)
-    if (parsedUrl.hostname === 'api.qrserver.com') {
-      return false
-    }
-
-    return parsedUrl.hostname === 'img.vietqr.io'
-      || /\.(png|jpe?g|gif|webp|svg)$/i.test(parsedUrl.pathname)
-  } catch (_error) {
-    return false
-  }
-}
-
-const getQrServerPayload = (value = '') => {
-  try {
-    const parsedUrl = new URL(String(value || '').trim())
-    return parsedUrl.hostname === 'api.qrserver.com'
-      ? String(parsedUrl.searchParams.get('data') || '').trim()
-      : ''
-  } catch (_error) {
-    return ''
-  }
-}
-
-const getDirectQrImageUrl = (payment, qrImage) => {
-  const rawQrImage = String(qrImage || payment?.qrImage || '').trim()
-
-  return isDirectImageUrl(rawQrImage) ? rawQrImage : ''
-}
-
-const getQrPayload = (payment, qrImage) => {
-  const rawQrImage = String(qrImage || payment?.qrImage || '').trim()
-  const qrText = String(payment?.qrText || '').trim()
-
-  return qrText || getQrServerPayload(rawQrImage) || (isDirectImageUrl(rawQrImage) ? '' : rawQrImage)
-}
-
 const PaymentQRModal = ({
   payment,
   qrImage,
@@ -67,266 +19,110 @@ const PaymentQRModal = ({
   const [confirmCancel, setConfirmCancel] = useState(false)
   const [localQrDataUrl, setLocalQrDataUrl] = useState('')
   const [qrRenderError, setQrRenderError] = useState('')
-  const effectiveStatus = getEffectivePaymentStatus(payment?.status, payment?.expiredAt, payment?.createdAt)
-  const paymentStatusInfo = getPaymentStatusInfo(payment?.status, payment?.expiredAt, payment?.createdAt)
-  const directQrImage = getDirectQrImageUrl(payment, qrImage)
-  const qrPayload = directQrImage ? '' : getQrPayload(payment, qrImage)
-  const displayQrImage = directQrImage || localQrDataUrl
-  const momoActionUrl = String(payment?.deeplink || payment?.payUrl || '').trim()
-  const isMomoPayment = String(payment?.method || '').trim().toUpperCase() === 'MOMO'
-  const confirmButtonLabel = isMomoPayment ? 'Kiểm tra ngay' : 'Kiểm tra thanh toán'
 
+  // --- TIN TƯỞNG DỮ LIỆU TỪ SERVER ---
+  const effectiveStatus = payment?.status?.toUpperCase() || 'PENDING'
+  const isMomoPayment = payment?.method?.toUpperCase() === 'MOMO'
+  const momoActionUrl = payment?.payUrl || payment?.deeplink || ''
+  
+  // Lấy nội dung để tạo mã QR (Dữ liệu thô từ BE)
+  const qrPayload = qrImage || payment?.qrText || payment?.qrImage || ''
+
+  // Logic Countdown dựa trên thời gian hết hạn của BE
   useEffect(() => {
-    if (!payment?.expiredAt) return undefined
-
+    if (!payment?.expiredAt) return
     const updateCountdown = () => {
       const cd = calculateCountdown(payment.expiredAt)
       setCountdown(cd)
     }
-
     updateCountdown()
     const interval = setInterval(updateCountdown, 1000)
-
     return () => clearInterval(interval)
   }, [payment?.expiredAt])
 
+  // Logic tạo mã QR bằng thư viện QRCode
   useEffect(() => {
     let active = true
-
-    setLocalQrDataUrl('')
-    setQrRenderError('')
-
-    if (!qrPayload) {
-      return () => {
-        active = false
-      }
-    }
+    if (!qrPayload || isMomoPayment) return // MoMo thường dùng link redirect thay vì QR tự tạo
 
     QRCode.toDataURL(qrPayload, {
       errorCorrectionLevel: 'M',
       margin: 2,
       width: 400,
-      color: {
-        dark: '#111827',
-        light: '#ffffff',
-      },
     })
-      .then((dataUrl) => {
-        if (active) {
-          setLocalQrDataUrl(dataUrl)
-        }
-      })
-      .catch(() => {
-        if (active) {
-          setQrRenderError('Không thể tạo mã QR trên trình duyệt. Vui lòng tải lại QR.')
-        }
-      })
+      .then((dataUrl) => { if (active) setLocalQrDataUrl(dataUrl) })
+      .catch(() => { if (active) setQrRenderError('Lỗi tạo mã QR.') })
 
-    return () => {
-      active = false
-    }
-  }, [qrPayload])
+    return () => { active = false }
+  }, [qrPayload, isMomoPayment])
 
   const isExpired = countdown?.isExpired || false
-  const canCancel = effectiveStatus === 'PENDING' && !isExpired
-  const canRefreshQr = effectiveStatus !== 'PAID' && !confirmCancel
-  const canConfirmPayment = effectiveStatus !== 'PAID' && !confirmCancel
-
-  const handleConfirmPayment = () => {
-    if (loading) return
-    onConfirmPayment(payment.id)
-  }
-
-  const handleCancelPayment = () => {
-    if (!canCancel) return
-    setConfirmCancel(false)
-    onCancelPayment(payment.id)
-  }
-
-  const handleOpenMomo = () => {
-    if (!momoActionUrl || loading || typeof window === 'undefined') {
-      return
-    }
-
-    window.open(momoActionUrl, '_blank', 'noopener,noreferrer')
-  }
 
   return (
     <div className="payment-qr-modal">
       <div className="modal-overlay" onClick={onClose} />
       <div className="modal-content">
         <div className="modal-header">
-          <h2>Thanh toán QR</h2>
-          <button className="close-btn" onClick={onClose} disabled={loading}>
-            ×
-          </button>
+          <h2>Thanh toán {payment?.method}</h2>
+          <button className="close-btn" onClick={onClose}>×</button>
         </div>
 
         <div className="modal-body">
-          <div className="section status-section">
-            <PaymentStatusBadge
-              status={payment?.status}
-              expiredAt={payment?.expiredAt}
-              createdAt={payment?.createdAt}
-            />
-            <span className="payment-id" title={payment?.id}>
-              ID: {payment?.id?.slice(0, 12)}...
-            </span>
+          <div className="status-banner">
+            <PaymentStatusBadge status={effectiveStatus} />
+            <span className="payment-id">Mã GD: {payment?.id?.slice(-8)}</span>
           </div>
 
-          {displayQrImage && (
-            <div className="qr-container">
-              <img src={displayQrImage} alt="Payment QR" className="qr-image" />
-              {isExpired && <div className="qr-expired-overlay">Hết hạn</div>}
-            </div>
-          )}
-
-          {!displayQrImage && qrPayload && !qrRenderError && (
-            <div className="info-message">Đang tạo mã QR trên trình duyệt...</div>
-          )}
+          {/* HIỂN THỊ MÃ QR */}
+          <div className="qr-wrapper">
+            {(isMomoPayment && payment?.qrImage) ? (
+              <img src={payment.qrImage} alt="Momo QR" className="qr-image" />
+            ) : localQrDataUrl ? (
+              <img src={localQrDataUrl} alt="Payment QR" className="qr-image" />
+            ) : (
+              <div className="qr-placeholder">{loading ? 'Đang tải...' : 'Chờ mã QR'}</div>
+            )}
+            {isExpired && <div className="qr-expired-overlay">Mã đã hết hạn</div>}
+          </div>
 
           {countdown && !isExpired && (
-            <div className="countdown-section">
-              <p className="countdown-label">Hết hạn trong:</p>
-              <div className="countdown-display">
-                {String(countdown.minutes).padStart(2, '0')}:{String(countdown.seconds).padStart(2, '0')}
-              </div>
+            <div className="countdown-timer">
+              Thanh toán trong: <strong>{String(countdown.minutes).padStart(2, '0')}:{String(countdown.seconds).padStart(2, '0')}</strong>
             </div>
           )}
 
-          {isExpired && !displayQrImage && (
-            <div className="expired-message">QR code đã hết hạn</div>
-          )}
-
-          {isExpired && (
-            <div className="info-message">
-              Mã QR đã hết hạn. Bấm "Tải lại QR" để tạo mã mới.
+          <div className="payment-details">
+            <div className="detail-row">
+              <span>Số tiền:</span>
+              {/* QUAN TRỌNG: Hiện đúng con số BE trả về */}
+              <strong className="amount">{payment?.amount?.toLocaleString('vi-VN')}₫</strong>
             </div>
-          )}
-
-          <div className="payment-info">
-            <div className="info-row">
-              <span className="label">Booking ID:</span>
-              <span className="value" title={payment?.bookingId}>
-                {payment?.bookingId?.slice(0, 16)}...
-              </span>
-            </div>
-            <div className="info-row">
-              <span className="label">Số tiền:</span>
-              <span className="value">{payment?.amount?.toLocaleString('vi-VN')}₫</span>
-            </div>
-            <div className="info-row">
-              <span className="label">Phương thức:</span>
-              <span className="value">{payment?.method}</span>
-            </div>
-            <div className="info-row">
-              <span className="label">Loại:</span>
-              <span className="value">{payment?.paymentType}</span>
-            </div>
-            {isMomoPayment && payment?.transactionCode && (
-              <div className="info-row">
-                <span className="label">Mã MoMo:</span>
-                <span className="value" title={payment.transactionCode}>
-                  {payment.transactionCode}
-                </span>
-              </div>
-            )}
-            <div className="info-row">
-              <span className="label">Tạo lúc:</span>
-              <span className="value">{formatDateTimeVi(payment?.createdAt)}</span>
+            <div className="detail-row">
+              <span>Nội dung:</span>
+              <code className="transfer-code">{payment?.id?.slice(0, 10)}</code>
             </div>
           </div>
 
-          {error && <div className="error-message">{error}</div>}
-          {qrRenderError && <div className="error-message">{qrRenderError}</div>}
-
-          {paymentStatusInfo?.color === 'warning' && !isExpired && (
-            <div className="info-message">
-              {isMomoPayment
-                ? 'Sau khi thanh toán xong trên MoMo, hệ thống sẽ tự xác nhận trong vài giây khi nhận IPN. Nếu cần đồng bộ ngay, bạn vẫn có thể bấm "Kiểm tra ngay".'
-                : 'Sau khi chuyển khoản xong, bấm "Kiểm tra thanh toán". Nếu hệ thống chưa nhận được giao dịch, trạng thái vẫn sẽ là chưa thanh toán.'}
-            </div>
-          )}
-
-          {isMomoPayment && momoActionUrl && !isExpired && (
-            <div className="info-message">
-              Bạn có thể quét QR bằng MoMo hoặc bấm "Mở MoMo" để chuyển sang ví sandbox.
-            </div>
-          )}
+          {error && <div className="error-box">{error}</div>}
         </div>
 
         <div className="modal-footer">
-          <button
-            className="btn btn-secondary"
-            onClick={onClose}
-            disabled={loading}
-          >
-            Đóng
-          </button>
-
-          {canRefreshQr && (
-            <button
-              className="btn btn-warning"
-              onClick={onRefreshQR}
-              disabled={loading}
-              title="Tạo lại mã QR"
-            >
-              {loading ? '...' : (isExpired ? 'Tải lại QR' : 'Lấy lại QR')}
+          <button className="btn-secondary" onClick={onClose} disabled={loading}>Đóng</button>
+          
+          {isMomoPayment && momoActionUrl && !isExpired && (
+            <button className="btn-momo" onClick={() => window.open(momoActionUrl, '_blank')}>
+              Mở Ví MoMo
             </button>
           )}
 
-          {canConfirmPayment && (
-            <button
-              className="btn btn-success"
-              onClick={handleConfirmPayment}
-              disabled={loading}
-            >
-              {loading ? '...' : confirmButtonLabel}
+          {!isExpired && effectiveStatus !== 'PAID' && (
+            <button className="btn-success" onClick={() => onConfirmPayment(payment.id)} disabled={loading}>
+              {loading ? 'Đang check...' : 'Kiểm tra thanh toán'}
             </button>
           )}
 
-          {!isExpired && (
-            <>
-              {isMomoPayment && momoActionUrl && (
-                <button
-                  className="btn btn-primary"
-                  onClick={handleOpenMomo}
-                  disabled={loading}
-                >
-                  Mở MoMo
-                </button>
-              )}
-
-              {canCancel && !confirmCancel && (
-                <button
-                  className="btn btn-danger"
-                  onClick={() => setConfirmCancel(true)}
-                  disabled={loading}
-                >
-                  Hủy thanh toán
-                </button>
-              )}
-
-              {confirmCancel && (
-                <>
-                  <button
-                    className="btn btn-danger-confirm"
-                    onClick={handleCancelPayment}
-                    disabled={loading}
-                  >
-                    {loading ? '...' : 'Xác nhận hủy'}
-                  </button>
-                  <button
-                    className="btn btn-secondary"
-                    onClick={() => setConfirmCancel(false)}
-                    disabled={loading}
-                  >
-                    Quay lại
-                  </button>
-                </>
-              )}
-
-            </>
+          {isExpired && (
+            <button className="btn-warning" onClick={onRefreshQR}>Tải lại QR mới</button>
           )}
         </div>
       </div>
