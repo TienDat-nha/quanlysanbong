@@ -102,6 +102,23 @@ const filterFieldsForOwnerPortal = (fields, currentUser, isOwnerPortal) => {
 
 const isFieldApprovedForBooking = (field) => isFieldApprovedForPublic(field)
 
+const hasInvalidBookingObjectId = ({ subFieldId, timeSlotIds = [] }) => {
+  const normalizedSubFieldId = String(subFieldId || "").trim()
+  if (!isMongoObjectId(normalizedSubFieldId)) {
+    return true
+  }
+
+  const normalizedSlotIds = (Array.isArray(timeSlotIds) ? timeSlotIds : [timeSlotIds])
+    .map((value) => String(value || "").trim())
+    .filter(Boolean)
+
+  if (normalizedSlotIds.length === 0) {
+    return true
+  }
+
+  return normalizedSlotIds.some((id) => !isMongoObjectId(id))
+}
+
 const getBookingIdentity = (booking, index = 0) => {
   const bookingId = String(booking?.id || booking?._id || "").trim()
   if (bookingId) {
@@ -1042,7 +1059,18 @@ export const useBookingController = ({ authToken, currentUser }) => {
       setFeedback({ type: "error", text: "Vui lòng chọn sân con và khung giờ trước." })
       return
     }
-
+    if (
+      hasInvalidBookingObjectId({
+        subFieldId: form.subFieldId,
+        timeSlotIds: selectedTimeSlotIds.length > 0 ? selectedTimeSlotIds : form.timeSlotId,
+      })
+    ) {
+      setFeedback({
+        type: "error",
+        text: "Khong the dat san vi du lieu san con/khung gio chua dong bo backend. Vui long tai lai trang va thu lai.",
+      })
+      return
+    }
     setFeedback(createFeedbackState())
     setBookingStep("confirm")
   }
@@ -1074,6 +1102,24 @@ export const useBookingController = ({ authToken, currentUser }) => {
       return
     }
 
+    const bookingPayloadTemplate = buildBookingPayload(form)
+    const slotIdsToCreate =
+      selectedTimeSlotIds.length > 0
+        ? selectedTimeSlotIds
+        : [bookingPayloadTemplate.timeSlotId].filter(Boolean)
+
+    if (
+      hasInvalidBookingObjectId({
+        subFieldId: bookingPayloadTemplate.subFieldId,
+        timeSlotIds: slotIdsToCreate,
+      })
+    ) {
+      setFeedback({
+        type: "error",
+        text: "Khong the dat san vi du lieu san con/khung gio chua dong bo backend. Vui long tai lai trang va thu lai.",
+      })
+      return
+    }
     setSubmitting(true)
     setFeedback(createFeedbackState())
 
@@ -1083,11 +1129,6 @@ export const useBookingController = ({ authToken, currentUser }) => {
         form.timeSlot
       )
       const depositAmount = calculateBookingDepositAmount(totalPrice)
-      const bookingPayloadTemplate = buildBookingPayload(form)
-      const slotIdsToCreate =
-        selectedTimeSlotIds.length > 0
-          ? selectedTimeSlotIds
-          : [bookingPayloadTemplate.timeSlotId].filter(Boolean)
       const createdBookings = []
 
       for (const timeSlotId of slotIdsToCreate) {
@@ -1399,8 +1440,6 @@ export const useBookingController = ({ authToken, currentUser }) => {
     handleSubmit,
   }
 }
-
-
 
 
 
