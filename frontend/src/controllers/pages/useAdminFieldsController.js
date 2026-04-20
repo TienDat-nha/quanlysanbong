@@ -9,7 +9,7 @@ import {
   createAdminField,
   deleteAdminField,
   getAdminDashboard,
-  getAdminFields,
+  getAllFieldForOwner,
   lockAdminField,
   rejectAdminField,
   unlockAdminField,
@@ -438,7 +438,7 @@ export const useAdminFieldsController = ({ authToken, currentUser }) => {
       try {
         const selectedManagedBookingsDate = normalizeManagedBookingsDate(managedBookingsDate)
         const [fieldsResult, dashboardResult] = await Promise.allSettled([
-          getAdminFields(authToken),
+          getAllFieldForOwner(authToken),
           canLoadManagedBookings
             ? getAdminDashboard(authToken, {
                 months: 6,
@@ -1092,7 +1092,6 @@ export const useAdminFieldsController = ({ authToken, currentUser }) => {
     handleCancelBooking: (bookingId) => handleBookingAction(bookingId, "cancel"),
   }
 }
-
 
 
 

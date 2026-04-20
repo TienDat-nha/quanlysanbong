@@ -55,7 +55,7 @@ export const useAdminFieldRequestsController = (authToken) => {
       setLoading(true)
       setError(null)
 
-      const { fields: allFields } = await API.getAdminFields(authToken)
+      const { fields: allFields } = await API.getAllFieldForAdmin(authToken)
       const requestFields = (allFields || [])
         .map((field) => toRequestField(field))
         .filter((field) => REQUEST_STATUSES.has(field.status))

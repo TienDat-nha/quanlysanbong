@@ -72,7 +72,7 @@ export const useOwnerFieldRequestsController = (authToken, currentUser) => {
     try {
       setLoading(true)
       setError(null)
-      const { fields: allFields } = await API.getAdminFields(authToken)
+      const { fields: allFields } = await API.getAllFieldForOwner(authToken)
 
       const ownerFields = (allFields || [])
         .map((field) => toRequestField(field))

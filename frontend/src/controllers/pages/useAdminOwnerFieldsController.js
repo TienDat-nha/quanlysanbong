@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react"
 import {
   approveAdminField,
-  getAdminFields,
+  getAllFieldForAdmin,
   lockAdminField,
   rejectAdminField,
   unlockAdminField,
@@ -73,7 +73,7 @@ const isAlreadyUnlockedError = (value = "") =>
   normalizeErrorKey(value).includes("san chua bi khoa")
 
 const fetchFilteredFields = async (token, filterApprovalStatus = "ALL") => {
-  const response = await getAdminFields(token)
+  const response = await getAllFieldForAdmin(token)
   return filterFieldsByApprovalStatus(response?.fields || [], filterApprovalStatus)
 }
 

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react"
 import {
   getAdminDashboard,
-  getAdminFields,
+  getAllFieldForOwner,
   getBookedSlots,
   getMyBookings,
   cancelAdminBooking,
@@ -528,7 +528,7 @@ const buildBookedSlotManagedBooking = (field, subField, date, booking, index = 0
 }
 
 const loadManagedBookingsFromBookedSlots = async (token, selectedDate) => {
-  const fieldData = await getAdminFields(token)
+  const fieldData = await getAllFieldForOwner(token)
   const fields = Array.isArray(fieldData?.fields) ? fieldData.fields : []
   const bookingTasks = fields.flatMap((field) =>
     (Array.isArray(field?.subFields) ? field.subFields : [])

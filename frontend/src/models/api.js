@@ -2011,6 +2011,73 @@ export const getFields = async (token = "") => {
     message: String(response?.message || "").trim(),
   }
 }
+export const getAllFieldForAdmin = async (token) => {
+  const response = await requestWithTransientRetry(
+    "/field/getAllFieldForAdmin",
+    {
+      headers: createTokenHeaders(token),
+    },
+    RENDER_LONG_READ_RETRY_CONFIG
+  )
+
+  const fields = await attachSubFieldsToFields(
+    getArrayFromResponse(response, [
+      "fields",
+      "items",
+      "docs",
+      "rows",
+      "records",
+      "results",
+      "list",
+      "fieldList",
+      "fields.docs",
+      "fields.items",
+      "result",
+    ])
+      .map((item) => normalizeFieldItem(item))
+      .filter(Boolean),
+    token
+  )
+
+  return {
+    fields,
+    message: String(response?.message || "").trim(),
+  }
+}
+
+export const getAllFieldForOwner = async (token) => {
+  const response = await requestWithTransientRetry(
+    "/field/getAllFieldForOwner",
+    {
+      headers: createTokenHeaders(token),
+    },
+    RENDER_LONG_READ_RETRY_CONFIG
+  )
+
+  const fields = await attachSubFieldsToFields(
+    getArrayFromResponse(response, [
+      "fields",
+      "items",
+      "docs",
+      "rows",
+      "records",
+      "results",
+      "list",
+      "fieldList",
+      "fields.docs",
+      "fields.items",
+      "result",
+    ])
+      .map((item) => normalizeFieldItem(item))
+      .filter(Boolean),
+    token
+  )
+
+  return {
+    fields,
+    message: String(response?.message || "").trim(),
+  }
+}
 export const getFieldById = async (fieldId, token = "") => {
   const encodedFieldId = encodeURIComponent(String(fieldId || "").trim())
   const detailPath = token

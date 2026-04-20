@@ -29,9 +29,7 @@ const OWNER_NAV_ITEMS = Object.freeze([
     to: createAdminFieldsSectionRoute(STAFF_DASHBOARD_SECTIONS.manageFields),
     label: "Quản lý sân",
   },
-  { key: "fields", to: ROUTES.fields, label: "Danh sách sân" },
   { key: "ownerFieldRequests", to: ROUTES.ownerFieldRequests, label: "Yêu cầu tạo sân" },
-  { key: "manualBooking", to: ROUTES.booking, label: "Đặt sân thủ công" },
 ])
 
 export const createNavbarModel = (currentUser) => {
