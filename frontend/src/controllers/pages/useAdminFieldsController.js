@@ -520,7 +520,7 @@ export const useAdminFieldsController = ({ authToken, currentUser }) => {
         )
         setError(
           fieldsResult.status === "rejected" && nextFields.length === 0
-            ? fieldsResult.reason?.message || "KhÃƒÂ´ng thÃ¡Â»Æ’ tÃ¡ÂºÂ£i danh sÃƒÂ¡ch sÃƒÂ¢n."
+            ? fieldsResult.reason?.message || "Không thể tải danh sách sân."
             : canLoadManagedBookings && ownerManagedBookings.length === 0 && managedBookingErrors.length > 0
               ? managedBookingErrors[0]
               : ""
@@ -688,7 +688,7 @@ export const useAdminFieldsController = ({ authToken, currentUser }) => {
     }
 
     if (!canAccessFieldDashboard) {
-      setError("BÃ¡ÂºÂ¡n cÃ¡ÂºÂ§n Ã„â€˜Ã„Æ’ng nhÃ¡ÂºÂ­p bÃ¡ÂºÂ±ng tÃƒÂ i khoÃ¡ÂºÂ£n quÃ¡ÂºÂ£n lÃƒÂ½ sÃƒÂ¢n.")
+      setError("Bạn cần đăng nhập bằng tài khoản quản lý sân.")
       return
     }
 
@@ -700,7 +700,7 @@ export const useAdminFieldsController = ({ authToken, currentUser }) => {
       const imageUrl = String(response?.file?.url || response?.file?.path || "").trim()
 
       if (!imageUrl) {
-        throw new Error("KhÃƒÂ´ng nhÃ¡ÂºÂ­n Ã„â€˜Ã†Â°Ã¡Â»Â£c Ã„â€˜Ã†Â°Ã¡Â»Âng dÃ¡ÂºÂ«n Ã¡ÂºÂ£nh sau khi tÃ¡ÂºÂ£i lÃƒÂªn.")
+        throw new Error("Không nhận được đường dẫn ảnh sau khi tải lên.")
       }
 
       setForm((prev) => ({
@@ -721,7 +721,7 @@ export const useAdminFieldsController = ({ authToken, currentUser }) => {
     }
 
     if (!canAccessFieldDashboard) {
-      setError("BÃ¡ÂºÂ¡n cÃ¡ÂºÂ§n Ã„â€˜Ã„Æ’ng nhÃ¡ÂºÂ­p bÃ¡ÂºÂ±ng tÃƒÂ i khoÃ¡ÂºÂ£n quÃ¡ÂºÂ£n lÃƒÂ½ sÃƒÂ¢n.")
+      setError("Bạn cần đăng nhập bằng tài khoản quản lý sân.")
       return
     }
 
@@ -734,7 +734,7 @@ export const useAdminFieldsController = ({ authToken, currentUser }) => {
         const imageUrl = String(response?.file?.url || response?.file?.path || "").trim()
 
         if (!imageUrl) {
-          throw new Error(`KhÃƒÂ´ng nhÃ¡ÂºÂ­n Ã„â€˜Ã†Â°Ã¡Â»Â£c Ã„â€˜Ã†Â°Ã¡Â»Âng dÃ¡ÂºÂ«n Ã¡ÂºÂ£nh cho tÃ¡Â»â€¡p ${file.name}.`)
+          throw new Error(`Không nhận được đường dẫn ảnh cho tệp ${file.name}.`)
         }
 
         setForm((prev) => ({
@@ -796,12 +796,12 @@ export const useAdminFieldsController = ({ authToken, currentUser }) => {
     }
 
     if (!canAccessFieldDashboard) {
-      setError("BÃ¡ÂºÂ¡n cÃ¡ÂºÂ§n Ã„â€˜Ã„Æ’ng nhÃ¡ÂºÂ­p bÃ¡ÂºÂ±ng tÃƒÂ i khoÃ¡ÂºÂ£n quÃ¡ÂºÂ£n lÃƒÂ½ sÃƒÂ¢n.")
+      setError("Bạn cần đăng nhập bằng tài khoản quản lý sân.")
       return
     }
 
     if (uploadingCover || uploadingGallery) {
-      setError("Ã¡ÂºÂ¢nh Ã„â€˜ang Ã„â€˜Ã†Â°Ã¡Â»Â£c tÃ¡ÂºÂ£i lÃƒÂªn. Vui lÃƒÂ²ng Ã„â€˜Ã¡Â»Â£i xong rÃ¡Â»â€œi tiÃ¡ÂºÂ¿p tÃ¡Â»Â¥c.")
+      setError("Ảnh đang được tải lên. Vui lòng đợi xong rồi tiếp tục.")
       return
     }
 
@@ -816,11 +816,11 @@ export const useAdminFieldsController = ({ authToken, currentUser }) => {
       resetForm()
       const fallbackMessage = isEditingMode
         ? isOwnerPortal
-          ? "Ã„ÂÃƒÂ£ gÃ¡Â»Â­i yÃƒÂªu cÃ¡ÂºÂ§u sÃ¡Â»Â­a sÃƒÂ¢n tÃ¡Â»â€ºi admin."
-          : "Ã„ÂÃƒÂ£ cÃ¡ÂºÂ­p nhÃ¡ÂºÂ­t sÃƒÂ¢n."
+          ? "Đã gửi yêu cầu sửa sân tới admin."
+          : "Đã cập nhật sân."
         : isOwnerPortal
-          ? "Ã„ÂÃƒÂ£ gÃ¡Â»Â­i yÃƒÂªu cÃ¡ÂºÂ§u tÃ¡ÂºÂ¡o sÃƒÂ¢n tÃ¡Â»â€ºi admin."
-          : "Ã„ÂÃƒÂ£ tÃ¡ÂºÂ¡o sÃƒÂ¢n mÃ¡Â»â€ºi."
+          ? "Đã gửi yêu cầu tạo sân tới admin."
+          : "Đã tạo sân mới."
       const responseMessage = String(response?.message || "").trim()
       const resolvedSuccessMessage =
         isOwnerPortal && (!responseMessage || isGenericSuccessMessage(responseMessage))
@@ -851,7 +851,7 @@ export const useAdminFieldsController = ({ authToken, currentUser }) => {
     setDeleteGuardFieldId("")
     setDeleteGuardMessage("")
     const shouldDeleteField = window.confirm(
-      `BÃ¡ÂºÂ¡n cÃƒÂ³ chÃ¡ÂºÂ¯c chÃ¡ÂºÂ¯n muÃ¡Â»â€˜n xÃƒÂ³a sÃƒÂ¢n "${field?.name || fieldId}" khÃƒÂ´ng?`
+      `Bạn có chắc chắn muốn xóa sân "${field?.name || fieldId}" không?`
     )
 
     if (!shouldDeleteField) {
@@ -876,12 +876,12 @@ export const useAdminFieldsController = ({ authToken, currentUser }) => {
         resetForm()
       }
 
-      setSuccessMessage(resolveDisplayMessage(response?.message, "Ã„ÂÃƒÂ£ xÃƒÂ³a sÃƒÂ¢n thÃƒÂ nh cÃƒÂ´ng."))
+      setSuccessMessage(resolveDisplayMessage(response?.message, "Đã xóa sân thành công."))
       setDeleteGuardFieldId("")
       setDeleteGuardMessage("")
       setRefreshKey((currentValue) => currentValue + 1)
     } catch (apiError) {
-      const errorMessage = String(apiError?.message || "KhÃƒÂ´ng thÃ¡Â»Æ’ xÃƒÂ³a sÃƒÂ¢n.").trim()
+      const errorMessage = String(apiError?.message || "Không thể xóa sân.").trim()
       setError(errorMessage)
       setNoticeMessage(errorMessage)
       setSuccessMessage("")
@@ -903,7 +903,7 @@ export const useAdminFieldsController = ({ authToken, currentUser }) => {
     }
 
     const rejectReason = window.prompt(
-      `LÃƒÂ½ do tÃ¡Â»Â« chÃ¡Â»â€˜i duyÃ¡Â»â€¡t sÃƒÂ¢n "${field.name}" (cÃƒÂ³ thÃ¡Â»Æ’ bÃ¡Â»Â trÃ¡Â»â€˜ng):`,
+      `Lý do từ chối duyệt sân "${field.name}" (có thể bỏ trống):`,
       ""
     )
 
@@ -918,7 +918,7 @@ export const useAdminFieldsController = ({ authToken, currentUser }) => {
 
     try {
       const response = await rejectAdminField(authToken, field.id, rejectReason)
-      setSuccessMessage(resolveDisplayMessage(response?.message, "ÄÃ£ tá»« chá»‘i duyá»‡t sÃ¢n."))
+      setSuccessMessage(resolveDisplayMessage(response?.message, "Đã từ chối duyệt sân."))
       setRefreshKey((currentValue) => currentValue + 1)
     } catch (apiError) {
       setError(apiError.message)
@@ -942,12 +942,12 @@ export const useAdminFieldsController = ({ authToken, currentUser }) => {
           : "approve"
     const confirmMessage =
       action === "lock"
-        ? `KhÃƒÂ³a sÃƒÂ¢n "${field.name}"?`
+        ? `Khóa sân "${field.name}"?`
         : action === "unlock"
-          ? `MÃ¡Â»Å¸ khÃƒÂ³a sÃƒÂ¢n "${field.name}"?`
+          ? `Mở khóa sân "${field.name}"?`
           : moderationState === "REJECTED"
-            ? `DuyÃ¡Â»â€¡t lÃ¡ÂºÂ¡i sÃƒÂ¢n "${field.name}"?`
-            : `DuyÃ¡Â»â€¡t sÃƒÂ¢n "${field.name}"?`
+            ? `Duyệt lại sân "${field.name}"?`
+            : `Duyệt sân "${field.name}"?`
 
     const shouldContinue = window.confirm(confirmMessage)
     if (!shouldContinue) {
@@ -971,10 +971,10 @@ export const useAdminFieldsController = ({ authToken, currentUser }) => {
         resolveDisplayMessage(
           response?.message,
           action === "lock"
-            ? "Ã„ÂÃƒÂ£ khÃƒÂ³a sÃƒÂ¢n."
+            ? "Đã khóa sân."
             : action === "unlock"
-              ? "Ã„ÂÃƒÂ£ mÃ¡Â»Å¸ khÃƒÂ³a sÃƒÂ¢n."
-              : "Ã„ÂÃƒÂ£ duyÃ¡Â»â€¡t sÃƒÂ¢n."
+              ? "Đã mở khóa sân."
+              : "Đã duyệt sân."
         )
       )
       setRefreshKey((currentValue) => currentValue + 1)
@@ -1012,12 +1012,12 @@ export const useAdminFieldsController = ({ authToken, currentUser }) => {
         resolveDisplayMessage(
           response?.message,
           action === "confirm"
-            ? "Ã„ÂÃƒÂ£ xÃƒÂ¡c nhÃ¡ÂºÂ­n Ã„â€˜Ã†Â¡n Ã„â€˜Ã¡ÂºÂ·t."
+            ? "Đã xác nhận đơn đặt."
             : action === "deposit"
-              ? "Ã„ÂÃƒÂ£ xÃƒÂ¡c nhÃ¡ÂºÂ­n Ã„â€˜Ã¡ÂºÂ·t cÃ¡Â»Âc."
+              ? "Đã xác nhận đặt cọc."
               : action === "payment"
-                ? "Ã„ÂÃƒÂ£ xÃƒÂ¡c nhÃ¡ÂºÂ­n thanh toÃƒÂ¡n."
-                : "Ã„ÂÃƒÂ£ hÃ¡Â»Â§y Ã„â€˜Ã†Â¡n Ã„â€˜Ã¡ÂºÂ·t."
+                ? "Đã xác nhận thanh toán."
+                : "Đã hủy đơn đặt."
         )
       )
       setRefreshKey((currentValue) => currentValue + 1)

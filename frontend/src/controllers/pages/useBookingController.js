@@ -645,21 +645,21 @@ export const useBookingController = ({ authToken, currentUser }) => {
         setTimeSlots(timeSlotsData.timeSlots || [])
         setCatalogMessage(
           nextFields.length === 0 && isOwnerPortal
-            ? "ChÃ†Â°a cÃƒÂ³ sÃƒÂ¢n nÃƒÂ o gÃ¡ÂºÂ¯n vÃ¡Â»â€ºi tÃƒÂ i khoÃ¡ÂºÂ£n chÃ¡Â»Â§ sÃƒÂ¢n nÃƒÂ y."
+            ? "Chưa có sân nào gắn với tài khoản chủ sân này."
             : String(fieldsData?.message || "").trim()
         )
         if (isOwnerPortal) {
           setCatalogMessage(
             ownedFields.length === 0
-              ? "ChÃ†Â°a cÃƒÂ³ sÃƒÂ¢n nÃƒÂ o gÃ¡ÂºÂ¯n vÃ¡Â»â€ºi tÃƒÂ i khoÃ¡ÂºÂ£n chÃ¡Â»Â§ sÃƒÂ¢n nÃƒÂ y."
+              ? "Chưa có sân nào gắn với tài khoản chủ sân này."
               : nextFields.length === 0
-                ? "CÃƒÂ¡c sÃƒÂ¢n cÃ¡Â»Â§a bÃ¡ÂºÂ¡n Ã„â€˜ang chÃ¡Â»Â admin duyÃ¡Â»â€¡t hoÃ¡ÂºÂ·c Ã„â€˜ang bÃ¡Â»â€¹ khÃƒÂ³a nÃƒÂªn chÃ†Â°a thÃ¡Â»Æ’ Ã„â€˜Ã¡ÂºÂ·t."
+                ? "Các sân của bạn đang chờ admin duyệt hoặc đang bị khóa nên chưa thể đặt."
                 : ""
           )
         }
         if (timeSlotsResult.status === "rejected") {
           setCatalogMessage((currentMessage) =>
-            [currentMessage, "ChÃ†Â°a tÃ¡ÂºÂ£i Ã„â€˜Ã†Â°Ã¡Â»Â£c khung giÃ¡Â»Â backend. HÃ¡Â»â€¡ thÃ¡Â»â€˜ng sÃ¡ÂºÂ½ dÃƒÂ¹ng khung giÃ¡Â»Â tÃ¡ÂºÂ¡m Ã„â€˜Ã¡Â»Æ’ xem lÃ¡Â»â€¹ch trong lÃƒÂºc chÃ¡Â»Â backend Ã„â€˜Ã¡Â»â€œng bÃ¡Â»â„¢ tÃ¡Â»Â« giÃ¡Â»Â mÃ¡Â»Å¸ cÃ¡Â»Â­a."]
+            [currentMessage, "Chưa tải được khung giờ backend. Hệ thống sẽ dùng khung giờ tạm để xem lịch trong lúc chờ backend đồng bộ từ giờ mở cửa."]
               .filter(Boolean)
               .join(" ")
           )
@@ -667,7 +667,7 @@ export const useBookingController = ({ authToken, currentUser }) => {
         if (fieldsResult.status === "rejected" && nextFields.length === 0) {
           setFeedback({
             type: "error",
-            text: fieldsResult.reason?.message || "KhÃƒÂ´ng thÃ¡Â»Æ’ tÃ¡ÂºÂ£i danh sÃƒÂ¡ch sÃƒÂ¢n.",
+            text: fieldsResult.reason?.message || "Không thể tải danh sách sân.",
           })
         } else if (timeSlotsResult.status === "rejected" && fieldsResult.status !== "rejected") {
           setFeedback((currentFeedback) =>
@@ -675,7 +675,7 @@ export const useBookingController = ({ authToken, currentUser }) => {
               ? currentFeedback
               : {
                   type: "warning",
-                  text: "Khung giÃ¡Â»Â backend Ã„â€˜ang tÃ¡ÂºÂ£i chÃ¡ÂºÂ­m. BÃ¡ÂºÂ¡n vÃ¡ÂºÂ«n cÃƒÂ³ thÃ¡Â»Æ’ xem lÃ¡Â»â€¹ch, nhÃ†Â°ng cÃ¡ÂºÂ§n Ã„â€˜Ã¡Â»Â£i backend Ã„â€˜Ã¡Â»â€œng bÃ¡Â»â„¢ slot thÃ¡ÂºÂ­t tÃ¡Â»Â« giÃ¡Â»Â mÃ¡Â»Å¸ cÃ¡Â»Â­a trÃ†Â°Ã¡Â»â€ºc khi gÃ¡Â»Â­i Ã„â€˜Ã†Â¡n.",
+                  text: "Khung giờ backend đang tải chậm. Bạn vẫn có thể xem lịch, nhưng cần đợi backend đồng bộ slot thật từ giờ mở cửa trước khi gửi đơn.",
                 }
           )
         }
@@ -720,7 +720,7 @@ export const useBookingController = ({ authToken, currentUser }) => {
           ? currentFeedback
           : {
               type: "warning",
-              text: "Tráº¡ng thÃ¡i giá»¯ chá»— vá»«a Ä‘Æ°á»£c cáº­p nháº­t. Vui lÃ²ng kiá»ƒm tra láº¡i danh sÃ¡ch Ä‘áº·t sÃ¢n.",
+              text: "Trạng thái giữ chỗ vừa được cập nhật. Vui lòng kiểm tra lại danh sách đặt sân.",
             }
       )
       setBookingsRefreshKey((value) => value + 1)
@@ -1033,13 +1033,13 @@ export const useBookingController = ({ authToken, currentUser }) => {
     if (selectedField && !isFieldApprovedForBooking(selectedField)) {
       setFeedback({
         type: "error",
-        text: "SÃƒÂ¢n nÃƒÂ y Ã„â€˜ang chÃ¡Â»Â admin duyÃ¡Â»â€¡t hoÃ¡ÂºÂ·c Ã„â€˜ang bÃ¡Â»â€¹ khÃƒÂ³a, chÃ†Â°a thÃ¡Â»Æ’ Ã„â€˜Ã¡ÂºÂ·t.",
+        text: "Sân này đang chờ admin duyệt hoặc đang bị khóa, chưa thể đặt.",
       })
       return
     }
 
     if (!hasSelectedSlot) {
-      setFeedback({ type: "error", text: "Vui lÃƒÂ²ng chÃ¡Â»Ân sÃƒÂ¢n con vÃƒÂ  khung giÃ¡Â»Â trÃ†Â°Ã¡Â»â€ºc." })
+      setFeedback({ type: "error", text: "Vui lòng chọn sân con và khung giờ trước." })
       return
     }
 
@@ -1056,14 +1056,14 @@ export const useBookingController = ({ authToken, currentUser }) => {
     let redirectedToPayment = false
 
     if (!authToken) {
-      setFeedback({ type: "error", text: "BÃ¡ÂºÂ¡n cÃ¡ÂºÂ§n Ã„â€˜Ã„Æ’ng nhÃ¡ÂºÂ­p Ã„â€˜Ã¡Â»Æ’ Ã„â€˜Ã¡ÂºÂ·t sÃƒÂ¢n." })
+      setFeedback({ type: "error", text: "Bạn cần đăng nhập để đặt sân." })
       return
     }
 
     if (selectedField && !isFieldApprovedForBooking(selectedField)) {
       setFeedback({
         type: "error",
-        text: "SÃƒÂ¢n nÃƒÂ y Ã„â€˜ang chÃ¡Â»Â admin duyÃ¡Â»â€¡t hoÃ¡ÂºÂ·c Ã„â€˜ang bÃ¡Â»â€¹ khÃƒÂ³a, chÃ†Â°a thÃ¡Â»Æ’ Ã„â€˜Ã¡ÂºÂ·t.",
+        text: "Sân này đang chờ admin duyệt hoặc đang bị khóa, chưa thể đặt.",
       })
       return
     }
@@ -1122,7 +1122,7 @@ export const useBookingController = ({ authToken, currentUser }) => {
         : []
       const createdBooking = normalizedCreatedBookings[0] || null
       if (!createdBooking) {
-        throw new Error("Backend chÃ†Â°a trÃ¡ÂºÂ£ vÃ¡Â»Â Ã„â€˜Ã†Â¡n Ã„â€˜Ã¡ÂºÂ·t hÃ¡Â»Â£p lÃ¡Â»â€¡.")
+        throw new Error("Backend chưa trả về đơn đặt hợp lệ.")
       }
 
       let ownerSuccessMessage = ""
@@ -1208,7 +1208,7 @@ export const useBookingController = ({ authToken, currentUser }) => {
         setAvailabilityBookings((currentBookings) =>
           mergeBookingCollections(currentBookings, normalizedCreatedBookings)
         )
-        setFeedback({ type: "success", text: "Ã„ÂÃ¡ÂºÂ·t sÃƒÂ¢n thÃƒÂ nh cÃƒÂ´ng." })
+        setFeedback({ type: "success", text: "Đặt sân thành công." })
       }
 
       setAvailabilityRefreshKey((value) => value + 1)
@@ -1238,7 +1238,7 @@ export const useBookingController = ({ authToken, currentUser }) => {
         navigate(ROUTES.booking, {
           replace: true,
           state: {
-            bookingMessage: `Ã„ÂÃƒÂ£ tÃ¡ÂºÂ¡o ${createdBookings.length} Ã„â€˜Ã†Â¡n Ã„â€˜Ã¡ÂºÂ·t liÃƒÂªn tiÃ¡ÂºÂ¿p. VÃƒÂ o tÃ¡Â»Â«ng Ã„â€˜Ã†Â¡n trong danh sÃƒÂ¡ch Ã„â€˜Ã¡Â»Æ’ thanh toÃƒÂ¡n.`,
+            bookingMessage: `Đã tạo ${createdBookings.length} đơn đặt liên tiếp. Vào từng đơn trong danh sách để thanh toán.`,
             bookingMessageType: "success",
           },
         })
@@ -1257,7 +1257,7 @@ export const useBookingController = ({ authToken, currentUser }) => {
     if (!canCancelUserBooking(booking)) {
       setFeedback({
         type: "error",
-        text: "ChÃ¡Â»â€° cÃƒÂ³ thÃ¡Â»Æ’ hÃ¡Â»Â§y sÃƒÂ¢n khi Ã„â€˜Ã†Â¡n nÃƒÂ y chÃ†Â°a thanh toÃƒÂ¡n.",
+        text: "Chỉ có thể hủy sân khi đơn này chưa thanh toán.",
       })
       return
     }
@@ -1267,7 +1267,7 @@ export const useBookingController = ({ authToken, currentUser }) => {
 
     if (authToken && bookingIds.length > 1) {
       const shouldCancelGroup = window.confirm(
-        `HÃ¡Â»Â§y ${bookingIds.length} khung giÃ¡Â»Â liÃƒÂªn tiÃ¡ÂºÂ¿p tÃ¡ÂºÂ¡i ${booking.fieldName || "sÃƒÂ¢n nÃƒÂ y"}?`
+        `Hủy ${bookingIds.length} khung giờ liên tiếp tại ${booking.fieldName || "sân này"}?`
       )
 
       if (!shouldCancelGroup) {
@@ -1291,7 +1291,7 @@ export const useBookingController = ({ authToken, currentUser }) => {
 
         if (updatedBookingMap.size === 0) {
           const rejectedResult = cancelResults.find((result) => result.status === "rejected")
-          throw rejectedResult?.reason || new Error("KhÃƒÂ´ng thÃ¡Â»Æ’ hÃ¡Â»Â§y Ã„â€˜Ã†Â¡n Ã„â€˜Ã¡ÂºÂ·t.")
+          throw rejectedResult?.reason || new Error("Không thể hủy đơn đặt.")
         }
 
         setBookings((currentBookings) => {
@@ -1311,8 +1311,8 @@ export const useBookingController = ({ authToken, currentUser }) => {
           type: updatedBookingMap.size === bookingIds.length ? "success" : "error",
           text:
             updatedBookingMap.size === bookingIds.length
-              ? `Ã„ÂÃƒÂ£ hÃ¡Â»Â§y ${updatedBookingMap.size} khung giÃ¡Â»Â liÃƒÂªn tiÃ¡ÂºÂ¿p.`
-              : `Ã„ÂÃƒÂ£ hÃ¡Â»Â§y ${updatedBookingMap.size}/${bookingIds.length} khung giÃ¡Â»Â. Vui lÃƒÂ²ng thÃ¡Â»Â­ lÃ¡ÂºÂ¡i vÃ¡Â»â€ºi phÃ¡ÂºÂ§n cÃƒÂ²n lÃ¡ÂºÂ¡i.`,
+              ? `Đã hủy ${updatedBookingMap.size} khung giờ liên tiếp.`
+              : `Đã hủy ${updatedBookingMap.size}/${bookingIds.length} khung giờ. Vui lòng thử lại với phần còn lại.`,
         })
       } catch (apiError) {
         setFeedback({ type: "error", text: apiError.message })
@@ -1327,7 +1327,7 @@ export const useBookingController = ({ authToken, currentUser }) => {
       return
     }
 
-    const shouldCancel = window.confirm(`HÃ¡Â»Â§y Ã„â€˜Ã†Â¡n Ã„â€˜Ã¡ÂºÂ·t sÃƒÂ¢n ${booking.fieldName || booking.id}?`)
+    const shouldCancel = window.confirm(`Hủy đơn đặt sân ${booking.fieldName || booking.id}?`)
     if (!shouldCancel) {
       return
     }
@@ -1354,7 +1354,7 @@ export const useBookingController = ({ authToken, currentUser }) => {
       setAvailabilityRefreshKey((value) => value + 1)
       setFeedback({
         type: "success",
-        text: data.message || "Ã„ÂÃƒÂ£ hÃ¡Â»Â§y Ã„â€˜Ã†Â¡n Ã„â€˜Ã¡ÂºÂ·t cÃ¡Â»Â§a bÃ¡ÂºÂ¡n.",
+        text: data.message || "Đã hủy đơn đặt của bạn.",
       })
     } catch (apiError) {
       setFeedback({ type: "error", text: apiError.message })

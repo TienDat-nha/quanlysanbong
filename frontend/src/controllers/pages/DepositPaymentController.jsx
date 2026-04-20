@@ -168,7 +168,7 @@ const DepositPaymentController = ({ authToken, currentUser }) => {
 
     if (result?.redirectToBookings) {
       handleGoToBookings({
-        bookingMessage: String(result?.message || '').trim() || 'ÄÃ£ táº¡o yÃªu cáº§u thanh toÃ¡n. ÄÆ¡n Ä‘ang chá» admin xÃ¡c nháº­n.',
+        bookingMessage: String(result?.message || '').trim() || 'Đã tạo yêu cầu thanh toán. Đơn đang chờ admin xác nhận.',
         bookingMessageType: String(result?.messageType || 'success').trim() || 'success',
       })
       return

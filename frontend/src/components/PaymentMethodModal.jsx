@@ -417,7 +417,7 @@ const PaymentMethodModal = ({
         onPaymentSuccess?.({
           payment,
           redirectToBookings: true,
-          message: 'ÄÃ£ táº¡o yÃªu cáº§u thanh toÃ¡n táº¡i chá»—. ÄÆ¡n Ä‘ang chá» admin xÃ¡c nháº­n.',
+          message: 'Đã tạo yêu cầu thanh toán tại chỗ. Đơn đang chờ admin xác nhận.',
           messageType: 'success',
         })
         onClose?.()
@@ -515,7 +515,7 @@ const PaymentMethodModal = ({
       setLocalError('')
 
       if (normalizePaymentMethod(selectedPayment?.method) === 'CASH') {
-        setLocalError('Thanh toÃ¡n táº¡i chá»— Ä‘ang chá» admin xÃ¡c nháº­n. Vui lÃ²ng xem tráº¡ng thÃ¡i booking thay vÃ¬ tá»± kiá»ƒm tra thanh toÃ¡n.')
+        setLocalError('Thanh toán tại chỗ đang chờ admin xác nhận. Vui lòng xem trạng thái booking thay vì tự kiểm tra thanh toán.')
         return
       }
 

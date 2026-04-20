@@ -190,7 +190,7 @@ const DEFAULT_BOOKING_HOLD_MINUTES = 5
 const isManagedUserOtpConfigured = () => true
 
 const getManagedUserOtpConfigMessage = () =>
-  "OTP email Ä‘Æ°á»£c xá»­ lÃ½ bá»Ÿi backend."
+  "OTP email được xử lý bởi backend."
 
 const isHtmlLike = (value) => {
   const trimmed = String(value || "").trim().toLowerCase()
@@ -205,11 +205,11 @@ const getRouteErrorFromHtml = (value) => {
     return ""
   }
 
-  return `API khÃ´ng há»— trá»£ ${String(match[1] || "").toUpperCase()} ${String(match[2] || "").trim()}.`
+  return `API không hỗ trợ ${String(match[1] || "").toUpperCase()} ${String(match[2] || "").trim()}.`
 }
 
 const buildApiUnavailableMessage = (requestPath) =>
-  `KhÃ´ng thá»ƒ káº¿t ná»‘i Ä‘áº¿n API (${API_BASE_URL}). Vui lÃ²ng kiá»ƒm tra backend Ä‘ang cháº¡y (${requestPath}).`
+  `Không thể kết nối đến API (${API_BASE_URL}). Vui lòng kiểm tra backend đang chạy (${requestPath}).`
 
 const isRouteMissingResponse = (status, rawBodyText = "") =>
   Number(status) === 404
@@ -1336,12 +1336,12 @@ const buildBookingPaymentShape = (booking, payment) => {
         message:
           normalizedPayment?.id && !isPaid
             ? ""
-            : "Chá»‰ cÃ³ thá»ƒ láº¥y QR khi Ä‘Ã£ táº¡o payment vÃ  payment chÆ°a hoÃ n táº¥t.",
+            : "Chỉ có thể lấy QR khi đã tạo payment và payment chưa hoàn tất.",
       },
     },
     staticTransfer: {
       amount,
-      bankName: "Thanh toÃ¡n tiá»n máº·t / tÃ¹y backend xÃ¡c nháº­n",
+      bankName: "Thanh toán tiền mặt / tùy backend xác nhận",
       accountNumber: normalizedPayment?.id || normalizedBooking?.paymentId || "",
       accountName: normalizedPayment?.method || "CASH",
       transferNote: mergedBooking?.id || "",
@@ -1416,7 +1416,7 @@ export const requestRegisterOtp = async (payload = {}) => {
   const email = String(payload?.email || "").trim().toLowerCase()
 
   if (!email) {
-    throw new Error("Vui lÃ²ng nháº­p email trÆ°á»›c khi gá»­i OTP.")
+    throw new Error("Vui lòng nhập email trước khi gửi OTP.")
   }
 
   let response
@@ -1453,7 +1453,7 @@ export const requestRegisterOtp = async (payload = {}) => {
     expiresAt,
     expiresAtMs,
     expiresInMinutes: Number.isFinite(expiresInMinutes) && expiresInMinutes > 0 ? expiresInMinutes : 5,
-    message: String(response?.message || "ÄÃ£ gá»­i mÃ£ OTP vá» email.").trim(),
+    message: String(response?.message || "Đã gửi mã OTP về email.").trim(),
   }
 }
 
@@ -1462,7 +1462,7 @@ export const verifyRegisterOtp = async (payload = {}) => {
   const otp = String(payload?.otp || payload?.otpCode || "").trim()
 
   if (!email || !otp) {
-    throw new Error("Vui lÃ²ng nháº­p Ä‘áº§y Ä‘á»§ email vÃ  mÃ£ OTP.")
+    throw new Error("Vui lòng nhập đầy đủ email và mã OTP.")
   }
 
   let response
@@ -1486,7 +1486,7 @@ export const verifyRegisterOtp = async (payload = {}) => {
 
   return {
     verified: true,
-    message: String(response?.message || "OTP Ä‘Ã£ Ä‘Æ°á»£c xÃ¡c nháº­n.").trim(),
+    message: String(response?.message || "OTP đã được xác nhận.").trim(),
   }
 }
 
@@ -1766,7 +1766,7 @@ export const getTimeSlots = async () => {
   }
 
   if (!response) {
-    throw lastError || new Error("KhÃ´ng thá»ƒ táº£i danh sÃ¡ch khung giá».")
+    throw lastError || new Error("Không thể tải danh sách khung giờ.")
   }
 
   return {
@@ -1917,8 +1917,8 @@ export const bootstrapAdminTimeSlots = async (
     totalCount,
     message:
       createdCount > 0
-        ? `ÄÃ£ khá»Ÿi táº¡o ${createdCount}/${totalCount} khung giá» máº«u 30 phÃºt cho backend.`
-        : `Backend Ä‘Ã£ cÃ³ sáºµn ${Math.max(existingIdentities.size, skippedCount)} khung giá» máº«u.`,
+        ? `Đã khởi tạo ${createdCount}/${totalCount} khung giờ mẫu 30 phút cho backend.`
+        : `Backend đã có sẵn ${Math.max(existingIdentities.size, skippedCount)} khung giờ mẫu.`,
   }
 }
 
@@ -2156,13 +2156,13 @@ const confirmBookingPaymentByBookingId = async (token, bookingId, options = {}) 
 
   const paymentId = String(payment?.id || payment?._id || "").trim()
   if (!paymentId) {
-    throw new Error("KhÃ´ng tÃ¬m tháº¥y payment há»£p lá»‡ cho booking nÃ y.")
+    throw new Error("Không tìm thấy payment hợp lệ cho booking này.")
   }
 
   const response = await confirmPayment(token, paymentId)
   return {
     ...response,
-    message: String(response?.message || "").trim() || "ÄÃ£ xÃ¡c nháº­n thanh toÃ¡n thÃ nh cÃ´ng.",
+    message: String(response?.message || "").trim() || "Đã xác nhận thanh toán thành công.",
   }
 }
 
@@ -2181,7 +2181,7 @@ export const confirmAdminBookingPayment = async (token, bookingId, amount = null
 
 export const uploadAdminImage = async (token, file) => {
   if (!file) {
-    throw new Error("Vui lÃ²ng chá»n tá»‡p áº£nh.")
+    throw new Error("Vui lòng chọn tệp ảnh.")
   }
 
   const formData = new FormData()
@@ -2199,7 +2199,7 @@ export const uploadAdminImage = async (token, file) => {
   ).trim())
 
   if (!imageUrl) {
-    throw new Error("KhÃ´ng nháº­n Ä‘Æ°á»£c URL áº£nh tá»« backend.")
+    throw new Error("Không nhận được URL ảnh từ backend.")
   }
 
   return {
@@ -2208,7 +2208,7 @@ export const uploadAdminImage = async (token, file) => {
       path: imageUrl,
       name: String(file.name || "").trim(),
     },
-    message: "ÄÃ£ Ä‘á»c áº£nh tá»« thiáº¿t bá»‹ cá»§a báº¡n.",
+    message: "Đã đọc ảnh từ thiết bị của bạn.",
   }
 }
 
@@ -2731,7 +2731,7 @@ export const confirmStaticDeposit = async (token, bookingId) => {
 
   return {
     ...info,
-    message: response.message || "ÄÃ£ táº¡o yÃªu cáº§u thanh toÃ¡n.",
+    message: response.message || "Đã tạo yêu cầu thanh toán.",
   }
 }
 
