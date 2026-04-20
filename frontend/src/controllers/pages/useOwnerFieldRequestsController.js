@@ -1,6 +1,62 @@
 import { useCallback, useEffect, useState } from "react"
 import * as API from "../../models/api"
 
+const REQUEST_STATUSES = new Set(["PENDING", "APPROVED", "REJECTED"])
+
+const normalizeRequestStatus = (field = {}) => {
+  const rawStatus = String(field?.approvalStatus || field?.status || field?.fieldStatus || "")
+    .trim()
+    .toUpperCase()
+
+  if (rawStatus === "APPROVED" || rawStatus === "ACTIVE") {
+    return "APPROVED"
+  }
+
+  if (rawStatus === "REJECTED") {
+    return "REJECTED"
+  }
+
+  if (rawStatus === "PENDING") {
+    return "PENDING"
+  }
+
+  return ""
+}
+
+const normalizeIdentityToken = (value) => String(value || "").trim().toLowerCase()
+
+const isOwnerField = (field = {}, currentUser = {}) => {
+  const ownerTokens = [
+    currentUser?.id,
+    currentUser?._id,
+    currentUser?.userId,
+    currentUser?.email,
+  ]
+    .map((value) => normalizeIdentityToken(value))
+    .filter(Boolean)
+
+  if (ownerTokens.length === 0) {
+    return false
+  }
+
+  const fieldTokens = [field?.ownerUserId, field?.userId, field?.ownerEmail]
+    .map((value) => normalizeIdentityToken(value))
+    .filter(Boolean)
+
+  return fieldTokens.some((value) => ownerTokens.includes(value))
+}
+
+const toRequestField = (field = {}) => {
+  const normalizedStatus = normalizeRequestStatus(field)
+
+  return {
+    ...field,
+    status: normalizedStatus,
+    approvalStatus: normalizedStatus || String(field?.approvalStatus || "").trim(),
+    fieldStatus: normalizedStatus || String(field?.fieldStatus || "").trim(),
+  }
+}
+
 export const useOwnerFieldRequestsController = (authToken, currentUser) => {
   const [fields, setFields] = useState([])
   const [loading, setLoading] = useState(false)
@@ -17,20 +73,15 @@ export const useOwnerFieldRequestsController = (authToken, currentUser) => {
       setLoading(true)
       setError(null)
       const { fields: allFields } = await API.getAdminFields(authToken)
-      
-      // Filter chỉ những sân của owner hiện tại với status PENDING, APPROVED, REJECTED
-      const ownerFields = (allFields || []).filter(field => {
-        const isOwnerField = 
-          field?.ownerUserId === currentUser?.id || 
-          field?.userId === currentUser?.id ||
-          field?.ownerEmail === currentUser?.email
-        const isRequestStatus = ["PENDING", "APPROVED", "REJECTED"].includes(field?.status)
-        return isOwnerField && isRequestStatus
-      })
-      
+
+      const ownerFields = (allFields || [])
+        .map((field) => toRequestField(field))
+        .filter((field) => isOwnerField(field, currentUser))
+        .filter((field) => REQUEST_STATUSES.has(field.status))
+
       setFields(ownerFields)
     } catch (err) {
-      setError(err?.message || "Lỗi khi tải yêu cầu sân")
+      setError(err?.message || "Loi khi tai yeu cau san")
       setFields([])
     } finally {
       setLoading(false)
@@ -45,15 +96,16 @@ export const useOwnerFieldRequestsController = (authToken, currentUser) => {
     if (filterStatus === "ALL") {
       return fields
     }
-    return fields.filter(field => field?.status === filterStatus)
+
+    return fields.filter((field) => normalizeRequestStatus(field) === filterStatus)
   }
 
   const getStatusStats = () => {
     return {
       total: fields.length,
-      pending: fields.filter(f => f?.status === "PENDING").length,
-      approved: fields.filter(f => f?.status === "APPROVED").length,
-      rejected: fields.filter(f => f?.status === "REJECTED").length,
+      pending: fields.filter((field) => normalizeRequestStatus(field) === "PENDING").length,
+      approved: fields.filter((field) => normalizeRequestStatus(field) === "APPROVED").length,
+      rejected: fields.filter((field) => normalizeRequestStatus(field) === "REJECTED").length,
     }
   }
 

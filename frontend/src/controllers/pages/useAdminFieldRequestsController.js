@@ -1,7 +1,42 @@
 import { useCallback, useEffect, useState } from "react"
 import * as API from "../../models/api"
 
-export const useAdminFieldRequestsController = (authToken, currentUser) => {
+const REQUEST_STATUSES = new Set(["PENDING", "APPROVED", "REJECTED"])
+
+const normalizeRequestStatus = (field = {}) => {
+  const rawStatus = String(field?.approvalStatus || field?.status || field?.fieldStatus || "")
+    .trim()
+    .toUpperCase()
+
+  if (rawStatus === "APPROVED" || rawStatus === "ACTIVE") {
+    return "APPROVED"
+  }
+
+  if (rawStatus === "REJECTED") {
+    return "REJECTED"
+  }
+
+  if (rawStatus === "PENDING") {
+    return "PENDING"
+  }
+
+  return ""
+}
+
+const normalizeFieldId = (value) => String(value || "").trim()
+
+const toRequestField = (field = {}) => {
+  const normalizedStatus = normalizeRequestStatus(field)
+
+  return {
+    ...field,
+    status: normalizedStatus,
+    approvalStatus: normalizedStatus || String(field?.approvalStatus || "").trim(),
+    fieldStatus: normalizedStatus || String(field?.fieldStatus || "").trim(),
+  }
+}
+
+export const useAdminFieldRequestsController = (authToken) => {
   const [requests, setRequests] = useState([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
@@ -19,16 +54,15 @@ export const useAdminFieldRequestsController = (authToken, currentUser) => {
     try {
       setLoading(true)
       setError(null)
+
       const { fields: allFields } = await API.getAdminFields(authToken)
-      
-      // Lấy tất cả sân có status PENDING, APPROVED, REJECTED (yêu cầu từ owners)
-      const requestFields = (allFields || []).filter(field => {
-        return ["PENDING", "APPROVED", "REJECTED"].includes(field?.status)
-      })
-      
+      const requestFields = (allFields || [])
+        .map((field) => toRequestField(field))
+        .filter((field) => REQUEST_STATUSES.has(field.status))
+
       setRequests(requestFields)
     } catch (err) {
-      setError(err?.message || "Lỗi khi tải yêu cầu sân")
+      setError(err?.message || "Loi khi tai yeu cau san")
       setRequests([])
     } finally {
       setLoading(false)
@@ -40,44 +74,68 @@ export const useAdminFieldRequestsController = (authToken, currentUser) => {
   }, [loadFieldRequests])
 
   const handleApproveField = async (fieldId) => {
-    if (!fieldId || !authToken) return
+    if (!fieldId || !authToken) {
+      return
+    }
 
     try {
       setActionLoading(fieldId)
       await API.approveAdminField(authToken, fieldId)
-      
-      // Cập nhật state
-      setRequests(prev => prev.map(req => 
-        req.id === fieldId || req._id === fieldId 
-          ? { ...req, status: "APPROVED" }
-          : req
-      ))
+
+      const normalizedFieldId = normalizeFieldId(fieldId)
+      setRequests((prev) =>
+        prev.map((request) => {
+          const requestId = normalizeFieldId(request?.id || request?._id)
+
+          return requestId === normalizedFieldId
+            ? {
+                ...request,
+                status: "APPROVED",
+                approvalStatus: "APPROVED",
+                fieldStatus: "APPROVED",
+              }
+            : request
+        })
+      )
     } catch (err) {
-      setError(err?.message || "Lỗi khi duyệt yêu cầu")
+      setError(err?.message || "Loi khi duyet yeu cau")
     } finally {
       setActionLoading(null)
     }
   }
 
   const handleRejectField = async (fieldId) => {
-    if (!fieldId || !authToken) return
+    if (!fieldId || !authToken) {
+      return
+    }
 
     try {
       setActionLoading(fieldId)
       await API.rejectAdminField(authToken, fieldId, rejectReason)
-      
-      // Cập nhật state
-      setRequests(prev => prev.map(req => 
-        req.id === fieldId || req._id === fieldId 
-          ? { ...req, status: "REJECTED", rejectReason: rejectReason || "Không hợp lệ" }
-          : req
-      ))
-      
-      // Reset modal
+
+      const normalizedFieldId = normalizeFieldId(fieldId)
+      const normalizedReason = String(rejectReason || "").trim()
+
+      setRequests((prev) =>
+        prev.map((request) => {
+          const requestId = normalizeFieldId(request?.id || request?._id)
+
+          return requestId === normalizedFieldId
+            ? {
+                ...request,
+                status: "REJECTED",
+                approvalStatus: "REJECTED",
+                fieldStatus: "REJECTED",
+                rejectReason: normalizedReason || "Khong hop le",
+              }
+            : request
+        })
+      )
+
       setRejectReason("")
       setRejectFieldId(null)
     } catch (err) {
-      setError(err?.message || "Lỗi khi từ chối yêu cầu")
+      setError(err?.message || "Loi khi tu choi yeu cau")
     } finally {
       setActionLoading(null)
     }
@@ -87,15 +145,16 @@ export const useAdminFieldRequestsController = (authToken, currentUser) => {
     if (filterStatus === "ALL") {
       return requests
     }
-    return requests.filter(req => req?.status === filterStatus)
+
+    return requests.filter((request) => normalizeRequestStatus(request) === filterStatus)
   }
 
   const getRequestStats = () => {
     return {
       total: requests.length,
-      pending: requests.filter(r => r?.status === "PENDING").length,
-      approved: requests.filter(r => r?.status === "APPROVED").length,
-      rejected: requests.filter(r => r?.status === "REJECTED").length,
+      pending: requests.filter((request) => normalizeRequestStatus(request) === "PENDING").length,
+      approved: requests.filter((request) => normalizeRequestStatus(request) === "APPROVED").length,
+      rejected: requests.filter((request) => normalizeRequestStatus(request) === "REJECTED").length,
     }
   }
 
