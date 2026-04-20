@@ -14,25 +14,37 @@ export const usePaymentFlow = (authToken) => {
   const [qrData, setQrData] = useState(null)
   const [payments, setPayments] = useState([])
 
+  /**
+   * HÀM TẠO THANH TOÁN (ĐÃ TỐI ƯU)
+   * Loại bỏ 'amount' truyền từ client. 
+   * BE phải tự dựa vào bookingId để tính toán số tiền cọc/toàn phần trong Database.
+   */
   const handleCreatePayment = useCallback(
-    async (bookingId, method, paymentType, amount = null, bookingIds = []) => {
+    async (bookingId, method, paymentType, bookingIds = []) => {
       try {
         setLoading(true)
         setError('')
-        const payment = await createPayment(authToken, bookingId, method, paymentType, amount, bookingIds)
+        setQrData(null) // Reset QR cũ trước khi thực hiện giao dịch mới
+
+        // FE chỉ gửi "Yêu cầu" (Booking nào, Phương thức gì, Loại nào).
+        // BE chịu trách nhiệm hoàn toàn về logic con số.
+        const payment = await createPayment(authToken, bookingId, method, paymentType, bookingIds)
         setCurrentPayment(payment)
 
-        const normalizedMethod = String(method || '').trim().toUpperCase()
-        if (normalizedMethod !== 'CASH' && normalizedMethod !== 'MOMO') {
+        /**
+         * LOGIC HIỂN THỊ QR:
+         * BE nên trả về một flag (ví dụ: requiresQR: true) hoặc trực tiếp link QR.
+         * Ở đây mình dựa trên kết quả payment thực tế từ BE trả về để quyết định.
+         */
+        if (payment?.requiresQR || payment?.qrCodeData) {
           const qr = await getQR(authToken, payment.id)
           setQrData(qr)
-        } else {
-          setQrData(null)
         }
         
         return payment
       } catch (err) {
-        const errMsg = err?.message || 'Lỗi tạo thanh toán'
+        // Hiển thị thông báo lỗi cụ thể từ Server trả về
+        const errMsg = err?.response?.data?.message || err?.message || 'Lỗi tạo thanh toán'
         setError(errMsg)
         throw err
       } finally {
@@ -43,16 +55,22 @@ export const usePaymentFlow = (authToken) => {
   )
 
   const handleConfirmPayment = useCallback(
-    async (paymentId) => {
+    async (paymentId, bookingIdToRefresh = null) => {
       try {
         setLoading(true)
         setError('')
         const payment = await confirmPayment(authToken, paymentId)
         setCurrentPayment(payment)
+
+        // Sau khi confirm, nếu cần, load lại danh sách để đồng bộ với DB sạch nhất
+        if (bookingIdToRefresh) {
+          const updatedList = await getPaymentByBooking(authToken, bookingIdToRefresh)
+          setPayments(updatedList)
+        }
+
         return payment
       } catch (err) {
-        const errMsg = err?.message || 'Lỗi xác nhận thanh toán'
-        setError(errMsg)
+        setError(err?.response?.data?.message || err?.message || 'Lỗi xác nhận thanh toán')
         throw err
       } finally {
         setLoading(false)
@@ -70,8 +88,7 @@ export const usePaymentFlow = (authToken) => {
         setPayments(list)
         return list
       } catch (err) {
-        const errMsg = err?.message || 'Lỗi lấy danh sách thanh toán'
-        setError(errMsg)
+        setError(err?.message || 'Lỗi lấy danh sách thanh toán')
         throw err
       } finally {
         setLoading(false)
@@ -85,13 +102,13 @@ export const usePaymentFlow = (authToken) => {
       try {
         setLoading(true)
         setError('')
-        const payment = await cancelPayment(authToken, paymentId)
+        await cancelPayment(authToken, paymentId)
+        
+        // Dọn sạch trạng thái FE để phản ánh đúng việc hủy đơn
         setCurrentPayment(null)
         setQrData(null)
-        return payment
       } catch (err) {
-        const errMsg = err?.message || 'Lỗi hủy thanh toán'
-        setError(errMsg)
+        setError(err?.message || 'Lỗi hủy thanh toán')
         throw err
       } finally {
         setLoading(false)
