@@ -1,6 +1,5 @@
 import { 
   createBookingPayment,
-  getMyBookings as getMyBookingsApi,
   getMyPayments as getMyPaymentsApi,
   getPaymentByBooking as getPaymentByBookingApi,
   confirmPayment as confirmPaymentApi,

@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react'
+import React, { useCallback, useEffect, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import MyPaymentsView from '../../views/pages/MyPaymentsView'
 import PaymentQRModal from '../../components/PaymentQRModal'
