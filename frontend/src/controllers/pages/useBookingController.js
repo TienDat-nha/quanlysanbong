@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState } from "react"
 import { useLocation, useNavigate, useParams } from "react-router-dom"
 import {
   cancelMyBooking,
-  confirmAdminBooking,
   createBooking,
   getFieldById,
   getBookedSlots,
@@ -45,9 +44,6 @@ import {
 } from "../../models/bookingTextModel"
 import { getFieldList, isFieldApprovedForPublic } from "../../models/fieldModel"
 import { createDepositPaymentRoute, ROUTES } from "../../models/routeModel"
-
-const OWNER_MANUAL_BOOKINGS_STORAGE_PREFIX = "sanbong_owner_manual_bookings"
-const OWNER_MANAGED_BOOKINGS_DATE_STORAGE_PREFIX = "sanbong_owner_managed_bookings_date"
 
 const getPortalOwnerKeys = (currentUser) =>
   [
@@ -106,35 +102,6 @@ const filterFieldsForOwnerPortal = (fields, currentUser, isOwnerPortal) => {
 
 const isFieldApprovedForBooking = (field) => isFieldApprovedForPublic(field)
 
-const getManualBookingStorageKey = (currentUser) => {
-  const ownerKey = getPortalOwnerKeys(currentUser)[0]
-  return ownerKey ? `${OWNER_MANUAL_BOOKINGS_STORAGE_PREFIX}:${ownerKey}` : ""
-}
-
-const getManagedBookingDateStorageKey = (currentUser) => {
-  const ownerKey = getPortalOwnerKeys(currentUser)[0]
-  return ownerKey ? `${OWNER_MANAGED_BOOKINGS_DATE_STORAGE_PREFIX}:${ownerKey}` : ""
-}
-
-const persistOwnerManagedBookingDate = (currentUser, date) => {
-  if (typeof window === "undefined" || !window.localStorage) {
-    return
-  }
-
-  const storageKey = getManagedBookingDateStorageKey(currentUser)
-  if (!storageKey) {
-    return
-  }
-
-  const normalizedDate = normalizeBookingDateValue(date)
-  if (!normalizedDate) {
-    window.localStorage.removeItem(storageKey)
-    return
-  }
-
-  window.localStorage.setItem(storageKey, normalizedDate)
-}
-
 const getBookingIdentity = (booking, index = 0) => {
   const bookingId = String(booking?.id || booking?._id || "").trim()
   if (bookingId) {
@@ -180,87 +147,6 @@ const mergeBookingCollections = (...collections) => {
   })
 
   return Array.from(bookingMap.values())
-}
-
-const mergeRemoteUserBookingWithStoredHint = (remoteBooking, storedBooking) => {
-  if (!remoteBooking || !storedBooking) {
-    return remoteBooking || storedBooking || null
-  }
-
-  const storedPaymentType = String(storedBooking?.paymentType || storedBooking?.type || "").trim().toUpperCase()
-  if (!storedPaymentType) {
-    return remoteBooking
-  }
-
-  const remotePaymentSummary = getBookingPaymentSummaryVi(remoteBooking)
-  const remoteExplicitFullPayment = remotePaymentSummary.isFullyPaid
-
-  if (storedPaymentType === "DEPOSIT" && remoteExplicitFullPayment) {
-    return remoteBooking
-  }
-  if (
-    storedPaymentType === "FULL"
-    && !remoteExplicitFullPayment
-    && Number(remotePaymentSummary.remainingAmount || 0) > 0
-  ) {
-    return remoteBooking
-  }
-
-  const nextBooking = {
-    ...remoteBooking,
-    paymentType: storedPaymentType,
-    type: storedPaymentType,
-    depositPaid: Boolean(storedBooking?.depositPaid || remoteBooking?.depositPaid),
-    depositStatus: String(storedBooking?.depositStatus || remoteBooking?.depositStatus || "").trim(),
-    paymentStatus: String(storedBooking?.paymentStatus || remoteBooking?.paymentStatus || "").trim(),
-  }
-
-  const storedDepositAmount = Number(storedBooking?.depositAmount)
-  if (Number.isFinite(storedDepositAmount) && storedDepositAmount > 0) {
-    nextBooking.depositAmount = storedDepositAmount
-  }
-
-  if (
-    storedBooking?.remainingAmount !== null
-    && storedBooking?.remainingAmount !== undefined
-    && (typeof storedBooking?.remainingAmount !== "string" || storedBooking.remainingAmount.trim() !== "")
-  ) {
-    nextBooking.remainingAmount = Number(storedBooking.remainingAmount)
-  }
-
-  const storedPaidAmount = Number(storedBooking?.paidAmount)
-  if (Number.isFinite(storedPaidAmount) && storedPaidAmount > 0) {
-    nextBooking.paidAmount = storedPaidAmount
-  }
-
-  if (storedPaymentType === "FULL") {
-    nextBooking.fullyPaid = true
-    nextBooking.remainingAmount = 0
-    nextBooking.depositPaid = true
-    nextBooking.depositStatus = "PAID"
-    nextBooking.paymentStatus = "PAID"
-    return nextBooking
-  }
-
-  nextBooking.fullyPaid = false
-  nextBooking.depositPaid = true
-  nextBooking.depositStatus = "PAID"
-  nextBooking.paymentStatus = "DEPOSIT_PAID"
-
-  return nextBooking
-}
-
-const mergeRemoteUserBookingsWithStoredHints = (remoteBookings = [], storedKnownBookings = []) => {
-  const storedBookingMap = new Map(
-    (Array.isArray(storedKnownBookings) ? storedKnownBookings : [])
-      .map((booking) => [String(booking?.id || booking?._id || "").trim(), booking])
-      .filter(([bookingId]) => bookingId)
-  )
-
-  return (Array.isArray(remoteBookings) ? remoteBookings : []).map((booking) => {
-    const bookingId = String(booking?.id || booking?._id || "").trim()
-    return mergeRemoteUserBookingWithStoredHint(booking, storedBookingMap.get(bookingId))
-  })
 }
 
 const getUserBookingActionIds = (bookingOrId) => {
@@ -613,131 +499,12 @@ const getUserBookingHoldExpiryTimestamp = (booking) => {
 const isPendingUnpaidUserBooking = (booking) =>
   normalizeUserBookingStatusKey(booking?.status) === "PENDING" && !isPaidUserBooking(booking)
 
-const markExpiredUserBookings = (bookings = [], nowTimestamp = Date.now()) => {
-  let hasChanged = false
-
-  const nextBookings = (Array.isArray(bookings) ? bookings : []).map((booking) => {
-    if (!isPendingUnpaidUserBooking(booking)) {
-      return booking
-    }
-
-    const holdExpiryTimestamp = getUserBookingHoldExpiryTimestamp(booking)
-    if (holdExpiryTimestamp <= 0 || holdExpiryTimestamp > nowTimestamp) {
-      return booking
-    }
-
-    hasChanged = true
-    return {
-      ...booking,
-      status: "CANCELLED",
-      paymentStatus: normalizeUserPaymentStatusKey(booking?.paymentStatus, booking?.depositStatus) === "PENDING"
-        ? "FAILED"
-        : booking?.paymentStatus,
-      holdExpiresAt: "",
-      expiredAt: "",
-    }
-  })
-
-  return { nextBookings, hasChanged }
-}
-
 const canCancelUserBooking = (booking) => {
   const groupedBookings = Array.isArray(booking?.groupedBookings) && booking.groupedBookings.length > 0
     ? booking.groupedBookings
     : [booking]
 
   return groupedBookings.every((item) => !isPaidUserBooking(item))
-}
-
-const persistOwnerManualBookings = (currentUser, bookings = []) => {
-  if (typeof window === "undefined" || !window.localStorage) {
-    return []
-  }
-
-  const storageKey = getManualBookingStorageKey(currentUser)
-  if (!storageKey) {
-    return []
-  }
-
-  const nextBookings = mergeBookingCollections(
-    (Array.isArray(bookings) ? bookings : []).filter((booking) => {
-      const status = String(booking?.status || "").trim().toLowerCase()
-      return status !== "cancelled" && status !== "canceled"
-    })
-  )
-
-  try {
-    if (nextBookings.length === 0) {
-      window.localStorage.removeItem(storageKey)
-    } else {
-      window.localStorage.setItem(storageKey, JSON.stringify(nextBookings))
-    }
-  } catch (_error) {
-    return nextBookings
-  }
-
-  return nextBookings
-}
-
-const getStoredOwnerManualBookings = (currentUser) => {
-  if (typeof window === "undefined" || !window.localStorage) {
-    return []
-  }
-
-  const storageKey = getManualBookingStorageKey(currentUser)
-  if (!storageKey) {
-    return []
-  }
-
-  try {
-    const rawValue = window.localStorage.getItem(storageKey)
-    if (!rawValue) {
-      return []
-    }
-
-    const parsedValue = JSON.parse(rawValue)
-    return Array.isArray(parsedValue)
-      ? parsedValue
-        .filter(Boolean)
-        .map((booking) => ({
-          ...booking,
-          date: normalizeBookingDateValue(booking?.date),
-        }))
-      : []
-  } catch (_error) {
-    return []
-  }
-}
-
-const createSelectionBookingRecords = ({
-  field,
-  subField,
-  form,
-  timeline,
-  selectedTimeSlotIds,
-  currentUser,
-  status = "CONFIRMED",
-}) => {
-  const timelineById = new Map(
-    (Array.isArray(timeline) ? timeline : [])
-      .filter(Boolean)
-      .map((slot) => [String(slot?.id || "").trim(), slot])
-  )
-
-  return (Array.isArray(selectedTimeSlotIds) ? selectedTimeSlotIds : [])
-    .map((timeSlotId) =>
-      createLocalBookingRecord({
-        field,
-        subField,
-        slot: timelineById.get(String(timeSlotId || "").trim()) || null,
-        date: form?.date,
-        phone: form?.phone,
-        note: form?.note,
-        currentUser,
-        status,
-      })
-    )
-    .filter(Boolean)
 }
 
 const createBookedSlotRecords = ({ field, subField, date, timeSlots = [] }) =>
@@ -795,36 +562,6 @@ const getBookingRouteFeedback = (locationState) => {
     text,
   }
 }
-
-const normalizeApiMessageKey = (value) =>
-  String(value || "")
-    .trim()
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/[\u0111\u0110]/g, "d")
-
-const isSilentSlotConflictMessage = (value) => {
-  const normalizedMessage = normalizeApiMessageKey(value)
-
-  return (
-    normalizedMessage.includes("booking da ton tai")
-    || normalizedMessage.includes("already exists")
-    || normalizedMessage.includes("slot dang duoc giu")
-    || normalizedMessage.includes("slot dang duoc giu hoac da dat")
-    || normalizedMessage.includes("slot dang duoc giu hoac da dat")
-    || normalizedMessage.includes("da co nguoi dat")
-  )
-}
-
-const clearSelectedSlotState = (prev) => ({
-  ...prev,
-  subFieldId: "",
-  subFieldKey: "",
-  timeSlotId: "",
-  timeSlotIds: [],
-  timeSlot: "",
-})
 
 export const useBookingController = ({ authToken, currentUser }) => {
   const navigate = useNavigate()
@@ -908,21 +645,21 @@ export const useBookingController = ({ authToken, currentUser }) => {
         setTimeSlots(timeSlotsData.timeSlots || [])
         setCatalogMessage(
           nextFields.length === 0 && isOwnerPortal
-            ? "Chưa có sân nào gắn với tài khoản chủ sân này."
+            ? "ChÃ†Â°a cÃƒÂ³ sÃƒÂ¢n nÃƒÂ o gÃ¡ÂºÂ¯n vÃ¡Â»â€ºi tÃƒÂ i khoÃ¡ÂºÂ£n chÃ¡Â»Â§ sÃƒÂ¢n nÃƒÂ y."
             : String(fieldsData?.message || "").trim()
         )
         if (isOwnerPortal) {
           setCatalogMessage(
             ownedFields.length === 0
-              ? "Chưa có sân nào gắn với tài khoản chủ sân này."
+              ? "ChÃ†Â°a cÃƒÂ³ sÃƒÂ¢n nÃƒÂ o gÃ¡ÂºÂ¯n vÃ¡Â»â€ºi tÃƒÂ i khoÃ¡ÂºÂ£n chÃ¡Â»Â§ sÃƒÂ¢n nÃƒÂ y."
               : nextFields.length === 0
-                ? "Các sân của bạn đang chờ admin duyệt hoặc đang bị khóa nên chưa thể đặt."
+                ? "CÃƒÂ¡c sÃƒÂ¢n cÃ¡Â»Â§a bÃ¡ÂºÂ¡n Ã„â€˜ang chÃ¡Â»Â admin duyÃ¡Â»â€¡t hoÃ¡ÂºÂ·c Ã„â€˜ang bÃ¡Â»â€¹ khÃƒÂ³a nÃƒÂªn chÃ†Â°a thÃ¡Â»Æ’ Ã„â€˜Ã¡ÂºÂ·t."
                 : ""
           )
         }
         if (timeSlotsResult.status === "rejected") {
           setCatalogMessage((currentMessage) =>
-            [currentMessage, "Chưa tải được khung giờ backend. Hệ thống sẽ dùng khung giờ tạm để xem lịch trong lúc chờ backend đồng bộ từ giờ mở cửa."]
+            [currentMessage, "ChÃ†Â°a tÃ¡ÂºÂ£i Ã„â€˜Ã†Â°Ã¡Â»Â£c khung giÃ¡Â»Â backend. HÃ¡Â»â€¡ thÃ¡Â»â€˜ng sÃ¡ÂºÂ½ dÃƒÂ¹ng khung giÃ¡Â»Â tÃ¡ÂºÂ¡m Ã„â€˜Ã¡Â»Æ’ xem lÃ¡Â»â€¹ch trong lÃƒÂºc chÃ¡Â»Â backend Ã„â€˜Ã¡Â»â€œng bÃ¡Â»â„¢ tÃ¡Â»Â« giÃ¡Â»Â mÃ¡Â»Å¸ cÃ¡Â»Â­a."]
               .filter(Boolean)
               .join(" ")
           )
@@ -930,7 +667,7 @@ export const useBookingController = ({ authToken, currentUser }) => {
         if (fieldsResult.status === "rejected" && nextFields.length === 0) {
           setFeedback({
             type: "error",
-            text: fieldsResult.reason?.message || "Không thể tải danh sách sân.",
+            text: fieldsResult.reason?.message || "KhÃƒÂ´ng thÃ¡Â»Æ’ tÃ¡ÂºÂ£i danh sÃƒÂ¡ch sÃƒÂ¢n.",
           })
         } else if (timeSlotsResult.status === "rejected" && fieldsResult.status !== "rejected") {
           setFeedback((currentFeedback) =>
@@ -938,7 +675,7 @@ export const useBookingController = ({ authToken, currentUser }) => {
               ? currentFeedback
               : {
                   type: "warning",
-                  text: "Khung giờ backend đang tải chậm. Bạn vẫn có thể xem lịch, nhưng cần đợi backend đồng bộ slot thật từ giờ mở cửa trước khi gửi đơn.",
+                  text: "Khung giÃ¡Â»Â backend Ã„â€˜ang tÃ¡ÂºÂ£i chÃ¡ÂºÂ­m. BÃ¡ÂºÂ¡n vÃ¡ÂºÂ«n cÃƒÂ³ thÃ¡Â»Æ’ xem lÃ¡Â»â€¹ch, nhÃ†Â°ng cÃ¡ÂºÂ§n Ã„â€˜Ã¡Â»Â£i backend Ã„â€˜Ã¡Â»â€œng bÃ¡Â»â„¢ slot thÃ¡ÂºÂ­t tÃ¡Â»Â« giÃ¡Â»Â mÃ¡Â»Å¸ cÃ¡Â»Â­a trÃ†Â°Ã¡Â»â€ºc khi gÃ¡Â»Â­i Ã„â€˜Ã†Â¡n.",
                 }
           )
         }
@@ -967,22 +704,6 @@ export const useBookingController = ({ authToken, currentUser }) => {
     }
 
     const nowTimestamp = Date.now()
-    const { nextBookings, hasChanged } = markExpiredUserBookings(bookings, nowTimestamp)
-
-    if (hasChanged) {
-      setBookings(nextBookings)
-      setFeedback((currentFeedback) =>
-        currentFeedback?.text
-          ? currentFeedback
-          : {
-              type: "warning",
-              text: "Một số đơn đã hết thời gian giữ chỗ và được hủy tự động.",
-            }
-      )
-      setBookingsRefreshKey((value) => value + 1)
-      return undefined
-    }
-
     const nextExpiryTimestamp = bookings
       .filter((booking) => isPendingUnpaidUserBooking(booking))
       .map((booking) => getUserBookingHoldExpiryTimestamp(booking))
@@ -994,20 +715,14 @@ export const useBookingController = ({ authToken, currentUser }) => {
     }
 
     const timeoutId = window.setTimeout(() => {
-      const expiredResult = markExpiredUserBookings(bookings, Date.now())
-
-      if (expiredResult.hasChanged) {
-        setBookings(expiredResult.nextBookings)
-        setFeedback((currentFeedback) =>
-          currentFeedback?.text
-            ? currentFeedback
-            : {
-                type: "warning",
-                text: "Một số đơn đã hết thời gian giữ chỗ và được hủy tự động.",
-              }
-        )
-      }
-
+      setFeedback((currentFeedback) =>
+        currentFeedback?.text
+          ? currentFeedback
+          : {
+              type: "warning",
+              text: "Tráº¡ng thÃ¡i giá»¯ chá»— vá»«a Ä‘Æ°á»£c cáº­p nháº­t. Vui lÃ²ng kiá»ƒm tra láº¡i danh sÃ¡ch Ä‘áº·t sÃ¢n.",
+            }
+      )
       setBookingsRefreshKey((value) => value + 1)
     }, Math.max(nextExpiryTimestamp - nowTimestamp, 0) + 100)
 
@@ -1086,7 +801,6 @@ export const useBookingController = ({ authToken, currentUser }) => {
   }, [authToken, availabilityRefreshKey, fields, form.date, form.fieldId])
 
   useEffect(() => {
-    const storedOwnerManualBookings = isOwnerPortal ? getStoredOwnerManualBookings(currentUser) : []
     const storedKnownBookings = getStoredKnownBookings()
 
     let mounted = true
@@ -1099,24 +813,14 @@ export const useBookingController = ({ authToken, currentUser }) => {
           const data = await getMyBookings(authToken)
           const remoteBookings = Array.isArray(data?.bookings) ? data.bookings : []
           if (mounted) {
-            setBookings(
-              isOwnerPortal
-                ? remoteBookings
-                : mergeRemoteUserBookingsWithStoredHints(remoteBookings, storedKnownBookings)
-            )
+            setBookings(remoteBookings)
           }
         } else {
-          setBookings(
-            isOwnerPortal
-              ? mergeBookingCollections(storedOwnerManualBookings, storedKnownBookings)
-              : storedKnownBookings
-          )
+          setBookings(isOwnerPortal ? [] : storedKnownBookings)
         }
       } catch (apiError) {
         if (mounted) {
-          if (isOwnerPortal && (storedOwnerManualBookings.length > 0 || storedKnownBookings.length > 0)) {
-            setBookings(mergeBookingCollections(storedOwnerManualBookings, storedKnownBookings))
-          } else if (storedKnownBookings.length > 0) {
+          if (!isOwnerPortal && storedKnownBookings.length > 0) {
             setBookings(storedKnownBookings)
           }
           setFeedback({ type: "error", text: apiError.message })
@@ -1248,39 +952,6 @@ export const useBookingController = ({ authToken, currentUser }) => {
     () => (isOwnerPortal ? bookings : groupUserBookings(bookings)),
     [bookings, isOwnerPortal]
   )
-  const hasValidSelectedSubFieldId = isMongoObjectId(selectedSubField?.id)
-  const hasValidSelectedTimeSlotId =
-    selectedTimeSlotIds.length > 0
-    && selectedTimeSlotIds.every((timeSlotId) => isMongoObjectId(timeSlotId))
-  const bookingIdWarning = useMemo(() => {
-    if (rawTimeline.length === 0) {
-      return "Backend chưa đồng bộ được khung giờ thật từ giờ mở cửa của sân"
-    }
-
-    if (selectedField && Array.isArray(selectedField.subFields) && selectedField.subFields.length > 0) {
-      const hasInvalidSubFieldId = selectedField.subFields.some((subField) => !isMongoObjectId(subField?.id))
-      if (hasInvalidSubFieldId) {
-        return "Sân con chưa đồng bộ ID hợp lệ"
-      }
-    }
-
-    if (selectedSubField && !hasValidSelectedSubFieldId) {
-      return "Sân con đã chọn chưa có ID hợp lệ"
-    }
-
-    if (selectedTimeSlotIds.length > 0 && !hasValidSelectedTimeSlotId) {
-      return "Khung giờ đã chọn chưa có ID hợp lệ"
-    }
-
-    return ""
-  }, [
-    rawTimeline,
-    selectedField,
-    selectedSubField,
-    hasValidSelectedSubFieldId,
-    selectedTimeSlotIds,
-    hasValidSelectedTimeSlotId,
-  ])
 
   useEffect(() => {
     if (!hasSelectedSlot && bookingStep === "confirm") {
@@ -1351,13 +1022,6 @@ export const useBookingController = ({ authToken, currentUser }) => {
   }
 
   const handleSlotSelect = (subField, slot, slots = []) => {
-    if (bookingIdWarning) {
-      setFeedback({
-        type: "error",
-        text: `${bookingIdWarning}. Hãy tải lại trang sau khi dữ liệu sân và khung giờ được đồng bộ xong.`,
-      })
-      return
-    }
 
     setForm((prev) =>
       applyBookingSlotSelection(prev, subField, slot, slots, { allowRange: true })
@@ -1369,21 +1033,13 @@ export const useBookingController = ({ authToken, currentUser }) => {
     if (selectedField && !isFieldApprovedForBooking(selectedField)) {
       setFeedback({
         type: "error",
-        text: "Sân này đang chờ admin duyệt hoặc đang bị khóa, chưa thể đặt.",
+        text: "SÃƒÂ¢n nÃƒÂ y Ã„â€˜ang chÃ¡Â»Â admin duyÃ¡Â»â€¡t hoÃ¡ÂºÂ·c Ã„â€˜ang bÃ¡Â»â€¹ khÃƒÂ³a, chÃ†Â°a thÃ¡Â»Æ’ Ã„â€˜Ã¡ÂºÂ·t.",
       })
       return
     }
 
     if (!hasSelectedSlot) {
-      setFeedback({ type: "error", text: "Vui lòng chọn sân con và khung giờ trước." })
-      return
-    }
-
-    if (bookingIdWarning) {
-      setFeedback({
-        type: "error",
-        text: `${bookingIdWarning}. Hệ thống cần timeSlot thật từ backend trước khi xác nhận.`,
-      })
+      setFeedback({ type: "error", text: "Vui lÃƒÂ²ng chÃ¡Â»Ân sÃƒÂ¢n con vÃƒÂ  khung giÃ¡Â»Â trÃ†Â°Ã¡Â»â€ºc." })
       return
     }
 
@@ -1400,22 +1056,14 @@ export const useBookingController = ({ authToken, currentUser }) => {
     let redirectedToPayment = false
 
     if (!authToken) {
-      setFeedback({ type: "error", text: "Bạn cần đăng nhập để đặt sân." })
+      setFeedback({ type: "error", text: "BÃ¡ÂºÂ¡n cÃ¡ÂºÂ§n Ã„â€˜Ã„Æ’ng nhÃ¡ÂºÂ­p Ã„â€˜Ã¡Â»Æ’ Ã„â€˜Ã¡ÂºÂ·t sÃƒÂ¢n." })
       return
     }
 
     if (selectedField && !isFieldApprovedForBooking(selectedField)) {
       setFeedback({
         type: "error",
-        text: "Sân này đang chờ admin duyệt hoặc đang bị khóa, chưa thể đặt.",
-      })
-      return
-    }
-
-    if (bookingIdWarning) {
-      setFeedback({
-        type: "error",
-        text: `${bookingIdWarning}. FE chưa thể gửi đơn vì backend chưa trả về ID khung giờ hợp lệ.`,
+        text: "SÃƒÂ¢n nÃƒÂ y Ã„â€˜ang chÃ¡Â»Â admin duyÃ¡Â»â€¡t hoÃ¡ÂºÂ·c Ã„â€˜ang bÃ¡Â»â€¹ khÃƒÂ³a, chÃ†Â°a thÃ¡Â»Æ’ Ã„â€˜Ã¡ÂºÂ·t.",
       })
       return
     }
@@ -1453,23 +1101,7 @@ export const useBookingController = ({ authToken, currentUser }) => {
           continue
         }
 
-        if (isOwnerPortal && createdBooking?.id) {
-          try {
-            await confirmAdminBooking(authToken, createdBooking.id)
-            createdBookings.push({
-              ...createdBooking,
-              status: "CONFIRMED",
-            })
-          } catch (confirmError) {
-            createdBookings.push({
-              ...createdBooking,
-              status: createdBooking.status || "PENDING",
-              confirmWarning: confirmError.message,
-            })
-          }
-        } else {
-          createdBookings.push(createdBooking)
-        }
+        createdBookings.push(createdBooking)
       }
 
       const normalizedCreatedBookings = createdBookings.map((booking) =>
@@ -1490,24 +1122,16 @@ export const useBookingController = ({ authToken, currentUser }) => {
         : []
       const createdBooking = normalizedCreatedBookings[0] || null
       if (!createdBooking) {
-        throw new Error("Backend chưa trả về đơn đặt hợp lệ.")
+        throw new Error("Backend chÃ†Â°a trÃ¡ÂºÂ£ vÃ¡Â»Â Ã„â€˜Ã†Â¡n Ã„â€˜Ã¡ÂºÂ·t hÃ¡Â»Â£p lÃ¡Â»â€¡.")
       }
 
       let ownerSuccessMessage = ""
-      let ownerSuccessMessageType = "success"
       const nextKnownBookings = mergeKnownBookingCollections(
         getStoredKnownBookings(),
         normalizedCreatedBookings
       )
 
       persistKnownBookings(nextKnownBookings)
-
-      if (isOwnerPortal) {
-        persistOwnerManualBookings(
-          currentUser,
-          mergeBookingCollections(getStoredOwnerManualBookings(currentUser), normalizedCreatedBookings)
-        )
-      }
 
       if (createdBooking?.id && !isOwnerPortal) {
         if (createdBookings.length === 1) {
@@ -1562,19 +1186,10 @@ export const useBookingController = ({ authToken, currentUser }) => {
       }
 
       if (isOwnerPortal) {
-        persistOwnerManagedBookingDate(currentUser, form.date)
         ownerSuccessMessage =
           createdBookings.length > 1
-            ? `Đã tạo ${createdBookings.length} lịch liên tiếp và khóa sân thành công.`
-            : "Đã tạo đơn đặt thủ công và đánh dấu lịch sân."
-        const hasConfirmWarning = createdBookings.some(
-          (booking) => String(booking?.status || "").toUpperCase() !== "CONFIRMED"
-        )
-
-        if (hasConfirmWarning) {
-          ownerSuccessMessage += " Một số lịch chưa được backend xác nhận tự động."
-          ownerSuccessMessageType = "warning"
-        }
+            ? `Da tao ${createdBookings.length} lich lien tiep thanh cong.`
+            : "Da tao don dat thu cong."
 
         if (createdBookings.length > 0) {
           setBookings((currentBookings) => {
@@ -1593,7 +1208,7 @@ export const useBookingController = ({ authToken, currentUser }) => {
         setAvailabilityBookings((currentBookings) =>
           mergeBookingCollections(currentBookings, normalizedCreatedBookings)
         )
-        setFeedback({ type: "success", text: "Đặt sân thành công." })
+        setFeedback({ type: "success", text: "Ã„ÂÃ¡ÂºÂ·t sÃƒÂ¢n thÃƒÂ nh cÃƒÂ´ng." })
       }
 
       setAvailabilityRefreshKey((value) => value + 1)
@@ -1606,20 +1221,14 @@ export const useBookingController = ({ authToken, currentUser }) => {
           bookingData.bookings || []
 
         setBookings(nextBookings)
-
-        if (isOwnerPortal) {
-          persistOwnerManualBookings(currentUser, nextBookings)
-        }
-      } catch (_error) {
-        // Keep local manual bookings when backend does not expose owner-managed bookings.
-      }
+      } catch (_error) {}
 
       if (isOwnerPortal) {
         navigate(ROUTES.adminFields, {
           replace: true,
           state: {
             manualBookingMessage: ownerSuccessMessage,
-            manualBookingMessageType: ownerSuccessMessageType,
+            manualBookingMessageType: "success",
           },
         })
         return
@@ -1629,64 +1238,14 @@ export const useBookingController = ({ authToken, currentUser }) => {
         navigate(ROUTES.booking, {
           replace: true,
           state: {
-            bookingMessage: `Đã tạo ${createdBookings.length} đơn đặt liên tiếp. Vào từng đơn trong danh sách để thanh toán.`,
+            bookingMessage: `Ã„ÂÃƒÂ£ tÃ¡ÂºÂ¡o ${createdBookings.length} Ã„â€˜Ã†Â¡n Ã„â€˜Ã¡ÂºÂ·t liÃƒÂªn tiÃ¡ÂºÂ¿p. VÃƒÂ o tÃ¡Â»Â«ng Ã„â€˜Ã†Â¡n trong danh sÃƒÂ¡ch Ã„â€˜Ã¡Â»Æ’ thanh toÃƒÂ¡n.`,
             bookingMessageType: "success",
           },
         })
         return
       }
     } catch (apiError) {
-      const normalizedMessage = normalizeApiMessageKey(apiError?.message)
-
-      if (
-        normalizedMessage.includes("booking da ton tai")
-        || normalizedMessage.includes("already exists")
-        || isSilentSlotConflictMessage(normalizedMessage)
-      ) {
-        const conflictingBookings = createSelectionBookingRecords({
-          field: selectedField,
-          subField: selectedSubField,
-          form,
-          timeline,
-          selectedTimeSlotIds,
-          currentUser,
-          status: "CONFIRMED",
-        })
-
-        if (conflictingBookings.length > 0) {
-          persistKnownBookings(
-            mergeKnownBookingCollections(getStoredKnownBookings(), conflictingBookings)
-          )
-
-          if (isOwnerPortal) {
-            persistOwnerManualBookings(
-              currentUser,
-              mergeBookingCollections(getStoredOwnerManualBookings(currentUser), conflictingBookings)
-            )
-          }
-
-          setBookings((currentBookings) => {
-            return mergeBookingCollections(currentBookings, conflictingBookings)
-          })
-          setAvailabilityBookings((currentBookings) =>
-            mergeBookingCollections(currentBookings, conflictingBookings)
-          )
-          setAvailabilityRefreshKey((value) => value + 1)
-          setBookingStep("schedule")
-          setForm((prev) => clearSelectedSlotState(prev))
-          setFeedback(createFeedbackState())
-          return
-        }
-      }
-
-      if (isSilentSlotConflictMessage(normalizedMessage)) {
-        setAvailabilityRefreshKey((value) => value + 1)
-        setBookingStep("schedule")
-        setForm((prev) => clearSelectedSlotState(prev))
-        setFeedback(createFeedbackState())
-        return
-      }
-
+      setAvailabilityRefreshKey((value) => value + 1)
       setFeedback({ type: "error", text: apiError.message })
     } finally {
       if (!redirectedToPayment) {
@@ -1694,13 +1253,11 @@ export const useBookingController = ({ authToken, currentUser }) => {
       }
     }
   }
-
-  // eslint-disable-next-line no-unused-vars
   const handleCancelBooking = async (booking) => {
     if (!canCancelUserBooking(booking)) {
       setFeedback({
         type: "error",
-        text: "Chỉ có thể hủy sân khi đơn này chưa thanh toán.",
+        text: "ChÃ¡Â»â€° cÃƒÂ³ thÃ¡Â»Æ’ hÃ¡Â»Â§y sÃƒÂ¢n khi Ã„â€˜Ã†Â¡n nÃƒÂ y chÃ†Â°a thanh toÃƒÂ¡n.",
       })
       return
     }
@@ -1710,244 +1267,7 @@ export const useBookingController = ({ authToken, currentUser }) => {
 
     if (authToken && bookingIds.length > 1) {
       const shouldCancelGroup = window.confirm(
-        `Hủy ${bookingIds.length} khung giờ liên tiếp tại ${booking.fieldName || "sân này"}?`
-      )
-
-      if (!shouldCancelGroup) {
-        return
-      }
-
-      setCancellingBookingId(actionKey)
-      setFeedback(createFeedbackState())
-
-      try {
-        const cancelResults = await Promise.allSettled(
-          bookingIds.map((bookingId) => cancelMyBooking(authToken, bookingId))
-        )
-        const successfulUpdates = cancelResults
-          .filter((result) => result.status === "fulfilled")
-          .map((result) => result.value?.booking)
-          .filter(Boolean)
-        const updatedBookingMap = new Map(
-          successfulUpdates.map((item) => [String(item?.id || item?._id || "").trim(), item])
-        )
-
-        if (updatedBookingMap.size === 0) {
-          const rejectedResult = cancelResults.find((result) => result.status === "rejected")
-          throw rejectedResult?.reason || new Error("Không thể hủy đơn đặt.")
-        }
-
-        setBookings((currentBookings) => {
-          const nextBookings = currentBookings.map((item) =>
-            updatedBookingMap.get(String(item?.id || item?._id || "").trim()) || item
-          )
-
-          if (isOwnerPortal) {
-            persistOwnerManualBookings(currentUser, nextBookings)
-          }
-
-          return nextBookings
-        })
-        setAvailabilityBookings((currentBookings) =>
-          currentBookings.map((item) =>
-            updatedBookingMap.get(String(item?.id || item?._id || "").trim()) || item
-          )
-        )
-        setAvailabilityRefreshKey((value) => value + 1)
-        setFeedback({
-          type: updatedBookingMap.size === bookingIds.length ? "success" : "error",
-          text:
-            updatedBookingMap.size === bookingIds.length
-              ? `Đã hủy ${updatedBookingMap.size} khung giờ liên tiếp.`
-              : `Đã hủy ${updatedBookingMap.size}/${bookingIds.length} khung giờ. Vui lòng thử lại với phần còn lại.`,
-        })
-      } catch (apiError) {
-        setFeedback({ type: "error", text: apiError.message })
-      } finally {
-        setCancellingBookingId("")
-      }
-
-      return
-    }
-
-    if (!authToken || !booking?.id) {
-      return
-    }
-
-    const shouldCancel = window.confirm(`Hủy đơn đặt sân ${booking.fieldName || booking.id}?`)
-    if (!shouldCancel) {
-      return
-    }
-
-    setCancellingBookingId(String(booking.id))
-    setFeedback(createFeedbackState())
-
-    try {
-      const data = await cancelMyBooking(authToken, booking.id)
-      const updatedBooking = data.booking || null
-
-      setBookings((currentBookings) => {
-        const nextBookings = currentBookings.map((item) =>
-          item.id === booking.id ? updatedBooking || item : item
-        )
-
-        if (isOwnerPortal) {
-          persistOwnerManualBookings(currentUser, nextBookings)
-        }
-
-        return nextBookings
-      })
-      setAvailabilityBookings((currentBookings) =>
-        currentBookings.map((item) =>
-          item.id === booking.id ? updatedBooking || item : item
-        )
-      )
-      setAvailabilityRefreshKey((value) => value + 1)
-      setFeedback({
-        type: "success",
-        text: data.message || "Đã hủy đơn đặt của bạn.",
-      })
-    } catch (apiError) {
-      setFeedback({ type: "error", text: apiError.message })
-    } finally {
-      setCancellingBookingId("")
-    }
-  }
-
-  // eslint-disable-next-line no-unused-vars
-  const handleCancelBookingClean = async (booking) => {
-    if (!canCancelUserBooking(booking)) {
-      setFeedback({
-        type: "error",
-        text: "Chỉ có thể hủy sân khi đơn này chưa thanh toán.",
-      })
-      return
-    }
-
-    const bookingIds = getUserBookingActionIds(booking)
-    const actionKey = String(booking?.id || bookingIds[0] || "").trim()
-
-    if (authToken && bookingIds.length > 1) {
-      const shouldCancelGroup = window.confirm(
-        `Hủy ${bookingIds.length} khung giờ liên tiếp tại ${booking.fieldName || "sân này"}?`
-      )
-
-      if (!shouldCancelGroup) {
-        return
-      }
-
-      setCancellingBookingId(actionKey)
-      setFeedback(createFeedbackState())
-
-      try {
-        const cancelResults = await Promise.allSettled(
-          bookingIds.map((bookingId) => cancelMyBooking(authToken, bookingId))
-        )
-        const successfulUpdates = cancelResults
-          .filter((result) => result.status === "fulfilled")
-          .map((result) => result.value?.booking)
-          .filter(Boolean)
-        const updatedBookingMap = new Map(
-          successfulUpdates.map((item) => [String(item?.id || item?._id || "").trim(), item])
-        )
-
-        if (updatedBookingMap.size === 0) {
-          const rejectedResult = cancelResults.find((result) => result.status === "rejected")
-          throw rejectedResult?.reason || new Error("Không thể hủy đơn đặt.")
-        }
-
-        setBookings((currentBookings) => {
-          const nextBookings = currentBookings.map((item) =>
-            updatedBookingMap.get(String(item?.id || item?._id || "").trim()) || item
-          )
-
-          if (isOwnerPortal) {
-            persistOwnerManualBookings(currentUser, nextBookings)
-          }
-
-          return nextBookings
-        })
-        setAvailabilityBookings((currentBookings) =>
-          currentBookings.map((item) =>
-            updatedBookingMap.get(String(item?.id || item?._id || "").trim()) || item
-          )
-        )
-        setAvailabilityRefreshKey((value) => value + 1)
-        setFeedback({
-          type: updatedBookingMap.size === bookingIds.length ? "success" : "error",
-          text:
-            updatedBookingMap.size === bookingIds.length
-              ? `Đã hủy ${updatedBookingMap.size} khung giờ liên tiếp.`
-              : `Đã hủy ${updatedBookingMap.size}/${bookingIds.length} khung giờ. Vui lòng thử lại với phần còn lại.`,
-        })
-      } catch (apiError) {
-        setFeedback({ type: "error", text: apiError.message })
-      } finally {
-        setCancellingBookingId("")
-      }
-
-      return
-    }
-
-    if (!authToken || !booking?.id) {
-      return
-    }
-
-    const shouldCancel = window.confirm(`Hủy đơn đặt sân ${booking.fieldName || booking.id}?`)
-    if (!shouldCancel) {
-      return
-    }
-
-    setCancellingBookingId(String(booking.id))
-    setFeedback(createFeedbackState())
-
-    try {
-      const data = await cancelMyBooking(authToken, booking.id)
-      const updatedBooking = data.booking || null
-
-      setBookings((currentBookings) => {
-        const nextBookings = currentBookings.map((item) =>
-          item.id === booking.id ? updatedBooking || item : item
-        )
-
-        if (isOwnerPortal) {
-          persistOwnerManualBookings(currentUser, nextBookings)
-        }
-
-        return nextBookings
-      })
-      setAvailabilityBookings((currentBookings) =>
-        currentBookings.map((item) =>
-          item.id === booking.id ? updatedBooking || item : item
-        )
-      )
-      setAvailabilityRefreshKey((value) => value + 1)
-      setFeedback({
-        type: "success",
-        text: data.message || "Đã hủy đơn đặt của bạn.",
-      })
-    } catch (apiError) {
-      setFeedback({ type: "error", text: apiError.message })
-    } finally {
-      setCancellingBookingId("")
-    }
-  }
-
-  const handleCancelBookingUtf8 = async (booking) => {
-    if (!canCancelUserBooking(booking)) {
-      setFeedback({
-        type: "error",
-        text: "Chỉ có thể hủy sân khi đơn này chưa thanh toán.",
-      })
-      return
-    }
-
-    const bookingIds = getUserBookingActionIds(booking)
-    const actionKey = String(booking?.id || bookingIds[0] || "").trim()
-
-    if (authToken && bookingIds.length > 1) {
-      const shouldCancelGroup = window.confirm(
-        `Hủy ${bookingIds.length} khung giờ liên tiếp tại ${booking.fieldName || "sân này"}?`
+        `HÃ¡Â»Â§y ${bookingIds.length} khung giÃ¡Â»Â liÃƒÂªn tiÃ¡ÂºÂ¿p tÃ¡ÂºÂ¡i ${booking.fieldName || "sÃƒÂ¢n nÃƒÂ y"}?`
       )
 
       if (!shouldCancelGroup) {
@@ -1971,17 +1291,13 @@ export const useBookingController = ({ authToken, currentUser }) => {
 
         if (updatedBookingMap.size === 0) {
           const rejectedResult = cancelResults.find((result) => result.status === "rejected")
-          throw rejectedResult?.reason || new Error("Không thể hủy đơn đặt.")
+          throw rejectedResult?.reason || new Error("KhÃƒÂ´ng thÃ¡Â»Æ’ hÃ¡Â»Â§y Ã„â€˜Ã†Â¡n Ã„â€˜Ã¡ÂºÂ·t.")
         }
 
         setBookings((currentBookings) => {
           const nextBookings = currentBookings.map((item) =>
             updatedBookingMap.get(String(item?.id || item?._id || "").trim()) || item
           )
-
-          if (isOwnerPortal) {
-            persistOwnerManualBookings(currentUser, nextBookings)
-          }
 
           return nextBookings
         })
@@ -1995,8 +1311,8 @@ export const useBookingController = ({ authToken, currentUser }) => {
           type: updatedBookingMap.size === bookingIds.length ? "success" : "error",
           text:
             updatedBookingMap.size === bookingIds.length
-              ? `Đã hủy ${updatedBookingMap.size} khung giờ liên tiếp.`
-              : `Đã hủy ${updatedBookingMap.size}/${bookingIds.length} khung giờ. Vui lòng thử lại với phần còn lại.`,
+              ? `Ã„ÂÃƒÂ£ hÃ¡Â»Â§y ${updatedBookingMap.size} khung giÃ¡Â»Â liÃƒÂªn tiÃ¡ÂºÂ¿p.`
+              : `Ã„ÂÃƒÂ£ hÃ¡Â»Â§y ${updatedBookingMap.size}/${bookingIds.length} khung giÃ¡Â»Â. Vui lÃƒÂ²ng thÃ¡Â»Â­ lÃ¡ÂºÂ¡i vÃ¡Â»â€ºi phÃ¡ÂºÂ§n cÃƒÂ²n lÃ¡ÂºÂ¡i.`,
         })
       } catch (apiError) {
         setFeedback({ type: "error", text: apiError.message })
@@ -2011,7 +1327,7 @@ export const useBookingController = ({ authToken, currentUser }) => {
       return
     }
 
-    const shouldCancel = window.confirm(`Hủy đơn đặt sân ${booking.fieldName || booking.id}?`)
+    const shouldCancel = window.confirm(`HÃ¡Â»Â§y Ã„â€˜Ã†Â¡n Ã„â€˜Ã¡ÂºÂ·t sÃƒÂ¢n ${booking.fieldName || booking.id}?`)
     if (!shouldCancel) {
       return
     }
@@ -2028,10 +1344,6 @@ export const useBookingController = ({ authToken, currentUser }) => {
           item.id === booking.id ? updatedBooking || item : item
         )
 
-        if (isOwnerPortal) {
-          persistOwnerManualBookings(currentUser, nextBookings)
-        }
-
         return nextBookings
       })
       setAvailabilityBookings((currentBookings) =>
@@ -2042,7 +1354,7 @@ export const useBookingController = ({ authToken, currentUser }) => {
       setAvailabilityRefreshKey((value) => value + 1)
       setFeedback({
         type: "success",
-        text: data.message || "Đã hủy đơn đặt của bạn.",
+        text: data.message || "Ã„ÂÃƒÂ£ hÃ¡Â»Â§y Ã„â€˜Ã†Â¡n Ã„â€˜Ã¡ÂºÂ·t cÃ¡Â»Â§a bÃ¡ÂºÂ¡n.",
       })
     } catch (apiError) {
       setFeedback({ type: "error", text: apiError.message })
@@ -2063,7 +1375,6 @@ export const useBookingController = ({ authToken, currentUser }) => {
     selectedTimeSlot,
     selectedTimeSlotIds,
     hasSelectedSlot,
-    bookingIdWarning,
     loadingFields,
     loadingAvailability,
     loadingBookings,
@@ -2084,7 +1395,12 @@ export const useBookingController = ({ authToken, currentUser }) => {
     handleSlotSelect,
     handleContinueToConfirm,
     handleBackToSchedule,
-    handleCancelBooking: handleCancelBookingUtf8,
+    handleCancelBooking,
     handleSubmit,
   }
 }
+
+
+
+
+

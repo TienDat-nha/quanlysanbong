@@ -10,8 +10,6 @@ import {
   deleteAdminField,
   getAdminDashboard,
   getAdminFields,
-  getBookedSlots,
-  getMyBookings,
   lockAdminField,
   rejectAdminField,
   unlockAdminField,
@@ -30,7 +28,6 @@ import {
   validateAdminFieldForm,
 } from "../../models/adminFieldModel"
 import { canManageFields, isAdminUser, isOwnerUser } from "../../models/authModel"
-import { getStoredKnownBookings } from "../../models/bookingCacheModel"
 import { getTodayBookingDate, normalizeBookingDateValue } from "../../models/bookingModel"
 import { normalizeFieldType } from "../../models/fieldTypeModel"
 import {
@@ -124,68 +121,8 @@ const filterFieldsForPortal = (fields, currentUser, isOwnerPortal) => {
     return fieldKeys.some((value) => ownerIds.includes(value))
   })
 
-  if (ownedFields.length > 0) {
-    return ownedFields
-  }
-
-  const hasAnyOwnerMetadata = nextFields.some((field) =>
-    [
-      field?.ownerUserId,
-      field?.userId,
-      field?.ownerEmail,
-      field?.ownerFullName,
-      field?.ownerName,
-    ].some((value) => String(value || "").trim())
-  )
-
-  return hasAnyOwnerMetadata ? ownedFields : nextFields
-}
-
-const OWNER_MANUAL_BOOKINGS_STORAGE_PREFIX = "sanbong_owner_manual_bookings"
-
-const getPortalOwnerKeys = (currentUser) =>
-  [
-    currentUser?.id,
-    currentUser?._id,
-    currentUser?.userId,
-    currentUser?.email,
-  ]
-    .map((value) => String(value || "").trim().toLowerCase())
-    .filter(Boolean)
-
-const getManualBookingStorageKey = (currentUser) => {
-  const ownerKey = getPortalOwnerKeys(currentUser)[0]
-  return ownerKey ? `${OWNER_MANUAL_BOOKINGS_STORAGE_PREFIX}:${ownerKey}` : ""
-}
-
-const getStoredOwnerManualBookings = (currentUser) => {
-  if (typeof window === "undefined" || !window.localStorage) {
-    return []
-  }
-
-  const storageKey = getManualBookingStorageKey(currentUser)
-  if (!storageKey) {
-    return []
-  }
-
-  try {
-    const rawValue = window.localStorage.getItem(storageKey)
-    if (!rawValue) {
-      return []
-    }
-
-    const parsedValue = JSON.parse(rawValue)
-    return Array.isArray(parsedValue)
-      ? parsedValue
-        .filter(Boolean)
-        .map((booking) => ({
-          ...booking,
-          date: normalizeBookingDateValue(booking?.date),
-        }))
-      : []
-  } catch (_error) {
-    return []
-  }
+  // Owner portal must only operate on fields bound to the current owner.
+  return ownedFields
 }
 
 const hasActiveBookingStatus = (status) => {
@@ -200,81 +137,101 @@ const filterActiveManagedBookings = (bookings = [], date = "") =>
       && normalizeBookingDateValue(booking?.date) === normalizeBookingDateValue(date)
   )
 
-const getManagedBookingIdentity = (booking, index = 0) => {
-  const bookingId = String(booking?.id || booking?._id || "").trim()
-  if (bookingId) {
-    return `id:${bookingId}`
-  }
+const normalizeCompareToken = (value) => {
+  const sourceValue =
+    value && typeof value === "object" && !Array.isArray(value)
+      ? (
+          value?.id
+          || value?._id
+          || value?.fieldId
+          || value?.subFieldId
+          || value?.key
+          || value?.slug
+          || value?.name
+          || value?.address
+          || value?.district
+          || ""
+        )
+      : value
 
-  const compositeParts = [
-    booking?.fieldId,
-    booking?.subFieldId,
-    normalizeBookingDateValue(booking?.date),
-    booking?.timeSlotId,
-    booking?.timeSlot,
-    booking?.phone,
-    booking?.createdAt,
-    index,
-  ]
-    .map((value) => String(value || "").trim())
-    .filter(Boolean)
+  const normalizedToken = String(sourceValue || "")
+    .trim()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[\u0111\u0110]/g, "d")
 
-  return compositeParts.length > 0 ? `slot:${compositeParts.join("|")}` : ""
-}
-
-const mergeManagedBookingCollections = (...collections) => {
-  const bookingMap = new Map()
-
-  collections.flat().forEach((collection) => {
-    ;(Array.isArray(collection) ? collection : []).forEach((booking, index) => {
-      if (!booking || typeof booking !== "object") {
-        return
-      }
-
-      const identity = getManagedBookingIdentity(booking, index)
-      if (!identity) {
-        return
-      }
-
-      const currentValue = bookingMap.get(identity) || {}
-      bookingMap.set(identity, {
-        ...currentValue,
-        ...booking,
-      })
-    })
-  })
-
-  return Array.from(bookingMap.values())
+  return normalizedToken === "[object object]" ? "" : normalizedToken
 }
 
 const doesManagedBookingMatchField = (booking, field) => {
   const bookingTokens = [
     booking?.fieldId,
+    booking?.field,
+    booking?.field?.fieldId,
     booking?.field?._id,
     booking?.field?.id,
+    booking?.field?.name,
     booking?.fieldName,
     booking?.fieldSlug,
     booking?.field?.slug,
     booking?.fieldAddress,
     booking?.field?.address,
+    booking?.fieldDistrict,
+    booking?.field?.district,
   ]
-    .map((value) => String(value || "").trim().toLowerCase())
+    .map((value) => normalizeCompareToken(value))
     .filter(Boolean)
+  const bookingTokenSet = new Set(bookingTokens)
+
+  const bookingSubFieldTokens = [
+    booking?.subFieldId,
+    booking?.subField,
+    booking?.subField?._id,
+    booking?.subField?.id,
+    booking?.subFieldKey,
+    booking?.subFieldName,
+  ]
+    .map((value) => normalizeCompareToken(value))
+    .filter(Boolean)
+  const bookingSubFieldTokenSet = new Set(bookingSubFieldTokens)
+
   const fieldTokens = [
     field?.id,
     field?._id,
+    field?.fieldId,
     field?.name,
     field?.slug,
     field?.address,
+    field?.district,
   ]
-    .map((value) => String(value || "").trim().toLowerCase())
+    .map((value) => normalizeCompareToken(value))
     .filter(Boolean)
+  const fieldSubFieldTokens = (Array.isArray(field?.subFields) ? field.subFields : [])
+    .flatMap((subField) => [
+      subField?.id,
+      subField?._id,
+      subField?.subFieldId,
+      subField?.key,
+      subField?.name,
+    ])
+    .map((value) => normalizeCompareToken(value))
+    .filter(Boolean)
+  const fieldSubFieldTokenSet = new Set(fieldSubFieldTokens)
 
-  if (bookingTokens.length === 0 || fieldTokens.length === 0) {
+  if (bookingSubFieldTokenSet.size > 0 && fieldSubFieldTokenSet.size > 0) {
+    for (const token of fieldSubFieldTokenSet) {
+      if (bookingSubFieldTokenSet.has(token)) {
+        return true
+      }
+    }
+  }
+
+  if (bookingTokenSet.size === 0 || fieldTokens.length === 0) {
     return false
   }
 
-  return fieldTokens.some((token) => bookingTokens.includes(token))
+  return fieldTokens.some((token) => bookingTokenSet.has(token))
 }
 
 const normalizeManagedBookingsDate = (value) => {
@@ -283,84 +240,6 @@ const normalizeManagedBookingsDate = (value) => {
     ? normalizedValue
     : getTodayBookingDate()
 }
-
-const createManagedBookingPreview = (field, subField, date, booking, index = 0) => {
-  const baseBooking = booking && typeof booking === "object" ? booking : null
-  const normalizedTimeSlotId = String(baseBooking?.timeSlotId || booking || "").trim()
-  const normalizedTimeSlot = String(
-    baseBooking?.timeSlot
-    || baseBooking?.timeSlotLabel
-    || baseBooking?.timeSlotInfo?.timeSlot
-    || baseBooking?.timeSlotInfo?.label
-    || ""
-  ).trim()
-
-  if (!normalizedTimeSlotId && !normalizedTimeSlot) {
-    return null
-  }
-
-  const fallbackId =
-    `slot:${String(field?.id || "").trim()}:${String(subField?.id || "").trim()}:${String(date || "").trim()}:${normalizedTimeSlotId || normalizedTimeSlot || index + 1}`
-
-  return {
-    ...baseBooking,
-    id: String(baseBooking?.id || baseBooking?._id || "").trim() || fallbackId,
-    _id: String(baseBooking?._id || baseBooking?.id || "").trim() || fallbackId,
-    fieldId: String(baseBooking?.fieldId || field?.id || "").trim(),
-    fieldName: String(baseBooking?.fieldName || field?.name || "").trim(),
-    fieldSlug: String(baseBooking?.fieldSlug || field?.slug || "").trim(),
-    fieldAddress: String(baseBooking?.fieldAddress || field?.address || "").trim(),
-    fieldDistrict: String(baseBooking?.fieldDistrict || field?.district || "").trim(),
-    subFieldId: String(baseBooking?.subFieldId || subField?.id || "").trim(),
-    subFieldKey: String(baseBooking?.subFieldKey || subField?.key || "").trim(),
-    subFieldName: String(baseBooking?.subFieldName || subField?.name || "").trim(),
-    subFieldType: String(baseBooking?.subFieldType || subField?.type || field?.type || "").trim(),
-    date: normalizeBookingDateValue(baseBooking?.date || date),
-    timeSlotId: normalizedTimeSlotId,
-    timeSlot: normalizedTimeSlot,
-    phone: String(baseBooking?.phone || baseBooking?.customer?.phone || "").trim(),
-    customer: baseBooking?.customer || null,
-    status: String(baseBooking?.status || "PENDING").trim(),
-  }
-}
-
-const createManagedBookingsFromDailyAvailability = (
-  dailyAvailability = [],
-  date = getTodayBookingDate()
-) =>
-  (Array.isArray(dailyAvailability) ? dailyAvailability : []).flatMap((field) =>
-    (Array.isArray(field?.subFields) ? field.subFields : []).flatMap((subField) =>
-      (Array.isArray(subField?.bookings) ? subField.bookings : [])
-        .map((booking, index) =>
-          createManagedBookingPreview(
-            {
-              id: field?.id,
-              name: field?.name,
-              slug: field?.slug,
-              address: field?.address,
-              district: field?.district,
-              type: subField?.type,
-            },
-            {
-              id: `${String(field?.id || "").trim()}:${String(subField?.key || "").trim()}`,
-              key: subField?.key,
-              name: subField?.name,
-              type: subField?.type,
-            },
-            date,
-            {
-              ...booking,
-              customer: {
-                fullName: booking?.customerName,
-                phone: booking?.phone,
-              },
-            },
-            index
-          )
-        )
-        .filter(Boolean)
-    )
-  )
 
 const filterManagedBookingsByFields = (bookings = [], fields = []) => {
   const nextBookings = Array.isArray(bookings) ? bookings : []
@@ -411,38 +290,6 @@ const sortManagedBookings = (bookings = []) =>
     )
   })
 
-const loadManagedBookingsFromBookedSlots = async (token, fields = [], date = getTodayBookingDate()) => {
-  const bookingTasks = (Array.isArray(fields) ? fields : []).flatMap((field) =>
-    (Array.isArray(field?.subFields) ? field.subFields : [])
-      .filter((subField) => String(subField?.id || "").trim())
-      .map((subField) => ({ field, subField }))
-  )
-
-  if (bookingTasks.length === 0) {
-    return []
-  }
-
-  const results = await Promise.allSettled(
-    bookingTasks.map(async ({ field, subField }) => {
-      const data = await getBookedSlots(subField.id, date, token)
-      const rawRecords =
-        Array.isArray(data?.slotRecords) && data.slotRecords.length > 0
-          ? data.slotRecords
-          : Array.isArray(data?.timeSlotIds)
-            ? data.timeSlotIds
-            : []
-
-      return rawRecords
-        .map((booking, index) =>
-          createManagedBookingPreview(field, subField, date, booking, index)
-        )
-        .filter(Boolean)
-    })
-  )
-
-  return results.flatMap((result) => (result.status === "fulfilled" ? result.value : []))
-}
-
 export const useAdminFieldsController = ({ authToken, currentUser }) => {
   const location = useLocation()
   const navigate = useNavigate()
@@ -457,6 +304,8 @@ export const useAdminFieldsController = ({ authToken, currentUser }) => {
   const [processingBookingId, setProcessingBookingId] = useState("")
   const [processingBookingAction, setProcessingBookingAction] = useState("")
   const [deletingFieldId, setDeletingFieldId] = useState("")
+  const [deleteGuardFieldId, setDeleteGuardFieldId] = useState("")
+  const [deleteGuardMessage, setDeleteGuardMessage] = useState("")
   const [fieldStatusActionId, setFieldStatusActionId] = useState("")
   const [fieldStatusActionMode, setFieldStatusActionMode] = useState("")
   const [editingFieldId, setEditingFieldId] = useState(null)
@@ -562,57 +411,6 @@ export const useAdminFieldsController = ({ authToken, currentUser }) => {
     }))
   }
 
-  const getFieldDeletionState = (field) => {
-    const fieldIds = [
-      field?.id,
-      field?._id,
-      field?.fieldId,
-    ]
-      .map((value) => String(value || "").trim())
-      .filter(Boolean)
-    const fieldName = String(field?.name || "").trim().toLowerCase()
-    const localManualBookings = isOwnerPortal ? getStoredOwnerManualBookings(currentUser) : []
-    const relatedBookings = [...managedBookings, ...localManualBookings]
-    const hasActiveBookings =
-      Number(field?.bookingCount || field?.totalBookings || 0) > 0
-      || relatedBookings.some((booking) => {
-        if (!hasActiveBookingStatus(booking?.status)) {
-          return false
-        }
-
-        const bookingFieldId = String(booking?.fieldId || "").trim()
-        const bookingFieldName = String(booking?.fieldName || "").trim().toLowerCase()
-
-        return (
-          (bookingFieldId && fieldIds.includes(bookingFieldId))
-          || (bookingFieldName && fieldName && bookingFieldName === fieldName)
-        )
-      })
-
-    if (hasActiveBookings) {
-      return {
-        canDelete: false,
-        reason: "Sân này đã có khách đặt, không thể xóa.",
-      }
-    }
-
-    const moderationState = getFieldModerationState(field)
-    if (isAdminPortal && (moderationState === "PENDING" || moderationState === "REJECTED")) {
-      return {
-        canDelete: false,
-        reason:
-          moderationState === "PENDING"
-            ? "Yêu cầu này cần được duyệt hoặc từ chối, không xóa trực tiếp."
-            : "Sân đang ở trạng thái bị từ chối, không xóa ở bước xét duyệt.",
-      }
-    }
-
-    return {
-      canDelete: true,
-      reason: moderationState === "PENDING" ? "Sân đang chờ admin duyệt." : "",
-    }
-  }
-
   useEffect(() => {
     if (!canAccessFieldDashboard) {
       setFields([])
@@ -622,6 +420,8 @@ export const useAdminFieldsController = ({ authToken, currentUser }) => {
       setProcessingBookingId("")
       setProcessingBookingAction("")
       setDeletingFieldId("")
+      setDeleteGuardFieldId("")
+      setDeleteGuardMessage("")
       setFieldStatusActionId("")
       setFieldStatusActionMode("")
       setNoticeMessage("")
@@ -637,7 +437,7 @@ export const useAdminFieldsController = ({ authToken, currentUser }) => {
 
       try {
         const selectedManagedBookingsDate = normalizeManagedBookingsDate(managedBookingsDate)
-        const [fieldsResult, dashboardResult, myBookingsResult] = await Promise.allSettled([
+        const [fieldsResult, dashboardResult] = await Promise.allSettled([
           getAdminFields(authToken),
           canLoadManagedBookings
             ? getAdminDashboard(authToken, {
@@ -645,7 +445,6 @@ export const useAdminFieldsController = ({ authToken, currentUser }) => {
                 date: selectedManagedBookingsDate,
               })
             : Promise.resolve({}),
-          canLoadManagedBookings ? getMyBookings(authToken) : Promise.resolve({ bookings: [] }),
         ])
 
         if (!mounted) {
@@ -654,7 +453,6 @@ export const useAdminFieldsController = ({ authToken, currentUser }) => {
 
         const fieldsData = fieldsResult.status === "fulfilled" ? fieldsResult.value : { fields: [] }
         const dashboardData = dashboardResult.status === "fulfilled" ? dashboardResult.value : {}
-        const myBookingsData = myBookingsResult.status === "fulfilled" ? myBookingsResult.value : { bookings: [] }
         const dashboardState = canLoadManagedBookings
           ? getAdminDashboardState(dashboardData)
           : getAdminDashboardState({})
@@ -663,60 +461,22 @@ export const useAdminFieldsController = ({ authToken, currentUser }) => {
           currentUser,
           isOwnerPortal
         )
-        const bookedSlotManagedBookings = canLoadManagedBookings
-          ? await loadManagedBookingsFromBookedSlots(
-              authToken,
-              nextFields,
-              selectedManagedBookingsDate
-            )
-          : []
-
-        const localManualBookings = canLoadManagedBookings ? getStoredOwnerManualBookings(currentUser) : []
-        const knownBookings = canLoadManagedBookings
-          ? (() => {
-              const cachedBookings = getStoredKnownBookings()
-              if (nextFields.length === 0) {
-                return cachedBookings
-              }
-
-              const matchedBookings = cachedBookings.filter((booking) =>
-                nextFields.some((field) => doesManagedBookingMatchField(booking, field))
-              )
-
-              return matchedBookings.length > 0 ? matchedBookings : cachedBookings
-            })()
-          : []
-        const dashboardAvailabilityManagedBookings = canLoadManagedBookings
-          ? createManagedBookingsFromDailyAvailability(
-              dashboardState.dailyAvailability,
-              selectedManagedBookingsDate
-            )
-          : []
         const dashboardManagedBookings = canLoadManagedBookings
           ? filterManagedBookingsByFields(
-              mergeManagedBookingCollections(
-                dashboardAvailabilityManagedBookings,
-                dashboardState.managedBookings || []
-              ),
+              dashboardState.managedBookings || [],
               nextFields
             )
           : []
-        const liveManagedBookings = canLoadManagedBookings
-          ? mergeManagedBookingCollections(
-              dashboardManagedBookings,
-              bookedSlotManagedBookings,
-              myBookingsData?.bookings || []
+        const allActiveManagedBookings = canLoadManagedBookings
+          ? sortManagedBookings(
+              (Array.isArray(dashboardManagedBookings) ? dashboardManagedBookings : []).filter((booking) =>
+                hasActiveBookingStatus(booking?.status)
+              )
             )
-          : []
-        const fallbackManagedBookings = canLoadManagedBookings
-          ? mergeManagedBookingCollections(localManualBookings, knownBookings)
           : []
         const ownerManagedBookings = canLoadManagedBookings
           ? sortManagedBookings(
-              filterActiveManagedBookings(
-                liveManagedBookings.length > 0 ? liveManagedBookings : fallbackManagedBookings,
-                selectedManagedBookingsDate
-              )
+              filterActiveManagedBookings(allActiveManagedBookings, selectedManagedBookingsDate)
             )
           : []
         const hasDashboardPayload =
@@ -726,7 +486,6 @@ export const useAdminFieldsController = ({ authToken, currentUser }) => {
           || Number(dashboardState.customerSummaries?.length || 0) > 0
         const managedBookingErrors = [
           dashboardResult.status === "rejected" ? dashboardResult.reason?.message : "",
-          myBookingsResult.status === "rejected" ? myBookingsResult.reason?.message : "",
         ]
           .map((value) => String(value || "").trim())
           .filter(Boolean)
@@ -761,7 +520,7 @@ export const useAdminFieldsController = ({ authToken, currentUser }) => {
         )
         setError(
           fieldsResult.status === "rejected" && nextFields.length === 0
-            ? fieldsResult.reason?.message || "Không thể tải danh sách sân."
+            ? fieldsResult.reason?.message || "KhÃƒÂ´ng thÃ¡Â»Æ’ tÃ¡ÂºÂ£i danh sÃƒÂ¡ch sÃƒÂ¢n."
             : canLoadManagedBookings && ownerManagedBookings.length === 0 && managedBookingErrors.length > 0
               ? managedBookingErrors[0]
               : ""
@@ -929,7 +688,7 @@ export const useAdminFieldsController = ({ authToken, currentUser }) => {
     }
 
     if (!canAccessFieldDashboard) {
-      setError("Bạn cần đăng nhập bằng tài khoản quản lý sân.")
+      setError("BÃ¡ÂºÂ¡n cÃ¡ÂºÂ§n Ã„â€˜Ã„Æ’ng nhÃ¡ÂºÂ­p bÃ¡ÂºÂ±ng tÃƒÂ i khoÃ¡ÂºÂ£n quÃ¡ÂºÂ£n lÃƒÂ½ sÃƒÂ¢n.")
       return
     }
 
@@ -941,7 +700,7 @@ export const useAdminFieldsController = ({ authToken, currentUser }) => {
       const imageUrl = String(response?.file?.url || response?.file?.path || "").trim()
 
       if (!imageUrl) {
-        throw new Error("Không nhận được đường dẫn ảnh sau khi tải lên.")
+        throw new Error("KhÃƒÂ´ng nhÃ¡ÂºÂ­n Ã„â€˜Ã†Â°Ã¡Â»Â£c Ã„â€˜Ã†Â°Ã¡Â»Âng dÃ¡ÂºÂ«n Ã¡ÂºÂ£nh sau khi tÃ¡ÂºÂ£i lÃƒÂªn.")
       }
 
       setForm((prev) => ({
@@ -962,7 +721,7 @@ export const useAdminFieldsController = ({ authToken, currentUser }) => {
     }
 
     if (!canAccessFieldDashboard) {
-      setError("Bạn cần đăng nhập bằng tài khoản quản lý sân.")
+      setError("BÃ¡ÂºÂ¡n cÃ¡ÂºÂ§n Ã„â€˜Ã„Æ’ng nhÃ¡ÂºÂ­p bÃ¡ÂºÂ±ng tÃƒÂ i khoÃ¡ÂºÂ£n quÃ¡ÂºÂ£n lÃƒÂ½ sÃƒÂ¢n.")
       return
     }
 
@@ -975,7 +734,7 @@ export const useAdminFieldsController = ({ authToken, currentUser }) => {
         const imageUrl = String(response?.file?.url || response?.file?.path || "").trim()
 
         if (!imageUrl) {
-          throw new Error(`Không nhận được đường dẫn ảnh cho tệp ${file.name}.`)
+          throw new Error(`KhÃƒÂ´ng nhÃ¡ÂºÂ­n Ã„â€˜Ã†Â°Ã¡Â»Â£c Ã„â€˜Ã†Â°Ã¡Â»Âng dÃ¡ÂºÂ«n Ã¡ÂºÂ£nh cho tÃ¡Â»â€¡p ${file.name}.`)
         }
 
         setForm((prev) => ({
@@ -1037,12 +796,12 @@ export const useAdminFieldsController = ({ authToken, currentUser }) => {
     }
 
     if (!canAccessFieldDashboard) {
-      setError("Bạn cần đăng nhập bằng tài khoản quản lý sân.")
+      setError("BÃ¡ÂºÂ¡n cÃ¡ÂºÂ§n Ã„â€˜Ã„Æ’ng nhÃ¡ÂºÂ­p bÃ¡ÂºÂ±ng tÃƒÂ i khoÃ¡ÂºÂ£n quÃ¡ÂºÂ£n lÃƒÂ½ sÃƒÂ¢n.")
       return
     }
 
     if (uploadingCover || uploadingGallery) {
-      setError("Ảnh đang được tải lên. Vui lòng đợi xong rồi tiếp tục.")
+      setError("Ã¡ÂºÂ¢nh Ã„â€˜ang Ã„â€˜Ã†Â°Ã¡Â»Â£c tÃ¡ÂºÂ£i lÃƒÂªn. Vui lÃƒÂ²ng Ã„â€˜Ã¡Â»Â£i xong rÃ¡Â»â€œi tiÃ¡ÂºÂ¿p tÃ¡Â»Â¥c.")
       return
     }
 
@@ -1057,11 +816,11 @@ export const useAdminFieldsController = ({ authToken, currentUser }) => {
       resetForm()
       const fallbackMessage = isEditingMode
         ? isOwnerPortal
-          ? "Đã gửi yêu cầu sửa sân tới admin."
-          : "Đã cập nhật sân."
+          ? "Ã„ÂÃƒÂ£ gÃ¡Â»Â­i yÃƒÂªu cÃ¡ÂºÂ§u sÃ¡Â»Â­a sÃƒÂ¢n tÃ¡Â»â€ºi admin."
+          : "Ã„ÂÃƒÂ£ cÃ¡ÂºÂ­p nhÃ¡ÂºÂ­t sÃƒÂ¢n."
         : isOwnerPortal
-          ? "Đã gửi yêu cầu tạo sân tới admin."
-          : "Đã tạo sân mới."
+          ? "Ã„ÂÃƒÂ£ gÃ¡Â»Â­i yÃƒÂªu cÃ¡ÂºÂ§u tÃ¡ÂºÂ¡o sÃƒÂ¢n tÃ¡Â»â€ºi admin."
+          : "Ã„ÂÃƒÂ£ tÃ¡ÂºÂ¡o sÃƒÂ¢n mÃ¡Â»â€ºi."
       const responseMessage = String(response?.message || "").trim()
       const resolvedSuccessMessage =
         isOwnerPortal && (!responseMessage || isGenericSuccessMessage(responseMessage))
@@ -1078,18 +837,6 @@ export const useAdminFieldsController = ({ authToken, currentUser }) => {
       }))
       setError(apiErrorState.message || apiError.message)
 
-      const normalizedApiMessage = String(apiError.message || "")
-        .toLowerCase()
-        .normalize("NFD")
-        .replace(/[\u0300-\u036f]/g, "")
-
-      if (
-        normalizedApiMessage.includes("field already exists")
-        || normalizedApiMessage.includes("ton tai")
-      ) {
-        setNoticeMessage("Sân này có thể đã được tạo trước đó. Đang tải lại danh sách để kiểm tra.")
-        setRefreshKey((currentValue) => currentValue + 1)
-      }
     } finally {
       setSubmitting(false)
     }
@@ -1100,38 +847,46 @@ export const useAdminFieldsController = ({ authToken, currentUser }) => {
       return
     }
 
-    const deletionState = getFieldDeletionState(field)
-    if (!deletionState.canDelete) {
-      setError(deletionState.reason)
-      setSuccessMessage("")
-      return
-    }
-
+    const fieldId = normalizeManagedFieldId(field) || String(field.id || "").trim()
+    setDeleteGuardFieldId("")
+    setDeleteGuardMessage("")
     const shouldDeleteField = window.confirm(
-      `Bạn có chắc chắn muốn xóa sân "${field.name}" không?`
+      `BÃ¡ÂºÂ¡n cÃƒÂ³ chÃ¡ÂºÂ¯c chÃ¡ÂºÂ¯n muÃ¡Â»â€˜n xÃƒÂ³a sÃƒÂ¢n "${field?.name || fieldId}" khÃƒÂ´ng?`
     )
 
     if (!shouldDeleteField) {
       return
     }
 
-    setDeletingFieldId(String(field.id))
+    setDeletingFieldId(fieldId)
     setError("")
+    setNoticeMessage("")
     setSuccessMessage("")
+    setDeleteGuardFieldId("")
+    setDeleteGuardMessage("")
 
     try {
-      const response = await deleteAdminField(authToken, field.id)
+      const response = await deleteAdminField(authToken, fieldId)
 
-      setFields((currentFields) => currentFields.filter((item) => item.id !== field.id))
+      setFields((currentFields) =>
+        currentFields.filter((item) => normalizeManagedFieldId(item) !== fieldId)
+      )
 
-      if (String(editingFieldId || "").trim() === String(field.id || "").trim()) {
+      if (String(editingFieldId || "").trim() === fieldId) {
         resetForm()
       }
 
-      setSuccessMessage(resolveDisplayMessage(response?.message, "Đã xóa sân thành công."))
+      setSuccessMessage(resolveDisplayMessage(response?.message, "Ã„ÂÃƒÂ£ xÃƒÂ³a sÃƒÂ¢n thÃƒÂ nh cÃƒÂ´ng."))
+      setDeleteGuardFieldId("")
+      setDeleteGuardMessage("")
       setRefreshKey((currentValue) => currentValue + 1)
     } catch (apiError) {
-      setError(apiError.message)
+      const errorMessage = String(apiError?.message || "KhÃƒÂ´ng thÃ¡Â»Æ’ xÃƒÂ³a sÃƒÂ¢n.").trim()
+      setError(errorMessage)
+      setNoticeMessage(errorMessage)
+      setSuccessMessage("")
+      setDeleteGuardFieldId(fieldId)
+      setDeleteGuardMessage(errorMessage)
     } finally {
       setDeletingFieldId("")
     }
@@ -1148,7 +903,7 @@ export const useAdminFieldsController = ({ authToken, currentUser }) => {
     }
 
     const rejectReason = window.prompt(
-      `Lý do từ chối duyệt sân "${field.name}" (có thể bỏ trống):`,
+      `LÃƒÂ½ do tÃ¡Â»Â« chÃ¡Â»â€˜i duyÃ¡Â»â€¡t sÃƒÂ¢n "${field.name}" (cÃƒÂ³ thÃ¡Â»Æ’ bÃ¡Â»Â trÃ¡Â»â€˜ng):`,
       ""
     )
 
@@ -1163,7 +918,7 @@ export const useAdminFieldsController = ({ authToken, currentUser }) => {
 
     try {
       const response = await rejectAdminField(authToken, field.id, rejectReason)
-      setSuccessMessage(resolveDisplayMessage(response?.message, "Đã từ chối duyệt sân."))
+      setSuccessMessage(resolveDisplayMessage(response?.message, "ÄÃ£ tá»« chá»‘i duyá»‡t sÃ¢n."))
       setRefreshKey((currentValue) => currentValue + 1)
     } catch (apiError) {
       setError(apiError.message)
@@ -1187,12 +942,12 @@ export const useAdminFieldsController = ({ authToken, currentUser }) => {
           : "approve"
     const confirmMessage =
       action === "lock"
-        ? `Khóa sân "${field.name}"?`
+        ? `KhÃƒÂ³a sÃƒÂ¢n "${field.name}"?`
         : action === "unlock"
-          ? `Mở khóa sân "${field.name}"?`
+          ? `MÃ¡Â»Å¸ khÃƒÂ³a sÃƒÂ¢n "${field.name}"?`
           : moderationState === "REJECTED"
-            ? `Duyệt lại sân "${field.name}"?`
-            : `Duyệt sân "${field.name}"?`
+            ? `DuyÃ¡Â»â€¡t lÃ¡ÂºÂ¡i sÃƒÂ¢n "${field.name}"?`
+            : `DuyÃ¡Â»â€¡t sÃƒÂ¢n "${field.name}"?`
 
     const shouldContinue = window.confirm(confirmMessage)
     if (!shouldContinue) {
@@ -1216,10 +971,10 @@ export const useAdminFieldsController = ({ authToken, currentUser }) => {
         resolveDisplayMessage(
           response?.message,
           action === "lock"
-            ? "Đã khóa sân."
+            ? "Ã„ÂÃƒÂ£ khÃƒÂ³a sÃƒÂ¢n."
             : action === "unlock"
-              ? "Đã mở khóa sân."
-              : "Đã duyệt sân."
+              ? "Ã„ÂÃƒÂ£ mÃ¡Â»Å¸ khÃƒÂ³a sÃƒÂ¢n."
+              : "Ã„ÂÃƒÂ£ duyÃ¡Â»â€¡t sÃƒÂ¢n."
         )
       )
       setRefreshKey((currentValue) => currentValue + 1)
@@ -1257,12 +1012,12 @@ export const useAdminFieldsController = ({ authToken, currentUser }) => {
         resolveDisplayMessage(
           response?.message,
           action === "confirm"
-            ? "Đã xác nhận đơn đặt."
+            ? "Ã„ÂÃƒÂ£ xÃƒÂ¡c nhÃ¡ÂºÂ­n Ã„â€˜Ã†Â¡n Ã„â€˜Ã¡ÂºÂ·t."
             : action === "deposit"
-              ? "Đã xác nhận đặt cọc."
+              ? "Ã„ÂÃƒÂ£ xÃƒÂ¡c nhÃ¡ÂºÂ­n Ã„â€˜Ã¡ÂºÂ·t cÃ¡Â»Âc."
               : action === "payment"
-                ? "Đã xác nhận thanh toán."
-                : "Đã hủy đơn đặt."
+                ? "Ã„ÂÃƒÂ£ xÃƒÂ¡c nhÃ¡ÂºÂ­n thanh toÃƒÂ¡n."
+                : "Ã„ÂÃƒÂ£ hÃ¡Â»Â§y Ã„â€˜Ã†Â¡n Ã„â€˜Ã¡ÂºÂ·t."
         )
       )
       setRefreshKey((currentValue) => currentValue + 1)
@@ -1291,6 +1046,8 @@ export const useAdminFieldsController = ({ authToken, currentUser }) => {
     processingBookingId,
     processingBookingAction,
     deletingFieldId,
+    deleteGuardFieldId,
+    deleteGuardMessage,
     fieldStatusActionId,
     fieldStatusActionMode,
     error,
@@ -1313,7 +1070,6 @@ export const useAdminFieldsController = ({ authToken, currentUser }) => {
     ),
     publicOrigin,
     createPublicBookingUrl,
-    getFieldDeletionState,
     handleManagedBookingsDateChange: (value) =>
       setManagedBookingsDate(normalizeManagedBookingsDate(value)),
     handleFieldChange,
@@ -1336,3 +1092,7 @@ export const useAdminFieldsController = ({ authToken, currentUser }) => {
     handleCancelBooking: (bookingId) => handleBookingAction(bookingId, "cancel"),
   }
 }
+
+
+
+

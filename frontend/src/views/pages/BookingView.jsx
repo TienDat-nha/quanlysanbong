@@ -16,19 +16,19 @@ import { createDepositPaymentRoute } from "../../models/routeModel"
 
 const getSlotTitle = (fieldName, subFieldName, slot) => {
   const label = `${fieldName} - ${subFieldName}`
-  const contactText = slot?.booking?.phone ? ` | Liên hệ: ${slot.booking.phone}` : ""
+  const contactText = slot?.booking?.phone ? ` | LiÃªn há»‡: ${slot.booking.phone}` : ""
 
   switch (slot.state) {
     case "booked":
-      return `${label}: đã có lịch ${slot.timeSlot}${contactText}`
+      return `${label}: Ä‘Ã£ cÃ³ lá»‹ch ${slot.timeSlot}${contactText}`
     case "closed":
-      return `${label}: ngoài giờ hoạt động`
+      return `${label}: ngoÃ i giá» hoáº¡t Ä‘á»™ng`
     case "past":
-      return `${label}: khung giờ đã qua`
+      return `${label}: khung giá» Ä‘Ã£ qua`
     case "selected":
-      return `${label}: đang chọn ${slot.timeSlot}`
+      return `${label}: Ä‘ang chá»n ${slot.timeSlot}`
     default:
-      return `${label}: có thể đặt ${slot.timeSlot}`
+      return `${label}: cÃ³ thá»ƒ Ä‘áº·t ${slot.timeSlot}`
   }
 }
 
@@ -87,12 +87,21 @@ const getBookingHistoryCardTone = (bookingStatusTone, paymentStatusTone) => {
   return "neutral"
 }
 
-// eslint-disable-next-line no-unused-vars
-const BookingHistoryPanel = (props) => <BookingHistoryPanelUtf8 {...props} />
+const getFeedbackClassName = (feedback) => {
+  const feedbackType = String(feedback?.type || "").trim().toLowerCase()
 
-// eslint-disable-next-line no-unused-vars
-const BookingHistoryPanelClean = (props) => <BookingHistoryPanelUtf8 {...props} />
-const BookingHistoryPanelUtf8 = ({
+  if (feedbackType === "success") {
+    return "message success"
+  }
+
+  if (feedbackType === "warning") {
+    return "message warning"
+  }
+
+  return "message error"
+}
+
+const BookingHistoryPanel = ({
   currentUser,
   bookings,
   authToken,
@@ -104,11 +113,11 @@ const BookingHistoryPanelUtf8 = ({
   className = "",
 }) => (
   <section className={`bookingList ${className}`.trim()}>
-    <h2>Sân đã đặt</h2>
-    {currentUser && <p className="helperText">Tài khoản: {currentUser.email}</p>}
-    {loadingBookings && <p>Đang tải lịch sử đặt sân...</p>}
-    {!loadingBookings && !authToken && <p>Đăng nhập để xem lịch sử đặt sân của bạn.</p>}
-    {!loadingBookings && authToken && bookings.length === 0 && <p>Bạn chưa có đơn đặt sân nào.</p>}
+    <h2>SÃ¢n Ä‘Ã£ Ä‘áº·t</h2>
+    {currentUser && <p className="helperText">TÃ i khoáº£n: {currentUser.email}</p>}
+    {loadingBookings && <p>Äang táº£i lá»‹ch sá»­ Ä‘áº·t sÃ¢n...</p>}
+    {!loadingBookings && !authToken && <p>ÄÄƒng nháº­p Ä‘á»ƒ xem lá»‹ch sá»­ Ä‘áº·t sÃ¢n cá»§a báº¡n.</p>}
+    {!loadingBookings && authToken && bookings.length === 0 && <p>Báº¡n chÆ°a cÃ³ Ä‘Æ¡n Ä‘áº·t sÃ¢n nÃ o.</p>}
 
     {!loadingBookings && bookings.length > 0 && (
       <ul>
@@ -131,7 +140,7 @@ const BookingHistoryPanelUtf8 = ({
             paymentTargetIds.length > 1
               ? `?${new URLSearchParams({ bookingIds: paymentTargetIds.join(",") }).toString()}`
               : ""
-          const paymentActionLabel = paymentSummary.actionLabel || "Thanh toán"
+          const paymentActionLabel = paymentSummary.actionLabel || "Thanh toÃ¡n"
           const bookingStatusLabel = formatStatus(booking.status)
           const paymentStatusLabel = paymentSummary.label
           const bookingStatusTone = getBookingHistoryStatusTone(booking.status)
@@ -151,35 +160,35 @@ const BookingHistoryPanelUtf8 = ({
             || ""
           ).trim()
           const footerNote = groupedBookingCount > 1
-            ? `${groupedBookingCount} khung giờ liên tiếp`
-            : `Mã đơn: ${String(booking.id || "").trim().slice(0, 12)}...`
+            ? `${groupedBookingCount} khung giá» liÃªn tiáº¿p`
+            : `MÃ£ Ä‘Æ¡n: ${String(booking.id || "").trim().slice(0, 12)}...`
           const bookingCode = String(booking.id || paymentTargetIds[0] || "").trim()
           const totalAmount = Number(paymentSummary.totalAmount || booking.totalPrice || 0)
           const paidDepositAmount = Number(paymentSummary.paidDepositAmount || 0)
           const remainingPaidAmount = Number(paymentSummary.remainingPaidAmount || 0)
           const remainingAmount = Number(paymentSummary.remainingAmount || 0)
           const detailItems = [
-            bookingCode ? { label: "Mã đặt", value: `#${bookingCode.slice(0, 8)}` } : null,
-            totalAmount > 0 ? { label: "Tổng tiền", value: `${formatPrice(totalAmount)} VND`, accent: true } : null,
-            paidDepositAmount > 0 ? { label: "Đã cọc", value: `${formatPrice(paidDepositAmount)} VND` } : null,
+            bookingCode ? { label: "MÃ£ Ä‘áº·t", value: `#${bookingCode.slice(0, 8)}` } : null,
+            totalAmount > 0 ? { label: "Tá»•ng tiá»n", value: `${formatPrice(totalAmount)} VND`, accent: true } : null,
+            paidDepositAmount > 0 ? { label: "ÄÃ£ cá»c", value: `${formatPrice(paidDepositAmount)} VND` } : null,
             remainingPaidAmount > 0
-              ? { label: "Đã thanh toán phần còn lại", value: `${formatPrice(remainingPaidAmount)} VND` }
+              ? { label: "ÄÃ£ thanh toÃ¡n pháº§n cÃ²n láº¡i", value: `${formatPrice(remainingPaidAmount)} VND` }
               : null,
             totalAmount > 0
               ? {
-                  label: "Còn nợ",
+                  label: "CÃ²n ná»£",
                   value: `${formatPrice(remainingAmount)} VND`,
                   accent: remainingAmount > 0,
                 }
               : null,
-            { label: "Ngày đặt", value: booking.date || "--" },
-            { label: "Khung giờ", value: booking.timeSlot || "--", accent: true },
-            ownerPhone ? { label: "Số điện thoại chủ sân", value: ownerPhone } : null,
-            booking.fieldAddress ? { label: "Địa chỉ sân", value: booking.fieldAddress } : null,
+            { label: "NgÃ y Ä‘áº·t", value: booking.date || "--" },
+            { label: "Khung giá»", value: booking.timeSlot || "--", accent: true },
+            ownerPhone ? { label: "Sá»‘ Ä‘iá»‡n thoáº¡i chá»§ sÃ¢n", value: ownerPhone } : null,
+            booking.fieldAddress ? { label: "Äá»‹a chá»‰ sÃ¢n", value: booking.fieldAddress } : null,
             shouldShowHoldExpiry
-              ? { label: "Giữ chỗ đến", value: formatDateTime(holdExpiresAt) || holdExpiresAt }
+              ? { label: "Giá»¯ chá»— Ä‘áº¿n", value: formatDateTime(holdExpiresAt) || holdExpiresAt }
               : null,
-            { label: "Tạo lúc", value: formatDateTime(booking.createdAt) || "--" },
+            { label: "Táº¡o lÃºc", value: formatDateTime(booking.createdAt) || "--" },
           ].filter(Boolean)
 
           return (
@@ -189,11 +198,11 @@ const BookingHistoryPanelUtf8 = ({
             >
               <div className="bookingHistoryCardTop">
                 <div className="bookingHistoryCardHeading">
-                  <span className="bookingHistoryCardEyebrow">Lịch sân của bạn</span>
+                  <span className="bookingHistoryCardEyebrow">Lá»‹ch sÃ¢n cá»§a báº¡n</span>
                   <h3>{booking.fieldName}</h3>
                   <p className="bookingHistoryCardSubline">
-                    {booking.subFieldName ? `Sân con: ${booking.subFieldName}` : "Sân chưa gắn sân con"}
-                    {groupedBookingCount > 1 ? ` • ${groupedBookingCount} khung giờ liên tiếp` : ""}
+                    {booking.subFieldName ? `SÃ¢n con: ${booking.subFieldName}` : "SÃ¢n chÆ°a gáº¯n sÃ¢n con"}
+                    {groupedBookingCount > 1 ? ` â€¢ ${groupedBookingCount} khung giá» liÃªn tiáº¿p` : ""}
                   </p>
                 </div>
 
@@ -248,7 +257,7 @@ const BookingHistoryPanelUtf8 = ({
                         onClick={() => onCancelBooking(booking)}
                         disabled={isCancelling}
                       >
-                        {isCancelling ? "Đang hủy..." : "Hủy đơn"}
+                        {isCancelling ? "Äang há»§y..." : "Há»§y Ä‘Æ¡n"}
                       </button>
                     )}
                   </div>
@@ -274,7 +283,6 @@ const BookingView = ({
   selectedSubField,
   selectedTimeSlotIds,
   hasSelectedSlot,
-  bookingIdWarning,
   loadingFields,
   loadingAvailability,
   loadingBookings,
@@ -310,7 +318,7 @@ const BookingView = ({
   const displayName = currentUser?.fullName || currentUser?.name || currentUser?.email || ""
   const loginState = {
     from: `${location.pathname}${location.search}`,
-    message: "Đăng nhập để tiếp tục đặt sân.",
+    message: "ÄÄƒng nháº­p Ä‘á»ƒ tiáº¿p tá»¥c Ä‘áº·t sÃ¢n.",
   }
 
   const durationMinutes = getBookingDurationMinutes(form.timeSlot)
@@ -326,21 +334,21 @@ const BookingView = ({
     return (
       <section className="page section">
         <div className="container pageHeader">
-          <h1>Đặt sân thủ công</h1>
+          <h1>Äáº·t sÃ¢n thá»§ cÃ´ng</h1>
         </div>
 
         <div className="container bookingHistoryPage">
           <section className="formCard bookingHistoryNotice">
             <div className="bookingHistoryNoticeText">
-              <h2>Chuyển sang đúng khu vực</h2>
+              <h2>Chuyá»ƒn sang Ä‘Ãºng khu vá»±c</h2>
             </div>
 
             <div className="bookingHistoryActions">
               <Link className="btn smallBtn" to={adminUsersPath}>
-                Quản lý tài khoản
+                Quáº£n lÃ½ tÃ i khoáº£n
               </Link>
               <Link className="outlineBtnLink" to={adminOwnerFieldsPath}>
-                Quản lý sân chủ sân
+                Quáº£n lÃ½ sÃ¢n chá»§ sÃ¢n
               </Link>
             </div>
           </section>
@@ -353,7 +361,7 @@ const BookingView = ({
     return (
         <section className="page section">
           <div className="container pageHeader">
-            <h1>Đang tải thông tin sân</h1>
+            <h1>Äang táº£i thÃ´ng tin sÃ¢n</h1>
           </div>
         </section>
     )
@@ -364,7 +372,7 @@ const BookingView = ({
       return (
         <section className="page section">
           <div className="container pageHeader">
-            <h1>Đặt sân thủ công cho khách</h1>
+            <h1>Äáº·t sÃ¢n thá»§ cÃ´ng cho khÃ¡ch</h1>
           </div>
 
           <div className="container bookingHistoryPage">
@@ -372,61 +380,24 @@ const BookingView = ({
 
             {hasInvalidFieldSelection && (
               <p className="message error">
-                Không tìm thấy sân cần đặt. Vui lòng chọn lại trong danh sách sân của bạn.
+                KhÃ´ng tÃ¬m tháº¥y sÃ¢n cáº§n Ä‘áº·t. Vui lÃ²ng quay láº¡i Quáº£n lÃ½ sÃ¢n vÃ  chá»n Ä‘Ãºng sÃ¢n.
               </p>
             )}
 
             <section className="formCard bookingHistoryNotice">
               <div className="bookingHistoryNoticeText">
-                <h2>Chọn sân của bạn</h2>
+                <h2>Äáº·t tay tá»« Quáº£n lÃ½ sÃ¢n</h2>
+                <p className="helperText">
+                  Vui lÃ²ng vÃ o Quáº£n lÃ½ sÃ¢n vÃ  nháº¥n <strong>Äáº·t tay trÃªn sÃ¢n nÃ y</strong> táº¡i sÃ¢n cáº§n táº¡o Ä‘Æ¡n.
+                </p>
               </div>
 
               <div className="bookingHistoryActions">
-                <Link className="outlineBtnLink" to={adminFieldsPath}>
-                  Về quản lý sân
+                <Link className="btn" to={adminFieldsPath}>
+                  Vá» quáº£n lÃ½ sÃ¢n
                 </Link>
               </div>
             </section>
-
-            {loadingFields ? (
-              <p className="helperText">Đang tải danh sách sân của bạn...</p>
-            ) : ownerFields.length === 0 ? (
-              <section className="formCard bookingHistoryNotice">
-                <div className="bookingHistoryNoticeText">
-                  <h2>Chưa có sân để đặt tay</h2>
-                </div>
-
-                <div className="bookingHistoryActions">
-                  <Link className="btn" to={adminFieldsPath}>
-                    Tạo hoặc cập nhật sân
-                  </Link>
-                </div>
-              </section>
-            ) : (
-              <section className="bookingFieldPickerGrid">
-                {ownerFields.map((field) => (
-                  <article key={field.id} className="bookingFieldPickerCard">
-                    <div className="bookingFieldPickerContent">
-                      <h2>{field.name}</h2>
-                      <p>{field.address}</p>
-                      <div className="bookingFieldPickerMeta">
-                        <span>{field.district || "Đang cập nhật khu vực"}</span>
-                        <span>{field.openHours || "Chưa có giờ mở cửa"}</span>
-                        <span>{(field.subFields || []).length} sân con</span>
-                      </div>
-                    </div>
-
-                    <button
-                      className="btn smallBtn"
-                      type="button"
-                      onClick={() => onFieldChange("fieldId", String(field.id))}
-                    >
-                      Chọn sân này
-                    </button>
-                  </article>
-                ))}
-              </section>
-            )}
           </div>
         </section>
       )
@@ -435,7 +406,7 @@ const BookingView = ({
     return (
       <section className="page section">
         <div className="container pageHeader">
-          <h1>Sân đã đặt</h1>
+          <h1>SÃ¢n Ä‘Ã£ Ä‘áº·t</h1>
         </div>
 
         <div className="container bookingHistoryPage">
@@ -443,30 +414,30 @@ const BookingView = ({
 
           {hasInvalidFieldSelection && (
             <p className="message error">
-              Không tìm thấy sân cần đặt. Vui lòng quay lại danh sách sân và chọn lại.
+              KhÃ´ng tÃ¬m tháº¥y sÃ¢n cáº§n Ä‘áº·t. Vui lÃ²ng quay láº¡i danh sÃ¡ch sÃ¢n vÃ  chá»n láº¡i.
             </p>
           )}
 
           {!authToken && (
             <p className="message warning">
-              Bạn chưa đăng nhập. Vui lòng <Link to={loginPath} state={loginState}>đăng nhập</Link>{" "}
-              để xem lịch sử và xác nhận đặt sân.
+              Báº¡n chÆ°a Ä‘Äƒng nháº­p. Vui lÃ²ng <Link to={loginPath} state={loginState}>Ä‘Äƒng nháº­p</Link>{" "}
+              Ä‘á»ƒ xem lá»‹ch sá»­ vÃ  xÃ¡c nháº­n Ä‘áº·t sÃ¢n.
             </p>
           )}
 
           <section className="formCard bookingHistoryNotice">
             <div className="bookingHistoryNoticeText">
-              <h2>Đặt lịch từ từng sân</h2>
+              <h2>Äáº·t lá»‹ch tá»« tá»«ng sÃ¢n</h2>
             </div>
 
             <div className="bookingHistoryActions">
               <Link className="btn" to={fieldsPath}>
-                Xem danh sách sân
+                Xem danh sÃ¡ch sÃ¢n
               </Link>
             </div>
           </section>
 
-          <BookingHistoryPanelUtf8
+          <BookingHistoryPanel
             currentUser={currentUser}
             bookings={bookings}
             authToken={authToken}
@@ -488,15 +459,15 @@ const BookingView = ({
         <div className="container bookingCheckoutContainer">
           <div className="bookingCheckoutHeader">
             <button type="button" className="bookingStepBackButton" onClick={onBackToSchedule}>
-              Quay lại
+              Quay láº¡i
             </button>
             <div>
-              <h1>{isOwnerPortal ? "Đặt sân thủ công cho khách" : "Đặt lịch ngay trực quan"}</h1>
+              <h1>{isOwnerPortal ? "Äáº·t sÃ¢n thá»§ cÃ´ng cho khÃ¡ch" : "Äáº·t lá»‹ch ngay trá»±c quan"}</h1>
             </div>
             {isOwnerPortal && (
               <div className="bookingCheckoutHeaderActions">
                 <Link className="outlineBtnLink bookingBackLink" to={adminFieldsPath}>
-                  Về quản lý sân
+                  Vá» quáº£n lÃ½ sÃ¢n
                 </Link>
               </div>
             )}
@@ -504,8 +475,8 @@ const BookingView = ({
 
           {!authToken && (
             <p className="message warning bookingCheckoutMessage">
-              Bạn chưa đăng nhập. Vui lòng <Link to={loginPath} state={loginState}>đăng nhập</Link>{" "}
-              trước khi xác nhận đặt sân.
+              Báº¡n chÆ°a Ä‘Äƒng nháº­p. Vui lÃ²ng <Link to={loginPath} state={loginState}>Ä‘Äƒng nháº­p</Link>{" "}
+              trÆ°á»›c khi xÃ¡c nháº­n Ä‘áº·t sÃ¢n.
             </p>
           )}
 
@@ -513,68 +484,68 @@ const BookingView = ({
 
           <form className="bookingCheckoutCard" onSubmit={onSubmit}>
             <section className="bookingCheckoutSection">
-              <h2>Thông tin sân</h2>
+              <h2>ThÃ´ng tin sÃ¢n</h2>
               <div className="bookingCheckoutInfoGrid">
                 <p>
-                  <strong>Tên sân:</strong> {selectedField.name}
+                  <strong>TÃªn sÃ¢n:</strong> {selectedField.name}
                 </p>
                 <p>
-                  <strong>Địa chỉ:</strong> {selectedField.address}
+                  <strong>Äá»‹a chá»‰:</strong> {selectedField.address}
                 </p>
                 <p>
-                  <strong>Khu vực:</strong> {selectedField.district}
+                  <strong>Khu vá»±c:</strong> {selectedField.district}
                 </p>
                 <p>
-                  <strong>Giờ mở cửa:</strong> {selectedField.openHours}
+                  <strong>Giá» má»Ÿ cá»­a:</strong> {selectedField.openHours}
                 </p>
               </div>
             </section>
 
             <section className="bookingCheckoutSection">
-              <h2>Thông tin lịch đặt</h2>
+              <h2>ThÃ´ng tin lá»‹ch Ä‘áº·t</h2>
               <div className="bookingCheckoutInfoGrid">
                 <p>
-                  <strong>Ngày:</strong> {bookingDateLabel}
+                  <strong>NgÃ y:</strong> {bookingDateLabel}
                 </p>
                 <p>
-                  <strong>Lịch đã chọn:</strong> {selectedSubField?.name}: {compactTimeSlot}
+                  <strong>Lá»‹ch Ä‘Ã£ chá»n:</strong> {selectedSubField?.name}: {compactTimeSlot}
                 </p>
                 <p>
-                  <strong>Loại sân:</strong> {selectedSubField?.type || selectedField?.type || "--"}
+                  <strong>Loáº¡i sÃ¢n:</strong> {selectedSubField?.type || selectedField?.type || "--"}
                 </p>
                 <p>
-                  <strong>Tổng giờ:</strong> {formatBookingDurationLabel(durationMinutes)}
+                  <strong>Tá»•ng giá»:</strong> {formatBookingDurationLabel(durationMinutes)}
                 </p>
                 <p>
-                  <strong>Giá sân con:</strong>{" "}
-                  {formatPrice(selectedSubField?.pricePerHour || selectedField?.pricePerHour)} VND/giờ
+                  <strong>GiÃ¡ sÃ¢n con:</strong>{" "}
+                  {formatPrice(selectedSubField?.pricePerHour || selectedField?.pricePerHour)} VND/giá»
                 </p>
                 <p className="bookingCheckoutTotal">
-                  <strong>Tổng tiền:</strong> {formatPrice(totalPrice)} VND
+                  <strong>Tá»•ng tiá»n:</strong> {formatPrice(totalPrice)} VND
                 </p>
               </div>
             </section>
 
             <button type="button" className="bookingServiceButton" disabled>
-              Thêm dịch vụ
+              ThÃªm dá»‹ch vá»¥
             </button>
 
             <div className="bookingCheckoutFieldGroup">
               <label htmlFor="booking-customer-name">
-                {isOwnerPortal ? "Tài khoản tạo đơn" : "Tên của bạn"}
+                {isOwnerPortal ? "TÃ i khoáº£n táº¡o Ä‘Æ¡n" : "TÃªn cá»§a báº¡n"}
               </label>
               <input
                 id="booking-customer-name"
                 type="text"
                 value={displayName}
-                placeholder="Đăng nhập để hiện tên"
+                placeholder="ÄÄƒng nháº­p Ä‘á»ƒ hiá»‡n tÃªn"
                 readOnly
               />
             </div>
 
             <div className="bookingCheckoutFieldGroup">
               <label htmlFor="booking-phone">
-                {isOwnerPortal ? "Số điện thoại khách" : "Số điện thoại"}
+                {isOwnerPortal ? "Sá»‘ Ä‘iá»‡n thoáº¡i khÃ¡ch" : "Sá»‘ Ä‘iá»‡n thoáº¡i"}
               </label>
               <input
                 id="booking-phone"
@@ -583,13 +554,13 @@ const BookingView = ({
                 value={form.phone}
                 onChange={(event) => onFieldChange("phone", event.target.value)}
                 placeholder="09xxxxxxxx"
-                disabled={!hasSelectedSlot || Boolean(bookingIdWarning)}
+                disabled={!hasSelectedSlot}
               />
             </div>
 
             <div className="bookingCheckoutFieldGroup">
               <label htmlFor="booking-confirm-phone">
-                {isOwnerPortal ? "Xác nhận số điện thoại khách" : "Xác nhận số điện thoại"}
+                {isOwnerPortal ? "XÃ¡c nháº­n sá»‘ Ä‘iá»‡n thoáº¡i khÃ¡ch" : "XÃ¡c nháº­n sá»‘ Ä‘iá»‡n thoáº¡i"}
               </label>
               <input
                 id="booking-confirm-phone"
@@ -597,27 +568,27 @@ const BookingView = ({
                 inputMode="numeric"
                 value={form.confirmPhone}
                 onChange={(event) => onFieldChange("confirmPhone", event.target.value)}
-                placeholder="Nhập lại số điện thoại"
-                disabled={!hasSelectedSlot || Boolean(bookingIdWarning)}
+                placeholder="Nháº­p láº¡i sá»‘ Ä‘iá»‡n thoáº¡i"
+                disabled={!hasSelectedSlot}
               />
             </div>
 
             <div className="bookingCheckoutFieldGroup">
               <label htmlFor="booking-note">
-                {isOwnerPortal ? "Ghi chú nội bộ cho đơn đặt tay" : "Ghi chú cho chủ sân"}
+                {isOwnerPortal ? "Ghi chÃº ná»™i bá»™ cho Ä‘Æ¡n Ä‘áº·t tay" : "Ghi chÃº cho chá»§ sÃ¢n"}
               </label>
               <textarea
                 id="booking-note"
                 rows={4}
                 value={form.note}
                 onChange={(event) => onFieldChange("note", event.target.value)}
-                placeholder="Nhập ghi chú nếu có"
-                disabled={!hasSelectedSlot || Boolean(bookingIdWarning)}
+                placeholder="Nháº­p ghi chÃº náº¿u cÃ³"
+                disabled={!hasSelectedSlot}
               />
             </div>
 
             {feedback.text && (
-              <p className={feedback.type === "success" ? "message success" : "message error"}>
+              <p className={getFeedbackClassName(feedback)}>
                 {feedback.text}
               </p>
             )}
@@ -625,17 +596,17 @@ const BookingView = ({
             <button
               className="bookingCheckoutSubmit"
               type="submit"
-              disabled={submitting || !authToken || !hasSelectedSlot || Boolean(bookingIdWarning)}
+              disabled={submitting || !authToken || !hasSelectedSlot}
             >
               {submitting
                 ? isOwnerPortal
-                  ? "Đang tạo đơn..."
-                  : "Đang gửi yêu cầu..."
+                  ? "Äang táº¡o Ä‘Æ¡n..."
+                  : "Äang gá»­i yÃªu cáº§u..."
                 : isOwnerPortal
-                  ? "Xác nhận và khóa lịch"
+                  ? "XÃ¡c nháº­n vÃ  khÃ³a lá»‹ch"
                   : selectedSlotCount > 1
-                    ? "Xác nhận và tạo các đơn"
-                    : "Xác nhận và thanh toán"}
+                    ? "XÃ¡c nháº­n vÃ  táº¡o cÃ¡c Ä‘Æ¡n"
+                    : "XÃ¡c nháº­n vÃ  thanh toÃ¡n"}
             </button>
           </form>
         </div>
@@ -646,41 +617,34 @@ const BookingView = ({
   return (
     <section className="page section">
       <div className="container pageHeader">
-        <h1>{isOwnerPortal ? `Đặt sân thủ công: ${selectedField.name}` : `Đặt lịch ${selectedField.name}`}</h1>
+        <h1>{isOwnerPortal ? `Äáº·t sÃ¢n thá»§ cÃ´ng: ${selectedField.name}` : `Äáº·t lá»‹ch ${selectedField.name}`}</h1>
       </div>
 
       <div className="container bookingStagePage bookingStagePage--visual">
         {!authToken && (
           <p className="message warning">
-            Bạn chưa đăng nhập. Vui lòng <Link to={loginPath} state={loginState}>đăng nhập</Link>{" "}
-            trước khi xác nhận đặt sân.
+            Báº¡n chÆ°a Ä‘Äƒng nháº­p. Vui lÃ²ng <Link to={loginPath} state={loginState}>Ä‘Äƒng nháº­p</Link>{" "}
+            trÆ°á»›c khi xÃ¡c nháº­n Ä‘áº·t sÃ¢n.
           </p>
         )}
 
         {catalogMessage && <p className="message warning">{catalogMessage}</p>}
 
         {feedback.text && (
-          <p className={feedback.type === "success" ? "message success" : "message error"}>
+          <p className={getFeedbackClassName(feedback)}>
             {feedback.text}
-          </p>
-        )}
-
-        {bookingIdWarning && (
-          <p className="message warning">
-            {bookingIdWarning}. Hệ thống sẽ mở đặt sân ngay khi backend đồng bộ xong dữ liệu
-            timeSlot từ giờ mở cửa của sân.
           </p>
         )}
 
         <section className="bookingPlanner bookingPlanner--visual">
           <div className="bookingPlannerHeader">
             <div>
-              <h2>{isOwnerPortal ? "Tạo đơn đặt thủ công" : "Đặt lịch ngay trực quan"}</h2>
+              <h2>{isOwnerPortal ? "Táº¡o Ä‘Æ¡n Ä‘áº·t thá»§ cÃ´ng" : "Äáº·t lá»‹ch ngay trá»±c quan"}</h2>
             </div>
 
             <div className="bookingPlannerControls">
               <label className="bookingDateControl" htmlFor="booking-date">
-                <span>Ngày đặt</span>
+                <span>NgÃ y Ä‘áº·t</span>
                 <input
                   id="booking-date"
                   type="date"
@@ -692,7 +656,7 @@ const BookingView = ({
 
               {isOwnerPortal && ownerFields.length > 1 && (
                 <label className="bookingDateControl" htmlFor="owner-booking-field">
-                  <span>Sân của bạn</span>
+                  <span>SÃ¢n cá»§a báº¡n</span>
                   <select
                     id="owner-booking-field"
                     value={form.fieldId}
@@ -709,11 +673,11 @@ const BookingView = ({
 
               {isOwnerPortal ? (
                 <Link className="btn smallBtn bookingBackLink" to={adminFieldsPath}>
-                  Về quản lý sân
+                  Vá» quáº£n lÃ½ sÃ¢n
                 </Link>
               ) : (
                 <Link className="outlineBtnLink bookingBackLink" to={fieldsPath}>
-                  Về danh sách sân
+                  Vá» danh sÃ¡ch sÃ¢n
                 </Link>
               )}
             </div>
@@ -724,7 +688,7 @@ const BookingView = ({
               <h3>{selectedField.name}</h3>
               <p>{selectedField.address}</p>
               <p>
-                {selectedField.district} | Giờ mở cửa: {selectedField.openHours}
+                {selectedField.district} | Giá» má»Ÿ cá»­a: {selectedField.openHours}
               </p>
             </div>
 
@@ -734,7 +698,7 @@ const BookingView = ({
                   {subField.name}
                   {subField.type ? ` | ${getFieldTypeLabel(subField.type, subField.type)}` : ""}
                   {subField.pricePerHour
-                    ? ` | ${formatPrice(subField.pricePerHour)} VND/giờ`
+                    ? ` | ${formatPrice(subField.pricePerHour)} VND/giá»`
                     : ""}
                 </span>
               ))}
@@ -744,32 +708,30 @@ const BookingView = ({
           <div className="bookingLegend bookingLegend--visual">
             <span className="bookingLegendItem">
               <span className="bookingLegendSwatch bookingLegendSwatch--available" />
-              Trống
+              Trá»‘ng
             </span>
             <span className="bookingLegendItem">
               <span className="bookingLegendSwatch bookingLegendSwatch--booked" />
-              Đã đặt
+              ÄÃ£ Ä‘áº·t
             </span>
             <span className="bookingLegendItem">
               <span className="bookingLegendSwatch bookingLegendSwatch--closed" />
-              Không chọn được
+              KhÃ´ng chá»n Ä‘Æ°á»£c
             </span>
             <span className="bookingLegendItem">
               <span className="bookingLegendSwatch bookingLegendSwatch--selected" />
-              Đang chọn
+              Äang chá»n
             </span>
           </div>
 
-          <p className="bookingVisualNotice">
-            {bookingIdWarning
-              ? "Backend chưa trả về timeSlot thật nên bảng này đang ở chế độ chỉ xem. Khi dữ liệu khung giờ được đồng bộ từ giờ mở cửa của sân, bạn có thể chọn nhiều ô trống liền kề để đặt nhiều giờ liên tiếp."
-              : "Lưu ý: ô đỏ là đã đặt, ô xám là không thể chọn. Bạn có thể bấm thêm các ô trống liền kề trên cùng một sân con để chọn nhiều giờ liên tiếp."}
+                    <p className="bookingVisualNotice">
+            Luu y: o do la da dat, o xam la khong the chon. Ban co the bam them cac o trong lien ke tren cung mot san con de chon nhieu gio lien tiep.
           </p>
 
           <div className="bookingBoardWrap bookingBoardWrap--visual">
             <div className="bookingBoard">
               <div className="bookingBoardHeader" style={{ gridTemplateColumns: boardGridTemplate }}>
-                <div className="bookingBoardCorner">Sân con / Giờ</div>
+                <div className="bookingBoardCorner">SÃ¢n con / Giá»</div>
                 {timeline.map((slot) => {
                   const headerRange = getTimelineHeaderRange(slot)
 
@@ -783,12 +745,12 @@ const BookingView = ({
               </div>
 
               {loadingAvailability && (
-                <p className="helperText bookingBoardStatus">Đang tải lịch sân...</p>
+                <p className="helperText bookingBoardStatus">Äang táº£i lá»‹ch sÃ¢n...</p>
               )}
 
               {!loadingAvailability && scheduleRows.length === 0 && (
                 <p className="helperText bookingBoardStatus">
-                  Sân này chưa có sân con để hiển thị.
+                  SÃ¢n nÃ y chÆ°a cÃ³ sÃ¢n con Ä‘á»ƒ hiá»ƒn thá»‹.
                 </p>
               )}
 
@@ -807,7 +769,7 @@ const BookingView = ({
                           row.subField.type || selectedField.type
                         )}
                         {row.subField.pricePerHour
-                          ? ` | ${formatPrice(row.subField.pricePerHour)} VND/giờ`
+                          ? ` | ${formatPrice(row.subField.pricePerHour)} VND/giá»`
                           : ""}
                       </span>
                     </div>
@@ -818,10 +780,10 @@ const BookingView = ({
                         type="button"
                         className={`bookingSlot bookingSlot--${slot.state}`}
                         onClick={() => onSlotSelect(row.subField, slot, row.slots)}
-                        disabled={slot.disabled || Boolean(bookingIdWarning)}
+                        disabled={slot.disabled}
                         title={getSlotTitle(selectedField.name, row.subField.name, slot)}
                       >
-                        {slot.state === "selected" ? "✓" : ""}
+                        {slot.state === "selected" ? "âœ“" : ""}
                       </button>
                     ))}
                   </div>
@@ -839,20 +801,20 @@ const BookingView = ({
                 </strong>
                 <span>
                   {selectedSubField?.type ? `${selectedSubField.type} | ` : ""}
-                  {selectedSlotCount > 1 ? `${selectedSlotCount} khung giờ liên tiếp | ` : ""}
-                  Tổng giờ {formatBookingDurationLabel(durationMinutes)} | Tổng tiền{" "}
+                  {selectedSlotCount > 1 ? `${selectedSlotCount} khung giá» liÃªn tiáº¿p | ` : ""}
+                  Tá»•ng giá» {formatBookingDurationLabel(durationMinutes)} | Tá»•ng tiá»n{" "}
                   {formatPrice(totalPrice)} VND
                 </span>
                 {!isOwnerPortal && selectedSlotCount > 1 && (
                   <span>
-                    Hệ thống sẽ tạo {selectedSlotCount} đơn đặt liên tiếp và bạn có thể thanh toán từng đơn sau khi tạo.
+                    Há»‡ thá»‘ng sáº½ táº¡o {selectedSlotCount} Ä‘Æ¡n Ä‘áº·t liÃªn tiáº¿p vÃ  báº¡n cÃ³ thá»ƒ thanh toÃ¡n tá»«ng Ä‘Æ¡n sau khi táº¡o.
                   </span>
                 )}
               </>
             ) : (
               <>
-                <strong>Chưa chọn khung giờ</strong>
-                <span>Chọn khung giờ</span>
+                <strong>ChÆ°a chá»n khung giá»</strong>
+                <span>Chá»n khung giá»</span>
               </>
             )}
           </div>
@@ -861,9 +823,9 @@ const BookingView = ({
             type="button"
             className="bookingNextButton bookingNextButton--visual"
             onClick={onContinueToConfirm}
-            disabled={!hasSelectedSlot || Boolean(bookingIdWarning)}
+            disabled={!hasSelectedSlot}
           >
-            Tiếp theo
+            Tiáº¿p theo
           </button>
         </section>
       </div>
@@ -872,3 +834,4 @@ const BookingView = ({
 }
 
 export default BookingView
+

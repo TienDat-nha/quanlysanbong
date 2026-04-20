@@ -140,10 +140,6 @@ const resolveApiAssetUrl = (value) => {
     return normalizedValue
   }
 }
-const CONFIGURED_FIELD_IDS = String(process.env.REACT_APP_FIELD_IDS || "")
-  .split(",")
-  .map((value) => String(value || "").trim())
-  .filter(Boolean)
 const REGISTER_PATHS = ["/user/register"]
 const LOGIN_PATHS = ["/user/login"]
 const GET_ME_PATHS = ["/user/getMe"]
@@ -189,168 +185,12 @@ const BOOKING_DASHBOARD_PATHS = (params = {}) => {
   const queryString = searchParams.toString()
   return [`/booking/getDashboard${queryString ? `?${queryString}` : ""}`]
 }
-const KNOWN_FIELD_IDS_STORAGE_KEY = "sanbong_known_field_ids"
-const FIELD_SNAPSHOTS_STORAGE_KEY = "sanbong_field_snapshots"
 const DEFAULT_BOOKING_HOLD_MINUTES = 5
 
 const isManagedUserOtpConfigured = () => true
 
 const getManagedUserOtpConfigMessage = () =>
-  "OTP email được xử lý bởi backend."
-
-const buildUniqueStringList = (values = []) => {
-  const uniqueValues = new Set()
-
-  ;(Array.isArray(values) ? values : [values]).forEach((value) => {
-    const normalizedValue = String(value || "").trim()
-    if (normalizedValue) {
-      uniqueValues.add(normalizedValue)
-    }
-  })
-
-  return Array.from(uniqueValues)
-}
-
-const getStoredKnownFieldIds = () => {
-  if (typeof window === "undefined" || !window.localStorage) {
-    return []
-  }
-
-  try {
-    const rawValue = window.localStorage.getItem(KNOWN_FIELD_IDS_STORAGE_KEY)
-    if (!rawValue) {
-      return []
-    }
-
-    const parsedValue = JSON.parse(rawValue)
-    return buildUniqueStringList(parsedValue)
-  } catch (_error) {
-    return []
-  }
-}
-
-const setStoredKnownFieldIds = (fieldIds = []) => {
-  if (typeof window === "undefined" || !window.localStorage) {
-    return []
-  }
-
-  const nextFieldIds = buildUniqueStringList(fieldIds)
-
-  try {
-    if (nextFieldIds.length === 0) {
-      window.localStorage.removeItem(KNOWN_FIELD_IDS_STORAGE_KEY)
-    } else {
-      window.localStorage.setItem(KNOWN_FIELD_IDS_STORAGE_KEY, JSON.stringify(nextFieldIds))
-    }
-  } catch (_error) {
-    return nextFieldIds
-  }
-
-  return nextFieldIds
-}
-
-const getStoredFieldSnapshots = () => {
-  if (typeof window === "undefined" || !window.localStorage) {
-    return {}
-  }
-
-  try {
-    const rawValue = window.localStorage.getItem(FIELD_SNAPSHOTS_STORAGE_KEY)
-    if (!rawValue) {
-      return {}
-    }
-
-    const parsedValue = JSON.parse(rawValue)
-    return parsedValue && typeof parsedValue === "object" && !Array.isArray(parsedValue)
-      ? parsedValue
-      : {}
-  } catch (_error) {
-    return {}
-  }
-}
-
-const buildPersistableFieldSnapshots = (snapshots = {}, { stripDataImages = false } = {}) => {
-  const nextSnapshots = {}
-
-  Object.entries(snapshots || {}).forEach(([key, value]) => {
-    const snapshotKey = String(key || "").trim()
-    if (!snapshotKey || !value || typeof value !== "object") {
-      return
-    }
-
-    const coverImage = String(value.coverImage || "").trim()
-    const images = (Array.isArray(value.images) ? value.images : [])
-      .map((item) => String(item || "").trim())
-      .filter(Boolean)
-
-    nextSnapshots[snapshotKey] = {
-      ...value,
-      coverImage:
-        stripDataImages && coverImage.startsWith("data:")
-          ? ""
-          : coverImage,
-      images:
-        stripDataImages
-          ? images.filter((item) => !item.startsWith("data:"))
-          : images,
-    }
-  })
-
-  return nextSnapshots
-}
-
-const setStoredFieldSnapshots = (snapshots = {}) => {
-  if (typeof window === "undefined" || !window.localStorage) {
-    return {}
-  }
-
-  const persistableSnapshots = buildPersistableFieldSnapshots(snapshots)
-
-  try {
-    if (Object.keys(persistableSnapshots).length === 0) {
-      window.localStorage.removeItem(FIELD_SNAPSHOTS_STORAGE_KEY)
-      return {}
-    }
-
-    window.localStorage.setItem(
-      FIELD_SNAPSHOTS_STORAGE_KEY,
-      JSON.stringify(persistableSnapshots)
-    )
-
-    return persistableSnapshots
-  } catch (_error) {
-    try {
-      const reducedSnapshots = buildPersistableFieldSnapshots(snapshots, {
-        stripDataImages: true,
-      })
-
-      if (Object.keys(reducedSnapshots).length === 0) {
-        window.localStorage.removeItem(FIELD_SNAPSHOTS_STORAGE_KEY)
-        return {}
-      }
-
-      window.localStorage.setItem(
-        FIELD_SNAPSHOTS_STORAGE_KEY,
-        JSON.stringify(reducedSnapshots)
-      )
-
-      return reducedSnapshots
-    } catch (_nestedError) {
-      return {}
-    }
-  }
-}
-
-const rememberKnownFieldIds = (...fieldIds) =>
-  setStoredKnownFieldIds([...getStoredKnownFieldIds(), ...fieldIds.flat()])
-
-const forgetKnownFieldId = (fieldId) =>
-  setStoredKnownFieldIds(getStoredKnownFieldIds().filter((item) => item !== String(fieldId || "").trim()))
-
-const clearStoredFieldCaches = () => {
-  setStoredKnownFieldIds([])
-  setStoredFieldSnapshots({})
-}
+  "OTP email Ä‘Æ°á»£c xá»­ lÃ½ bá»Ÿi backend."
 
 const isHtmlLike = (value) => {
   const trimmed = String(value || "").trim().toLowerCase()
@@ -365,11 +205,11 @@ const getRouteErrorFromHtml = (value) => {
     return ""
   }
 
-  return `API không hỗ trợ ${String(match[1] || "").toUpperCase()} ${String(match[2] || "").trim()}.`
+  return `API khÃ´ng há»— trá»£ ${String(match[1] || "").toUpperCase()} ${String(match[2] || "").trim()}.`
 }
 
 const buildApiUnavailableMessage = (requestPath) =>
-  `Không thể kết nối đến API (${API_BASE_URL}). Vui lòng kiểm tra backend đang chạy (${requestPath}).`
+  `KhÃ´ng thá»ƒ káº¿t ná»‘i Ä‘áº¿n API (${API_BASE_URL}). Vui lÃ²ng kiá»ƒm tra backend Ä‘ang cháº¡y (${requestPath}).`
 
 const isRouteMissingResponse = (status, rawBodyText = "") =>
   Number(status) === 404
@@ -823,82 +663,6 @@ const mergeFieldSources = (field, snapshot) => {
   })
 }
 
-const rememberFieldSnapshot = (field) => {
-  const normalizedField = normalizeFieldItem(field)
-  if (!normalizedField?.id) {
-    return normalizedField
-  }
-
-  const nextSnapshots = {
-    ...getStoredFieldSnapshots(),
-    [normalizedField.id]: {
-      id: normalizedField.id,
-      _id: normalizedField._id,
-      fieldId: normalizedField.id,
-      slug: normalizedField.slug,
-      name: normalizedField.name,
-      address: normalizedField.address,
-      district: normalizedField.district,
-      city: normalizedField.city,
-      ward: normalizedField.ward,
-      type: normalizedField.type,
-      openHours: normalizedField.openHours,
-      pricePerHour: normalizedField.pricePerHour,
-      rating: normalizedField.rating,
-      article: normalizedField.article,
-      coverImage: normalizedField.coverImage,
-      images: Array.isArray(normalizedField.images) ? normalizedField.images : [],
-      subFields: Array.isArray(normalizedField.subFields) ? normalizedField.subFields : [],
-      ownerUserId: normalizedField.ownerUserId,
-      userId: normalizedField.userId,
-      ownerEmail: normalizedField.ownerEmail,
-      ownerPhone: normalizedField.ownerPhone,
-      approvalStatus: normalizedField.approvalStatus,
-      status: normalizedField.status,
-      isLocked: normalizedField.isLocked,
-      locked: normalizedField.locked,
-    },
-  }
-
-  setStoredFieldSnapshots(nextSnapshots)
-  return normalizedField
-}
-
-const mergeStoredFieldSnapshot = (field) => {
-  const normalizedField = normalizeFieldItem(field)
-  if (!normalizedField?.id) {
-    return normalizedField
-  }
-
-  const snapshot = getStoredFieldSnapshots()[normalizedField.id]
-  const mergedField = mergeFieldSources(normalizedField, snapshot)
-
-  if (mergedField?.id) {
-    rememberFieldSnapshot(mergedField)
-  }
-
-  return mergedField
-}
-
-const getStoredFieldSnapshotList = () =>
-  Object.values(getStoredFieldSnapshots())
-    .map((field) => mergeStoredFieldSnapshot(field))
-    .filter(Boolean)
-
-const forgetStoredFieldSnapshot = (fieldId) => {
-  const normalizedFieldId = String(fieldId || "").trim()
-  if (!normalizedFieldId) {
-    return
-  }
-
-  const nextSnapshots = {
-    ...getStoredFieldSnapshots(),
-  }
-
-  delete nextSnapshots[normalizedFieldId]
-  setStoredFieldSnapshots(nextSnapshots)
-}
-
 const normalizeSubFieldKeyValue = (value, fallback = "") =>
   String(value || fallback || "")
     .trim()
@@ -1128,7 +892,7 @@ const normalizeBookingItem = (booking) => {
     id: id || normalizeId(booking.paymentId, booking.createdAt),
     _id: id || normalizeId(booking.paymentId, booking.createdAt),
     userId: normalizeId(booking.userId, booking.user?._id, booking.user?.id),
-    fieldId: normalizeId(booking.fieldId, field?.id),
+    fieldId: normalizeId(booking.fieldId, booking.field, field?.id),
     fieldSlug: String(booking.fieldSlug || field?.slug || "").trim(),
     fieldAddress: String(booking.fieldAddress || field?.address || "").trim(),
     fieldDistrict: String(booking.fieldDistrict || field?.district || "").trim(),
@@ -1140,7 +904,7 @@ const normalizeBookingItem = (booking) => {
       || booking.field?.user?.phone
       || ""
     ).trim(),
-    subFieldId: normalizeId(booking.subFieldId, subField?.id),
+    subFieldId: normalizeId(booking.subFieldId, booking.subField, subField?.id),
     subFieldKey: String(booking.subFieldKey || subField?.key || "").trim(),
     timeSlotId: normalizeId(booking.timeSlotId, timeSlot?.id),
     fieldName: String(booking.fieldName || field?.name || "").trim(),
@@ -1572,12 +1336,12 @@ const buildBookingPaymentShape = (booking, payment) => {
         message:
           normalizedPayment?.id && !isPaid
             ? ""
-            : "Chỉ có thể lấy QR khi đã tạo payment và payment chưa hoàn tất.",
+            : "Chá»‰ cÃ³ thá»ƒ láº¥y QR khi Ä‘Ã£ táº¡o payment vÃ  payment chÆ°a hoÃ n táº¥t.",
       },
     },
     staticTransfer: {
       amount,
-      bankName: "Thanh toán tiền mặt / tùy backend xác nhận",
+      bankName: "Thanh toÃ¡n tiá»n máº·t / tÃ¹y backend xÃ¡c nháº­n",
       accountNumber: normalizedPayment?.id || normalizedBooking?.paymentId || "",
       accountName: normalizedPayment?.method || "CASH",
       transferNote: mergedBooking?.id || "",
@@ -1613,14 +1377,6 @@ const buildFieldMutationPayload = (payload = {}) => {
     pricePerHour: Math.max(Math.round(Number(payload.pricePerHour || 0)), 0),
   }
 }
-
-const buildSubFieldMutationPayload = (payload = {}, fieldOpenHours = "") => ({
-  key: normalizeSubFieldKeyValue(payload.key, payload.name || ""),
-  name: String(payload.name || "").trim(),
-  type: normalizeFieldType(payload.type || "", ""),
-  pricePerHour: Math.max(Math.round(Number(payload.pricePerHour || 0)), 0),
-  openHours: normalizeOpenHoursValue(payload.openHours || fieldOpenHours, ""),
-})
 
 const normalizeOtpPurpose = (value, fallback = "auth") =>
   String(value || fallback || "")
@@ -1660,7 +1416,7 @@ export const requestRegisterOtp = async (payload = {}) => {
   const email = String(payload?.email || "").trim().toLowerCase()
 
   if (!email) {
-    throw new Error("Vui lòng nhập email trước khi gửi OTP.")
+    throw new Error("Vui lÃ²ng nháº­p email trÆ°á»›c khi gá»­i OTP.")
   }
 
   let response
@@ -1697,7 +1453,7 @@ export const requestRegisterOtp = async (payload = {}) => {
     expiresAt,
     expiresAtMs,
     expiresInMinutes: Number.isFinite(expiresInMinutes) && expiresInMinutes > 0 ? expiresInMinutes : 5,
-    message: String(response?.message || "Đã gửi mã OTP về email.").trim(),
+    message: String(response?.message || "ÄÃ£ gá»­i mÃ£ OTP vá» email.").trim(),
   }
 }
 
@@ -1706,7 +1462,7 @@ export const verifyRegisterOtp = async (payload = {}) => {
   const otp = String(payload?.otp || payload?.otpCode || "").trim()
 
   if (!email || !otp) {
-    throw new Error("Vui lòng nhập đầy đủ email và mã OTP.")
+    throw new Error("Vui lÃ²ng nháº­p Ä‘áº§y Ä‘á»§ email vÃ  mÃ£ OTP.")
   }
 
   let response
@@ -1730,7 +1486,7 @@ export const verifyRegisterOtp = async (payload = {}) => {
 
   return {
     verified: true,
-    message: String(response?.message || "OTP đã được xác nhận.").trim(),
+    message: String(response?.message || "OTP Ä‘Ã£ Ä‘Æ°á»£c xÃ¡c nháº­n.").trim(),
   }
 }
 
@@ -2010,7 +1766,7 @@ export const getTimeSlots = async () => {
   }
 
   if (!response) {
-    throw lastError || new Error("Không thể tải danh sách khung giờ.")
+    throw lastError || new Error("KhÃ´ng thá»ƒ táº£i danh sÃ¡ch khung giá».")
   }
 
   return {
@@ -2073,13 +1829,6 @@ const DEFAULT_ADMIN_TIME_SLOT_SEED = Object.freeze({
   endMinutes: 23 * 60 + 30,
   stepMinutes: 30,
 })
-
-const normalizeApiMessageKey = (value) =>
-  String(value || "")
-    .trim()
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
 
 const minutesToSeedTime = (totalMinutes) => {
   const hours = Math.floor(Number(totalMinutes || 0) / 60)
@@ -2156,18 +1905,6 @@ export const bootstrapAdminTimeSlots = async (
       existingIdentities.add(identity)
       createdCount += 1
     } catch (apiError) {
-      const normalizedMessage = normalizeApiMessageKey(apiError?.message)
-
-      if (
-        normalizedMessage.includes("timeslot da ton tai")
-        || normalizedMessage.includes("time slot da ton tai")
-        || normalizedMessage.includes("already exists")
-      ) {
-        existingIdentities.add(identity)
-        skippedCount += 1
-        continue
-      }
-
       throw apiError
     }
   }
@@ -2180,8 +1917,8 @@ export const bootstrapAdminTimeSlots = async (
     totalCount,
     message:
       createdCount > 0
-        ? `Đã khởi tạo ${createdCount}/${totalCount} khung giờ mẫu 30 phút cho backend.`
-        : `Backend đã có sẵn ${Math.max(existingIdentities.size, skippedCount)} khung giờ mẫu.`,
+        ? `ÄÃ£ khá»Ÿi táº¡o ${createdCount}/${totalCount} khung giá» máº«u 30 phÃºt cho backend.`
+        : `Backend Ä‘Ã£ cÃ³ sáºµn ${Math.max(existingIdentities.size, skippedCount)} khung giá» máº«u.`,
   }
 }
 
@@ -2218,7 +1955,7 @@ const attachSubFieldsToField = async (field, token = "") => {
 
   try {
     const { subFields } = await getSubFieldsByField(normalizedField.id, token)
-    return mergeStoredFieldSnapshot({
+    return normalizeFieldItem({
       ...normalizedField,
       subFields,
     })
@@ -2243,81 +1980,12 @@ const attachSubFieldsToFields = async (fields = [], token = "") => {
     .filter(Boolean)
 }
 
-const getFieldByConfiguredIds = async (fieldIds = [], token = "") => {
-  const nextFieldIds = buildUniqueStringList(fieldIds)
-  const results = await Promise.allSettled(nextFieldIds.map((fieldId) => getFieldById(fieldId, token)))
-  const fields = results
-    .filter((result) => result.status === "fulfilled")
-    .map((result) => result.value?.field || result.value)
-    .filter(Boolean)
-  const resolvedFieldIds = new Set(
-    fields
-      .map((field) => String(field?.id || "").trim())
-      .filter(Boolean)
-  )
-  const snapshotFields = nextFieldIds
-    .filter((fieldId) => !resolvedFieldIds.has(String(fieldId || "").trim()))
-    .map((fieldId) => mergeStoredFieldSnapshot(getStoredFieldSnapshots()[String(fieldId || "").trim()]))
-    .filter(Boolean)
-  const mergedFields = [...fields, ...snapshotFields]
-
-  rememberKnownFieldIds(mergedFields.map((field) => field?.id))
-
-  return mergedFields
-}
-
 export const getFields = async (token = "") => {
-  const knownFieldIds = buildUniqueStringList([...CONFIGURED_FIELD_IDS, ...getStoredKnownFieldIds()])
-  const storedSnapshotFields = getStoredFieldSnapshotList()
-
-  if (CONFIGURED_FIELD_IDS.length > 0) {
-    return {
-      fields: await getFieldByConfiguredIds(CONFIGURED_FIELD_IDS, token),
-    }
-  }
-
-  let response = {}
-  let lastError = null
-
-  try {
-    response = await requestWithTransientRetry(
-      "/field/getAllField",
-      token ? { headers: createTokenHeaders(token) } : {},
-      RENDER_LONG_READ_RETRY_CONFIG
-    )
-  } catch (error) {
-    lastError = error
-  }
-
-  if (lastError) {
-    if (knownFieldIds.length > 0) {
-      const rememberedFields = await getFieldByConfiguredIds(knownFieldIds, token)
-
-      if (rememberedFields.length > 0) {
-        return {
-          fields: rememberedFields,
-          message:
-            "Backend hiện tại không có API danh sách sân. Frontend đang hiển thị các sân đã ghi nhớ từ trước.",
-        }
-      }
-    }
-
-    if (storedSnapshotFields.length > 0) {
-      const hydratedSnapshotFields = await attachSubFieldsToFields(storedSnapshotFields, token)
-      rememberKnownFieldIds(hydratedSnapshotFields.map((field) => field?.id))
-      return {
-        fields: hydratedSnapshotFields,
-        message:
-          "Backend hiện tại lỗi API danh sách sân. Frontend đang hiển thị lại các sân đã lưu cục bộ.",
-      }
-    }
-
-    return {
-      fields: [],
-      message:
-        "Backend hiện tại không có API danh sách sân. Sau khi tạo sân ở màn này, frontend sẽ tự ghi nhớ fieldId để tải lại ở lần sau.",
-    }
-  }
+  const response = await requestWithTransientRetry(
+    "/field/getAllField",
+    token ? { headers: createTokenHeaders(token) } : {},
+    RENDER_LONG_READ_RETRY_CONFIG
+  )
 
   const fields = await attachSubFieldsToFields(
     getArrayFromResponse(response, [
@@ -2333,76 +2001,38 @@ export const getFields = async (token = "") => {
       "fields.items",
       "result",
     ])
-      .map((item) => mergeStoredFieldSnapshot(item))
+      .map((item) => normalizeFieldItem(item))
       .filter(Boolean),
     token
   )
 
-  if (fields.length === 0) {
-    clearStoredFieldCaches()
-    return {
-      fields: [],
-      message: String(response?.message || "").trim(),
-    }
-  }
-
-  rememberKnownFieldIds(fields.map((field) => field?.id))
-
   return {
     fields,
+    message: String(response?.message || "").trim(),
   }
 }
-
 export const getFieldById = async (fieldId, token = "") => {
   const encodedFieldId = encodeURIComponent(String(fieldId || "").trim())
-  let response = null
   const detailPath = token
     ? `/field/getFieldDetail/${encodedFieldId}`
     : `/field/getField/${encodedFieldId}`
 
-  try {
-    response = await requestWithTransientRetry(
-      detailPath,
-      token ? { headers: createTokenHeaders(token) } : {},
-      RENDER_SHORT_READ_RETRY_CONFIG
-    )
-  } catch (error) {
-    const storedField = mergeStoredFieldSnapshot(
-      getStoredFieldSnapshots()[String(fieldId || "").trim()]
-    )
-
-    if (storedField) {
-      const field = await attachSubFieldsToField(storedField, token)
-
-      if (field?.id) {
-        rememberKnownFieldIds(field.id)
-      }
-
-      return {
-        field,
-        message:
-          "Backend chi tiết sân đang lỗi. Frontend đang hiển thị lại dữ liệu đã lưu cục bộ.",
-      }
-    }
-
-    throw error
-  }
+  const response = await requestWithTransientRetry(
+    detailPath,
+    token ? { headers: createTokenHeaders(token) } : {},
+    RENDER_SHORT_READ_RETRY_CONFIG
+  )
 
   const baseField =
-    mergeStoredFieldSnapshot(getObjectFromResponse(response, ["field", "item", "record", "result"]))
-    || mergeStoredFieldSnapshot(unwrapResponseData(response))
+    normalizeFieldItem(getObjectFromResponse(response, ["field", "item", "record", "result"]))
+    || normalizeFieldItem(unwrapResponseData(response))
   const field = await attachSubFieldsToField(baseField, token)
-
-  if (field?.id) {
-    rememberKnownFieldIds(field.id)
-  }
 
   return {
     field,
     message: String(response?.message || "").trim(),
   }
 }
-
 export const getAdminFields = async (token) => getFields(token)
 
 export const getAdminDashboard = async (token, params = {}) => {
@@ -2526,13 +2156,13 @@ const confirmBookingPaymentByBookingId = async (token, bookingId, options = {}) 
 
   const paymentId = String(payment?.id || payment?._id || "").trim()
   if (!paymentId) {
-    throw new Error("Không tìm thấy payment hợp lệ cho booking này.")
+    throw new Error("KhÃ´ng tÃ¬m tháº¥y payment há»£p lá»‡ cho booking nÃ y.")
   }
 
   const response = await confirmPayment(token, paymentId)
   return {
     ...response,
-    message: String(response?.message || "").trim() || "Đã xác nhận thanh toán thành công.",
+    message: String(response?.message || "").trim() || "ÄÃ£ xÃ¡c nháº­n thanh toÃ¡n thÃ nh cÃ´ng.",
   }
 }
 
@@ -2551,7 +2181,7 @@ export const confirmAdminBookingPayment = async (token, bookingId, amount = null
 
 export const uploadAdminImage = async (token, file) => {
   if (!file) {
-    throw new Error("Vui lòng chọn tệp ảnh.")
+    throw new Error("Vui lÃ²ng chá»n tá»‡p áº£nh.")
   }
 
   const formData = new FormData()
@@ -2569,7 +2199,7 @@ export const uploadAdminImage = async (token, file) => {
   ).trim())
 
   if (!imageUrl) {
-    throw new Error("Không nhận được URL ảnh từ backend.")
+    throw new Error("KhÃ´ng nháº­n Ä‘Æ°á»£c URL áº£nh tá»« backend.")
   }
 
   return {
@@ -2578,118 +2208,8 @@ export const uploadAdminImage = async (token, file) => {
       path: imageUrl,
       name: String(file.name || "").trim(),
     },
-    message: "Đã đọc ảnh từ thiết bị của bạn.",
+    message: "ÄÃ£ Ä‘á»c áº£nh tá»« thiáº¿t bá»‹ cá»§a báº¡n.",
   }
-}
-
-export const createAdminSubField = async (token, payload) => {
-  const response = await request("/subField/createSubField", {
-    method: "POST",
-    headers: createTokenHeaders(token),
-    body: JSON.stringify(payload),
-  })
-
-  return {
-    subField:
-      normalizeSubFieldItem(getObjectFromResponse(response, ["subField", "item"]))
-      || normalizeSubFieldItem(unwrapResponseData(response)),
-    message: String(response?.message || "").trim(),
-  }
-}
-
-export const updateAdminSubField = async (token, subFieldId, payload) => {
-  const response = await request(`/subField/updateSubField/${encodeURIComponent(String(subFieldId || "").trim())}`, {
-    method: "POST",
-    headers: createTokenHeaders(token),
-    body: JSON.stringify(payload),
-  })
-
-  return {
-    subField:
-      normalizeSubFieldItem(getObjectFromResponse(response, ["subField", "item"]))
-      || normalizeSubFieldItem(unwrapResponseData(response)),
-    message: String(response?.message || "").trim(),
-  }
-}
-
-export const deleteAdminSubField = async (token, subFieldId) =>
-  request(`/subField/deleteSubField/${encodeURIComponent(String(subFieldId || "").trim())}`, {
-    method: "POST",
-    headers: createTokenHeaders(token),
-  })
-
-const syncAdminFieldSubFields = async (token, fieldId, payload = {}, currentSubFields = []) => {
-  const desiredSubFields = (Array.isArray(payload?.subFields) ? payload.subFields : [])
-    .map((subField, index) => ({
-      id: String(subField?.id || "").trim(),
-      ...buildSubFieldMutationPayload(
-        {
-          ...subField,
-          key: subField?.key || `san-${index + 1}`,
-        },
-        payload?.openHours
-      ),
-    }))
-    .filter((subField) => subField.key && subField.name && subField.type)
-
-  const existingSubFields = (Array.isArray(currentSubFields) ? currentSubFields : [])
-    .map((subField, index) => normalizeSubFieldItem(subField, index))
-    .filter(Boolean)
-
-  const existingById = new Map(
-    existingSubFields
-      .filter((subField) => subField?.id)
-      .map((subField) => [String(subField.id), subField])
-  )
-  const existingByKey = new Map(
-    existingSubFields
-      .filter((subField) => subField?.key)
-      .map((subField) => [String(subField.key), subField])
-  )
-
-  const retainedIds = new Set()
-
-  for (const subField of desiredSubFields) {
-    const matchedSubField =
-      (subField.id && existingById.get(String(subField.id)))
-      || existingByKey.get(String(subField.key))
-
-    if (matchedSubField?.id) {
-      retainedIds.add(String(matchedSubField.id))
-      await updateAdminSubField(token, matchedSubField.id, {
-        key: subField.key,
-        name: subField.name,
-        type: subField.type,
-        pricePerHour: subField.pricePerHour,
-        openHours: subField.openHours,
-      })
-      continue
-    }
-
-    const createdSubField = await createAdminSubField(token, {
-      fieldId: String(fieldId || "").trim(),
-      key: subField.key,
-      name: subField.name,
-      type: subField.type,
-      pricePerHour: subField.pricePerHour,
-      openHours: subField.openHours,
-    })
-
-    if (createdSubField?.subField?.id) {
-      retainedIds.add(String(createdSubField.subField.id))
-    }
-  }
-
-  const removableSubFields = existingSubFields.filter((subField) => {
-    const normalizedId = String(subField?.id || "").trim()
-    return normalizedId && !retainedIds.has(normalizedId)
-  })
-
-  for (const subField of removableSubFields) {
-    await deleteAdminSubField(token, subField.id)
-  }
-
-  return getSubFieldsByField(fieldId, token)
 }
 
 export const createAdminField = async (token, payload) => {
@@ -2714,40 +2234,15 @@ export const createAdminField = async (token, payload) => {
     mergeFieldSources(responseField?.field || responseField, payload)
     || mergeFieldSources(payload, {})
 
-  if (resolvedFieldId) {
-    rememberKnownFieldIds(resolvedFieldId)
-  }
-
-  if (resolvedFieldId) {
-    rememberFieldSnapshot(
-      { ...baseField, id: resolvedFieldId, _id: resolvedFieldId, fieldId: resolvedFieldId }
-    )
-  }
-
   let hydratedField = baseField
-
-  if (resolvedFieldId) {
-    try {
-      await syncAdminFieldSubFields(token, resolvedFieldId, payload, [])
-    } catch (_error) {
-      // Field itself may already be created successfully even if syncing subfields fails.
-    }
-  }
 
   if (resolvedFieldId) {
     try {
       const { field } = await getFieldById(resolvedFieldId, token)
       hydratedField = field || hydratedField
     } catch (_error) {
-      hydratedField = mergeStoredFieldSnapshot(hydratedField)
+      hydratedField = baseField
     }
-  }
-
-  if (hydratedField?.id || resolvedFieldId) {
-    rememberKnownFieldIds(hydratedField?.id || resolvedFieldId)
-    rememberFieldSnapshot(
-      hydratedField || { ...payload, id: resolvedFieldId, _id: resolvedFieldId, fieldId: resolvedFieldId }
-    )
   }
 
   return {
@@ -2764,20 +2259,6 @@ export const updateAdminField = async (token, fieldId, payload) => {
   })
 
   const normalizedFieldId = String(fieldId || "").trim()
-  let currentSubFields = []
-  try {
-    const subFieldData = await getSubFieldsByField(normalizedFieldId, token)
-    currentSubFields = Array.isArray(subFieldData?.subFields) ? subFieldData.subFields : []
-  } catch (_error) {
-    currentSubFields = []
-  }
-
-  try {
-    await syncAdminFieldSubFields(token, normalizedFieldId, payload, currentSubFields)
-  } catch (_error) {
-    // Preserve the field update success even if syncing subfields fails afterward.
-  }
-
   const baseField =
     mergeFieldSources(getObjectFromResponse(response, ["field", "item"]), {
       ...payload,
@@ -2807,13 +2288,8 @@ export const updateAdminField = async (token, fieldId, payload) => {
       const { field } = await getFieldById(normalizedFieldId, token)
       hydratedField = field || hydratedField
     } catch (_error) {
-      hydratedField = mergeStoredFieldSnapshot(hydratedField)
+      hydratedField = baseField
     }
-  }
-
-  if (hydratedField?.id || fieldId) {
-    rememberKnownFieldIds(hydratedField?.id || fieldId)
-    rememberFieldSnapshot(hydratedField || { ...payload, id: fieldId, _id: fieldId, fieldId })
   }
 
   return {
@@ -2826,10 +2302,6 @@ export const deleteAdminField = async (token, fieldId) =>
   request(`/field/deleteField/${encodeURIComponent(fieldId)}`, {
     method: "POST",
     headers: createTokenHeaders(token),
-  }).then((response) => {
-    forgetKnownFieldId(fieldId)
-    forgetStoredFieldSnapshot(fieldId)
-    return response
   })
 
 export const approveAdminField = async (token, fieldId) =>
@@ -3259,7 +2731,7 @@ export const confirmStaticDeposit = async (token, bookingId) => {
 
   return {
     ...info,
-    message: response.message || "Đã tạo yêu cầu thanh toán.",
+    message: response.message || "ÄÃ£ táº¡o yÃªu cáº§u thanh toÃ¡n.",
   }
 }
 

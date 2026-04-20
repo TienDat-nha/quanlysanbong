@@ -14,7 +14,6 @@ const BookingController = ({ authToken, currentUser }) => {
     selectedSubField,
     selectedTimeSlotIds,
     hasSelectedSlot,
-    bookingIdWarning,
     loadingFields,
     loadingAvailability,
     loadingBookings,
@@ -53,7 +52,6 @@ const BookingController = ({ authToken, currentUser }) => {
       selectedSubField={selectedSubField}
       selectedTimeSlotIds={selectedTimeSlotIds}
       hasSelectedSlot={hasSelectedSlot}
-      bookingIdWarning={bookingIdWarning}
       loadingFields={loadingFields}
       loadingAvailability={loadingAvailability}
       loadingBookings={loadingBookings}
