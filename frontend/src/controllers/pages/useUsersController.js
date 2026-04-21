@@ -78,8 +78,6 @@ export const useUsersController = ({ authToken, currentUser }) => {
   const [formErrors, setFormErrors] = useState(createManagedUserFormErrors)
   const [submitting, setSubmitting] = useState(false)
   const [deletingUserId, setDeletingUserId] = useState(null)
-  const [statusActionUserId, setStatusActionUserId] = useState("")
-  const [statusActionMode, setStatusActionMode] = useState("")
   const [otpState, setOtpState] = useState(createInitialOtpState)
   const [otpActionMode, setOtpActionMode] = useState("")
   const [now, setNow] = useState(Date.now())
@@ -89,11 +87,13 @@ export const useUsersController = ({ authToken, currentUser }) => {
   const canManageUsers = Boolean(authToken) && isAdminUser(currentUser)
   const summary = useMemo(() => getUserSummary(users), [users])
 
-  const secondsUntilResend = Math.max(0, Math.ceil((otpState.resendAvailableAt - now) / 1000))
+  const secondsUntilResend = otpState.codeHash
+    ? Math.max(0, Math.ceil((otpState.resendAvailableAt - now) / 1000))
+    : 0
   const secondsUntilExpiry = otpState.codeHash
     ? Math.max(0, Math.ceil((otpState.expiresAt - now) / 1000))
     : 0
-  const canResendOtp = secondsUntilResend <= 0
+  const canResendOtp = !otpState.codeHash || secondsUntilResend <= 0
   const otpExpired = Boolean(otpState.codeHash) && secondsUntilExpiry <= 0 && !otpState.verified
   const otpSummary = useMemo(
     () => ({
@@ -414,19 +414,6 @@ export const useUsersController = ({ authToken, currentUser }) => {
     setError("")
     setSuccessMessage("")
 
-    if (!canResendOtp) {
-      const message = `Vui long cho ${Math.max(secondsUntilResend, 1)} giay truoc khi gui lai OTP.`
-      setOtpState((prev) => ({
-        ...prev,
-        feedback: {
-          type: "warning",
-          text: message,
-        },
-      }))
-      setError(message)
-      return
-    }
-
     const validationResult = validateOtpRequestWithFields()
     setFormErrors(validationResult.fieldErrors)
 
@@ -444,7 +431,6 @@ export const useUsersController = ({ authToken, currentUser }) => {
       })
       const sentAt = Date.now()
       const expiresAtFromApi = Number(otpResponse?.expiresAtMs || 0)
-      const resendAvailableAtFromApi = Number(otpResponse?.resendAvailableAtMs || 0)
       const expiresInMinutes = Number(otpResponse?.expiresInMinutes || 0)
       const fallbackExpiresAt =
         sentAt + Math.max(expiresInMinutes > 0 ? expiresInMinutes * 60 * 1000 : OTP_EXPIRE_SECONDS * 1000, 1000)
@@ -454,10 +440,7 @@ export const useUsersController = ({ authToken, currentUser }) => {
         verified: false,
         sentAt,
         expiresAt: expiresAtFromApi > sentAt ? expiresAtFromApi : fallbackExpiresAt,
-        resendAvailableAt:
-          resendAvailableAtFromApi > sentAt
-            ? resendAvailableAtFromApi
-            : sentAt + OTP_RESEND_SECONDS * 1000,
+        resendAvailableAt: sentAt + OTP_RESEND_SECONDS * 1000,
         targetEmail: String(otpResponse?.email || formValues.email || "").trim().toLowerCase(),
         feedback: {
           type: "success",
@@ -478,22 +461,6 @@ export const useUsersController = ({ authToken, currentUser }) => {
           text: message,
         },
       }))
-      if (Number(apiError?.retryAfterSeconds || 0) > 0) {
-        const retryLockedUntil = Date.now() + Number(apiError.retryAfterSeconds) * 1000
-        setOtpState((prev) => ({
-          ...prev,
-          codeHash: prev.codeHash || "issued",
-          expiresAt:
-            prev.expiresAt > Date.now() ? prev.expiresAt : Date.now() + OTP_EXPIRE_SECONDS * 1000,
-          resendAvailableAt:
-            retryLockedUntil > prev.resendAvailableAt ? retryLockedUntil : prev.resendAvailableAt,
-          targetEmail: prev.targetEmail || String(formValues.email || "").trim().toLowerCase(),
-          feedback: {
-            type: "warning",
-            text: message,
-          },
-        }))
-      }
       setError(message)
     } finally {
       setOtpActionMode("")
@@ -643,15 +610,18 @@ export const useUsersController = ({ authToken, currentUser }) => {
 
 
     try {
-      const payload = {
-        ...formValues,
-        role: getApiRoleValue(formValues.role),
-      }
-
       if (editingUserId) {
-        await updatePublicUser(authToken, editingUserId, payload)
+        await updatePublicUser(authToken, editingUserId, {
+          name: formValues.name,
+          phone: formValues.phone,
+        })
         setSuccessMessage("Cập nhật tài khoản thành công.")
       } else {
+        const payload = {
+          ...formValues,
+          role: getApiRoleValue(formValues.role),
+        }
+
         await createPublicUser(authToken, payload)
         setSuccessMessage(`Đã tạo ${getManagedUserRoleLabel(payload.role).toLowerCase()} mới.`)
       }
@@ -730,66 +700,7 @@ export const useUsersController = ({ authToken, currentUser }) => {
     } finally {
       setDeletingUserId(null)
     }
-  }
-
-  const handleToggleUserStatus = async (user) => {
-    if (!canManageUsers) {
-      setError("Chỉ tài khoản admin mới được khóa hoặc mở khóa tài khoản.")
-      return
-    }
-
-    if (isCurrentAdminAccount(user)) {
-      setError("Không thể khóa tài khoản admin đang đăng nhập.")
-      return
-    }
-
-    const nextLocked = !user.isLocked
-    const shouldContinue = window.confirm(
-      nextLocked
-        ? `Khóa tài khoản ${user.name}?`
-        : `Mở khóa tài khoản ${user.name}?`
-    )
-
-    if (!shouldContinue) {
-      return
-    }
-
-    setStatusActionUserId(user.id)
-    setStatusActionMode(nextLocked ? "lock" : "unlock")
-    setError("")
-    setSuccessMessage("")
-
-    try {
-      await updatePublicUser(authToken, user.id, {
-        name: user.name,
-        email: user.email,
-        phone: user.phone,
-        role: getApiRoleValue(user.role, user.email),
-        isDeleted: nextLocked,
-        isActive: !nextLocked,
-        locked: nextLocked,
-        isLocked: nextLocked,
-        status: nextLocked ? "LOCKED" : "ACTIVE",
-      })
-
-      const nextUsers = await refreshUsers()
-      const refreshedUser = nextUsers.find((item) => item.id === user.id)
-
-      if (refreshedUser && refreshedUser.isLocked !== nextLocked) {
-        setError("Backend chưa phản ánh trạng thái khóa/mở khóa mới của tài khoản này.")
-        return
-      }
-
-      setSuccessMessage(nextLocked ? "Đã khóa tài khoản." : "Đã mở khóa tài khoản.")
-    } catch (apiError) {
-      setError(apiError.message)
-    } finally {
-      setStatusActionUserId("")
-      setStatusActionMode("")
-    }
-  }
-
-  return {
+  }  return {
     users,
     loading,
     error,
@@ -797,10 +708,7 @@ export const useUsersController = ({ authToken, currentUser }) => {
     formValues,
     formErrors,
     submitting,
-    deletingUserId,
-    statusActionUserId,
-    statusActionMode,
-    otpEnabled,
+    deletingUserId,    otpEnabled,
     otpSetupMessage,
     otpState,
     otpSummary,
@@ -821,9 +729,7 @@ export const useUsersController = ({ authToken, currentUser }) => {
     onSubmit: handleSubmit,
     onEditUser: handleEditUser,
     onCancelEdit: handleCancelEdit,
-    onDeleteUser: handleDeleteUser,
-    onToggleUserStatus: handleToggleUserStatus,
-    onRefresh: refreshUsers,
+    onDeleteUser: handleDeleteUser,    onRefresh: refreshUsers,
   }
 }
 
