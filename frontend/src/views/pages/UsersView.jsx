@@ -88,8 +88,6 @@ const UsersView = ({
   formErrors,
   submitting,
   deletingUserId,
-  statusActionUserId,
-  statusActionMode,
   otpEnabled,
   otpSetupMessage,
   otpState,
@@ -112,7 +110,6 @@ const UsersView = ({
   onEditUser,
   onCancelEdit,
   onDeleteUser,
-  onToggleUserStatus,
   onRefresh,
 }) => {
   const otpFeedbackClass =
@@ -246,7 +243,7 @@ const UsersView = ({
               placeholder="email@domain.com"
               value={formValues.email}
               onChange={onInputChange}
-              disabled={submitting}
+              disabled={submitting || isEditing}
             />
             <ErrorText text={formErrors?.email} />
 
@@ -273,7 +270,7 @@ const UsersView = ({
               placeholder={isEditing ? "Bỏ trống nếu không đổi" : "Nhập mật khẩu"}
               value={formValues.password}
               onChange={onInputChange}
-              disabled={submitting}
+              disabled={submitting || isEditing}
             />
             <ErrorText text={formErrors?.password} />
 
@@ -465,7 +462,6 @@ const UsersView = ({
                           || String(user.email || "").trim().toLowerCase()
                             === String(currentUser?.email || "").trim().toLowerCase()
                         const isDeleting = deletingUserId === user.id
-                        const isStatusLoading = statusActionUserId === user.id
 
                         return (
                           <tr key={user.id}>
@@ -493,31 +489,16 @@ const UsersView = ({
                                   className="outlineBtnInline"
                                   type="button"
                                   onClick={() => onEditUser(user)}
-                                  disabled={submitting || isDeleting || isStatusLoading || isPrimaryAdmin}
+                                  disabled={submitting || isDeleting || isPrimaryAdmin}
                                 >
                                   <FiEdit3 aria-hidden="true" />
                                   Sửa
                                 </button>
                                 <button
-                                  className="outlineBtnInline"
-                                  type="button"
-                                  onClick={() => onToggleUserStatus(user)}
-                                  disabled={submitting || isDeleting || isStatusLoading || isSelf || isPrimaryAdmin}
-                                >
-                                  <FiLock aria-hidden="true" />
-                                  {isStatusLoading
-                                    ? statusActionMode === "unlock"
-                                      ? "Đang mở..."
-                                      : "Đang khóa..."
-                                    : user.isLocked
-                                      ? "Mở khóa"
-                                      : "Khóa"}
-                                </button>
-                                <button
                                   className="outlineBtnInline usersDeleteBtn"
                                   type="button"
                                   onClick={() => onDeleteUser(user)}
-                                  disabled={submitting || isDeleting || isStatusLoading || isSelf || isPrimaryAdmin}
+                                  disabled={submitting || isDeleting || isSelf || isPrimaryAdmin}
                                 >
                                   <FiTrash2 aria-hidden="true" />
                                   {isDeleting ? "Đang xóa..." : "Xóa"}

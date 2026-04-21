@@ -78,8 +78,6 @@ export const useUsersController = ({ authToken, currentUser }) => {
   const [formErrors, setFormErrors] = useState(createManagedUserFormErrors)
   const [submitting, setSubmitting] = useState(false)
   const [deletingUserId, setDeletingUserId] = useState(null)
-  const [statusActionUserId, setStatusActionUserId] = useState("")
-  const [statusActionMode, setStatusActionMode] = useState("")
   const [otpState, setOtpState] = useState(createInitialOtpState)
   const [otpActionMode, setOtpActionMode] = useState("")
   const [now, setNow] = useState(Date.now())
@@ -612,15 +610,18 @@ export const useUsersController = ({ authToken, currentUser }) => {
 
 
     try {
-      const payload = {
-        ...formValues,
-        role: getApiRoleValue(formValues.role),
-      }
-
       if (editingUserId) {
-        await updatePublicUser(authToken, editingUserId, payload)
+        await updatePublicUser(authToken, editingUserId, {
+          name: formValues.name,
+          phone: formValues.phone,
+        })
         setSuccessMessage("Cập nhật tài khoản thành công.")
       } else {
+        const payload = {
+          ...formValues,
+          role: getApiRoleValue(formValues.role),
+        }
+
         await createPublicUser(authToken, payload)
         setSuccessMessage(`Đã tạo ${getManagedUserRoleLabel(payload.role).toLowerCase()} mới.`)
       }
@@ -699,66 +700,7 @@ export const useUsersController = ({ authToken, currentUser }) => {
     } finally {
       setDeletingUserId(null)
     }
-  }
-
-  const handleToggleUserStatus = async (user) => {
-    if (!canManageUsers) {
-      setError("Chỉ tài khoản admin mới được khóa hoặc mở khóa tài khoản.")
-      return
-    }
-
-    if (isCurrentAdminAccount(user)) {
-      setError("Không thể khóa tài khoản admin đang đăng nhập.")
-      return
-    }
-
-    const nextLocked = !user.isLocked
-    const shouldContinue = window.confirm(
-      nextLocked
-        ? `Khóa tài khoản ${user.name}?`
-        : `Mở khóa tài khoản ${user.name}?`
-    )
-
-    if (!shouldContinue) {
-      return
-    }
-
-    setStatusActionUserId(user.id)
-    setStatusActionMode(nextLocked ? "lock" : "unlock")
-    setError("")
-    setSuccessMessage("")
-
-    try {
-      await updatePublicUser(authToken, user.id, {
-        name: user.name,
-        email: user.email,
-        phone: user.phone,
-        role: getApiRoleValue(user.role, user.email),
-        isDeleted: nextLocked,
-        isActive: !nextLocked,
-        locked: nextLocked,
-        isLocked: nextLocked,
-        status: nextLocked ? "LOCKED" : "ACTIVE",
-      })
-
-      const nextUsers = await refreshUsers()
-      const refreshedUser = nextUsers.find((item) => item.id === user.id)
-
-      if (refreshedUser && refreshedUser.isLocked !== nextLocked) {
-        setError("Backend chưa phản ánh trạng thái khóa/mở khóa mới của tài khoản này.")
-        return
-      }
-
-      setSuccessMessage(nextLocked ? "Đã khóa tài khoản." : "Đã mở khóa tài khoản.")
-    } catch (apiError) {
-      setError(apiError.message)
-    } finally {
-      setStatusActionUserId("")
-      setStatusActionMode("")
-    }
-  }
-
-  return {
+  }  return {
     users,
     loading,
     error,
@@ -766,10 +708,7 @@ export const useUsersController = ({ authToken, currentUser }) => {
     formValues,
     formErrors,
     submitting,
-    deletingUserId,
-    statusActionUserId,
-    statusActionMode,
-    otpEnabled,
+    deletingUserId,    otpEnabled,
     otpSetupMessage,
     otpState,
     otpSummary,
@@ -790,9 +729,7 @@ export const useUsersController = ({ authToken, currentUser }) => {
     onSubmit: handleSubmit,
     onEditUser: handleEditUser,
     onCancelEdit: handleCancelEdit,
-    onDeleteUser: handleDeleteUser,
-    onToggleUserStatus: handleToggleUserStatus,
-    onRefresh: refreshUsers,
+    onDeleteUser: handleDeleteUser,    onRefresh: refreshUsers,
   }
 }
 
