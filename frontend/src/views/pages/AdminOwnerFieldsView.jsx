@@ -15,26 +15,26 @@ import "./AdminOwnerFieldsView.scss"
 
 const APPROVAL_STATUS_META = Object.freeze({
   PENDING: {
-    label: "Chá» duyá»‡t",
-    badgeLabel: "Chá» duyá»‡t",
+    label: "Chờ duyệt",
+    badgeLabel: "Chờ duyệt",
     tone: "pending",
     icon: <FiClock />,
   },
   APPROVED: {
-    label: "ÄÃ£ duyá»‡t",
-    badgeLabel: "ÄÃ£ duyá»‡t",
+    label: "Đã duyệt",
+    badgeLabel: "Đã duyệt",
     tone: "approved",
     icon: <FiCheckCircle />,
   },
   LOCKED: {
-    label: "ÄÃ£ khÃ³a",
-    badgeLabel: "ÄÃ£ khÃ³a",
+    label: "Đã khóa",
+    badgeLabel: "Đã khóa",
     tone: "locked",
     icon: <FiLock />,
   },
   REJECTED: {
-    label: "Tá»« chá»‘i",
-    badgeLabel: "Tá»« chá»‘i",
+    label: "Từ chối",
+    badgeLabel: "Từ chối",
     tone: "rejected",
     icon: <FiSlash />,
   },
@@ -87,34 +87,34 @@ const getFieldType = (field) => {
   }
 
   const firstSubFieldType = String(field?.subFields?.[0]?.type || "").trim()
-  return firstSubFieldType || "ChÆ°a cáº­p nháº­t"
+  return firstSubFieldType || "Chưa cập nhật"
 }
 
 const getSummaryCards = (fields = []) => [
   {
     key: "total",
-    label: "Äang hiá»ƒn thá»‹",
+    label: "Đang hiển thị",
     value: fields.length,
     tone: "neutral",
     icon: <FiFileText />,
   },
   {
     key: "pending",
-    label: "Chá» duyá»‡t",
+    label: "Chờ duyệt",
     value: fields.filter((field) => getApprovalStatusKey(field) === "PENDING").length,
     tone: "pending",
     icon: <FiClock />,
   },
   {
     key: "approved",
-    label: "ÄÃ£ duyá»‡t",
+    label: "Đã duyệt",
     value: fields.filter((field) => getApprovalStatusKey(field) === "APPROVED").length,
     tone: "approved",
     icon: <FiCheckCircle />,
   },
   {
     key: "locked",
-    label: "ÄÃ£ khÃ³a",
+    label: "Đã khóa",
     value: fields.filter((field) => getApprovalStatusKey(field) === "LOCKED").length,
     tone: "locked",
     icon: <FiLock />,
@@ -137,15 +137,15 @@ const AdminOwnerFieldsView = ({
   const [failedImages, setFailedImages] = useState({})
 
   const approvalStatuses = [
-    { value: "ALL", label: "Táº¥t cáº£" },
-    { value: "PENDING", label: "Chá» duyá»‡t" },
-    { value: "APPROVED", label: "ÄÃ£ duyá»‡t" },
-    { value: "LOCKED", label: "ÄÃ£ khÃ³a" },
-    { value: "REJECTED", label: "Bá»‹ tá»« chá»‘i" },
+    { value: "ALL", label: "Tất cả" },
+    { value: "PENDING", label: "Chờ duyệt" },
+    { value: "APPROVED", label: "Đã duyệt" },
+    { value: "LOCKED", label: "Đã khóa" },
+    { value: "REJECTED", label: "Bị từ chối" },
   ]
 
   const selectedFilterLabel =
-    approvalStatuses.find((status) => status.value === filterApprovalStatus)?.label || "Táº¥t cáº£"
+    approvalStatuses.find((status) => status.value === filterApprovalStatus)?.label || "Tất cả"
 
   const summaryCards = useMemo(() => getSummaryCards(fields), [fields])
 
@@ -180,21 +180,21 @@ const AdminOwnerFieldsView = ({
     <section className="admin-owner-fields-container">
       <header className="admin-owner-fields-hero">
         <div className="admin-owner-fields-copy">
-          <span className="admin-owner-fields-kicker">Khu kiá»ƒm duyá»‡t sÃ¢n</span>
-          <h1>Quáº£n lÃ½ sÃ¢n cá»§a chá»§ sÃ¢n</h1>
+          <span className="admin-owner-fields-kicker">Khu kiểm duyệt sân</span>
+          <h1>Quản lý sân chủ sân</h1>
           <p>
-            Theo dÃµi tráº¡ng thÃ¡i phÃª duyá»‡t, rÃ  soÃ¡t há»“ sÆ¡ sÃ¢n vÃ  xá»­ lÃ½ nhanh thao tÃ¡c xÃ³a sÃ¢n
-            khi cáº§n.
+            Theo dõi trạng thái phê duyệt, rà soát hồ sơ sân và xử lý nhanh thao tác xóa sân
+            khi cần.
           </p>
         </div>
 
         <div className="admin-owner-fields-filterCard">
           <span className="filterCardLabel">
             <FiFilter aria-hidden="true" />
-            Bá»™ lá»c Ä‘ang Ã¡p dá»¥ng
+            Bộ lọc đang áp dụng
           </span>
           <label className="filterField" htmlFor="owner-field-approval-filter">
-            <span>Tráº¡ng thÃ¡i</span>
+            <span>Trạng thái</span>
             <select
               id="owner-field-approval-filter"
               value={filterApprovalStatus}
@@ -235,17 +235,17 @@ const AdminOwnerFieldsView = ({
       {loading ? (
         <div className="loading-state">
           <div className="spinner" />
-          <p>Äang táº£i danh sÃ¡ch sÃ¢n...</p>
+          <p>Đang tải danh sách sân...</p>
         </div>
       ) : fields.length === 0 ? (
         <div className="empty-state">
           <span className="empty-state-icon" aria-hidden="true">
             <FiFileText />
           </span>
-          <h2>KhÃ´ng cÃ³ sÃ¢n phÃ¹ há»£p</h2>
+          <h2>Không có sân phù hợp</h2>
           <p>
-            KhÃ´ng tÃ¬m tháº¥y sÃ¢n nÃ o theo bá»™ lá»c â€œ{selectedFilterLabel}â€. HÃ£y Ä‘á»•i bá»™ lá»c
-            hoáº·c chá» chá»§ sÃ¢n gá»­i há»“ sÆ¡ má»›i.
+            Không tìm thấy sân nào theo bộ lọc “{selectedFilterLabel}”. Hãy đổi bộ lọc
+            hoặc chờ chủ sân gửi hồ sơ mới.
           </p>
         </div>
       ) : (
@@ -264,13 +264,13 @@ const AdminOwnerFieldsView = ({
                   {canRenderImage ? (
                     <img
                       src={field.coverImage}
-                      alt={field?.name || "SÃ¢n bÃ³ng"}
+                      alt={field?.name || "Sân bóng"}
                       onError={() => markImageAsFailed(field)}
                     />
                   ) : (
                     <div className="field-card-placeholder">
                       <FiImage aria-hidden="true" />
-                      <span>ChÆ°a cÃ³ áº£nh sÃ¢n</span>
+                      <span>Chưa có ảnh sân</span>
                     </div>
                   )}
 
@@ -286,45 +286,45 @@ const AdminOwnerFieldsView = ({
                   <div className="field-card-owner">
                     <span className="owner-chip">
                       <FiUser aria-hidden="true" />
-                      {field?.ownerEmail || "ChÆ°a cÃ³ email chá»§ sÃ¢n"}
+                      {field?.ownerEmail || "Chưa có email chủ sân"}
                     </span>
                   </div>
 
                   <div className="field-card-heading">
-                    <h2>{field?.name || "ChÆ°a Ä‘áº·t tÃªn sÃ¢n"}</h2>
+                    <h2>{field?.name || "Chưa đặt tên sân"}</h2>
                     <p>
                       <FiMapPin aria-hidden="true" />
-                      {getFieldAddress(field) || "ChÆ°a cáº­p nháº­t Ä‘á»‹a chá»‰"}
+                      {getFieldAddress(field) || "Chưa cập nhật địa chỉ"}
                     </p>
                   </div>
 
                   <div className="field-card-metrics">
                     <div className="metric-box">
-                      <span>GiÃ¡/giá»</span>
+                      <span>Giá/giờ</span>
                       <strong>{formatPrice(field?.pricePerHour || 0)}</strong>
                     </div>
                     <div className="metric-box">
-                      <span>Loáº¡i sÃ¢n</span>
+                      <span>Loại sân</span>
                       <strong>{getFieldType(field)}</strong>
                     </div>
                     <div className="metric-box">
-                      <span>SÃ¢n con</span>
+                      <span>Sân con</span>
                       <strong>{subFields.length}</strong>
                     </div>
                     <div className="metric-box">
-                      <span>Quáº­n/Khu vá»±c</span>
-                      <strong>{field?.district || "ChÆ°a cáº­p nháº­t"}</strong>
+                      <span>Quận/Khu vực</span>
+                      <strong>{field?.district || "Chưa cập nhật"}</strong>
                     </div>
                   </div>
 
                   {subFields.length > 0 && (
                     <div className="subfields-block">
-                      <span className="section-label">Danh sÃ¡ch sÃ¢n con</span>
+                      <span className="section-label">Danh sách sân con</span>
                       <div className="subfields-list">
                         {subFields.map((subField, index) => (
                           <span key={`${field?.id}-${subField?.id || index}`} className="subfield-chip">
-                            {subField?.name || `SÃ¢n ${index + 1}`}
-                            <em>{subField?.type || "ChÆ°a rÃµ loáº¡i"}</em>
+                            {subField?.name || `Sân ${index + 1}`}
+                            <em>{subField?.type || "Chưa rõ loại"}</em>
                           </span>
                         ))}
                       </div>
@@ -333,7 +333,7 @@ const AdminOwnerFieldsView = ({
 
                   {field?.article && (
                     <div className="field-description">
-                      <span className="section-label">MÃ´ táº£</span>
+                      <span className="section-label">Mô tả</span>
                       <p>{field.article}</p>
                     </div>
                   )}
@@ -348,7 +348,7 @@ const AdminOwnerFieldsView = ({
                           disabled={isProcessing}
                         >
                           <FiCheckCircle aria-hidden="true" />
-                          {isProcessing ? "Äang xá»­ lÃ½..." : "PhÃª duyá»‡t"}
+                          {isProcessing ? "Đang xử lý..." : "Phê duyệt"}
                         </button>
                         <button
                           type="button"
@@ -357,7 +357,7 @@ const AdminOwnerFieldsView = ({
                           disabled={isProcessing}
                         >
                           <FiSlash aria-hidden="true" />
-                          Tá»« chá»‘i
+                          Từ chối
                         </button>
                       </>
                     )}
@@ -370,7 +370,7 @@ const AdminOwnerFieldsView = ({
                         disabled={isProcessing}
                       >
                         <FiCheckCircle aria-hidden="true" />
-                        {isProcessing ? "Äang xá»­ lÃ½..." : "Duyá»‡t láº¡i"}
+                        {isProcessing ? "Đang xử lý..." : "Duyệt lại"}
                       </button>
                     )}
 
@@ -382,7 +382,7 @@ const AdminOwnerFieldsView = ({
                         disabled={isProcessing}
                       >
                         <FiTrash2 aria-hidden="true" />
-                        {isProcessing ? "Äang xá»­ lÃ½..." : "XÃ³a sÃ¢n"}
+                        {isProcessing ? "Đang xử lý..." : "Xóa sân"}
                       </button>
                     )}
                   </div>
@@ -396,20 +396,20 @@ const AdminOwnerFieldsView = ({
       {rejectFieldId && (
         <div className="reject-modal">
           <div className="reject-modal-content">
-            <h3>Tá»« chá»‘i yÃªu cáº§u sÃ¢n</h3>
-            <p>Ghi lÃ½ do Ä‘á»ƒ chá»§ sÃ¢n dá»… chá»‰nh láº¡i thÃ´ng tin náº¿u cáº§n.</p>
+            <h3>Từ chối yêu cầu sân</h3>
+            <p>Ghi lý do để chủ sân dễ chỉnh lại thông tin nếu cần.</p>
             <textarea
               value={rejectReason}
               onChange={(event) => setRejectReason(event.target.value)}
-              placeholder="Nháº­p lÃ½ do tá»« chá»‘i"
+              placeholder="Nhập lý do từ chối"
               rows={5}
             />
             <div className="modal-actions">
               <button type="button" className="btn-cancel" onClick={() => setRejectFieldId(null)}>
-                Há»§y
+                Hủy
               </button>
               <button type="button" className="btn-confirm" onClick={handleSubmitReject}>
-                XÃ¡c nháº­n tá»« chá»‘i
+                Xác nhận từ chối
               </button>
             </div>
           </div>
