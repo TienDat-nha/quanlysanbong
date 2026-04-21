@@ -177,7 +177,7 @@ export const useRegisterController = () => {
     Math.ceil((otpState.resendAvailableAt - now) / 1000)
   )
   const secondsUntilExpiry = Math.max(0, Math.ceil((otpState.expiresAt - now) / 1000))
-  const canResendOtp = !otpState.code || secondsUntilResend <= 0
+  const canResendOtp = secondsUntilResend <= 0
   const otpExpired = Boolean(otpState.code) && secondsUntilExpiry <= 0 && !otpState.verified
 
   useEffect(() => {
@@ -222,6 +222,19 @@ export const useRegisterController = () => {
     setError("")
     setSuccessMessage("")
 
+    if (!canResendOtp) {
+      const message = `Vui long cho ${Math.max(secondsUntilResend, 1)} giay truoc khi gui lai OTP.`
+      setOtpState((prev) => ({
+        ...prev,
+        feedback: {
+          type: "warning",
+          text: message,
+        },
+      }))
+      setError(message)
+      return
+    }
+
     const validationResult = validateRegisterFormWithFields(form)
     setFormErrors(validationResult.fieldErrors)
 
@@ -249,6 +262,7 @@ export const useRegisterController = () => {
       })
       const sentAt = Date.now()
       const expiresAtFromApi = Number(otpResponse?.expiresAtMs || 0)
+      const resendAvailableAtFromApi = Number(otpResponse?.resendAvailableAtMs || 0)
       const expiresInMinutes = Number(otpResponse?.expiresInMinutes || 0)
       const fallbackExpiresAt =
         sentAt + Math.max(
@@ -262,7 +276,10 @@ export const useRegisterController = () => {
         verified: false,
         sentAt,
         expiresAt: expiresAtFromApi > sentAt ? expiresAtFromApi : fallbackExpiresAt,
-        resendAvailableAt: sentAt + OTP_RESEND_SECONDS * 1000,
+        resendAvailableAt:
+          resendAvailableAtFromApi > sentAt
+            ? resendAvailableAtFromApi
+            : sentAt + OTP_RESEND_SECONDS * 1000,
         targetEmail: String(otpResponse?.email || normalizedTargetEmail).trim().toLowerCase(),
         feedback: {
           type: "success",
@@ -287,6 +304,22 @@ export const useRegisterController = () => {
           text: message,
         },
       }))
+      if (Number(apiError?.retryAfterSeconds || 0) > 0) {
+        const retryLockedUntil = Date.now() + Number(apiError.retryAfterSeconds) * 1000
+        setOtpState((prev) => ({
+          ...prev,
+          code: prev.code || "issued",
+          expiresAt:
+            prev.expiresAt > Date.now() ? prev.expiresAt : Date.now() + OTP_EXPIRE_SECONDS * 1000,
+          resendAvailableAt:
+            retryLockedUntil > prev.resendAvailableAt ? retryLockedUntil : prev.resendAvailableAt,
+          targetEmail: prev.targetEmail || normalizedTargetEmail,
+          feedback: {
+            type: "warning",
+            text: message,
+          },
+        }))
+      }
       setError(message)
     } finally {
       setOtpActionMode("")

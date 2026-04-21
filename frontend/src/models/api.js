@@ -849,12 +849,7 @@ const normalizeBookingItem = (booking) => {
         }
       : null
   const totalPrice = Number(booking.totalPrice || booking.price || booking.amount || 0)
-  const depositAmount = Number(
-    booking.depositAmount
-    || booking.paidAmount
-    || booking.payment?.amount
-    || 0
-  )
+  const depositAmount = Number(booking.depositAmount || 0)
   const rawRemainingAmount = booking.remainingAmount ?? booking.payment?.remainingAmount ?? null
   const remainingAmount =
     rawRemainingAmount === null
@@ -935,7 +930,8 @@ const normalizeBookingItem = (booking) => {
     paymentType,
     depositPaid: Boolean(booking.depositPaid || isPaidPaymentStatus),
     fullyPaid: Boolean(
-      booking.fullyPaidAt
+      booking.fullyPaid
+      || booking.fullyPaidAt
       || String(booking.status || booking.bookingStatus || "").trim().toUpperCase() === "COMPLETED"
       || (paymentType === "FULL" && isPaidPaymentStatus && remainingAmount !== null && remainingAmount <= 0)
     ),
@@ -1411,6 +1407,23 @@ const normalizeOtpRequestError = (
   return message || fallbackMessage
 }
 
+const createOtpRequestError = (
+  error,
+  fallbackMessage = "Khong the xu ly OTP luc nay. Vui long thu lai sau."
+) => {
+  const message = normalizeOtpRequestError(error, fallbackMessage)
+  const retryMatch = String(error?.message || "")
+    .trim()
+    .match(/please\s+wait\s+(\d+)s\s+before\s+requesting\s+a\s+new\s+otp/i)
+  const requestError = new Error(message)
+
+  if (retryMatch) {
+    requestError.retryAfterSeconds = Number(retryMatch[1] || 0)
+  }
+
+  return requestError
+}
+
 export const requestRegisterOtp = async (payload = {}) => {
   const email = String(payload?.email || "").trim().toLowerCase()
 
@@ -1431,15 +1444,19 @@ export const requestRegisterOtp = async (payload = {}) => {
       }
     )
   } catch (error) {
-    throw new Error(
-      normalizeOtpRequestError(error, "Khong the gui OTP luc nay. Vui long thu lai sau.")
-    )
+    throw createOtpRequestError(error, "Khong the gui OTP luc nay. Vui long thu lai sau.")
   }
   const data = getObjectFromResponse(response, ["data"]) || unwrapResponseData(response) || {}
   const expiresAt = String(data?.expiresAt || "").trim()
   const parsedExpiresAt = expiresAt ? new Date(expiresAt) : null
   const expiresAtMs =
     parsedExpiresAt && !Number.isNaN(parsedExpiresAt.getTime()) ? parsedExpiresAt.getTime() : 0
+  const resendAvailableAt = String(data?.resendAvailableAt || "").trim()
+  const parsedResendAvailableAt = resendAvailableAt ? new Date(resendAvailableAt) : null
+  const resendAvailableAtMs =
+    parsedResendAvailableAt && !Number.isNaN(parsedResendAvailableAt.getTime())
+      ? parsedResendAvailableAt.getTime()
+      : 0
   const expiresInMinutes = Number(
     data?.expiresInMinutes
     || data?.expiresMinutes
@@ -1451,6 +1468,8 @@ export const requestRegisterOtp = async (payload = {}) => {
     purpose: normalizeOtpPurpose(data?.purpose, payload?.purpose || "register"),
     expiresAt,
     expiresAtMs,
+    resendAvailableAt,
+    resendAvailableAtMs,
     expiresInMinutes: Number.isFinite(expiresInMinutes) && expiresInMinutes > 0 ? expiresInMinutes : 5,
     message: String(response?.message || "Đã gửi mã OTP về email.").trim(),
   }
@@ -1478,9 +1497,7 @@ export const verifyRegisterOtp = async (payload = {}) => {
       }
     )
   } catch (error) {
-    throw new Error(
-      normalizeOtpRequestError(error, "Khong the xac nhan OTP luc nay. Vui long thu lai sau.")
-    )
+    throw createOtpRequestError(error, "Khong the xac nhan OTP luc nay. Vui long thu lai sau.")
   }
 
   return {
@@ -1975,27 +1992,25 @@ export const getSubFieldsByField = async (fieldId, token = "") => {
 }
 
 export const createAdminSubField = async (token, payload = {}) => {
-  const response = await requestWithTransientRetry(
-    "/subField/createSubField",
-    {
-      method: "POST",
-      headers: createTokenHeaders(token),
-      body: JSON.stringify({
-        fieldId: String(payload?.fieldId || "").trim(),
-        key: String(payload?.key || "").trim(),
-        name: String(payload?.name || "").trim(),
-        type: normalizeFieldType(payload?.type || "", ""),
-        pricePerHour: Math.max(Math.round(Number(payload?.pricePerHour || 0)), 0),
-        openHours: normalizeOpenHoursValue(payload?.openHours || "", ""),
-      }),
+  const response = await request("/subField/createSubField", {
+    method: "POST",
+    headers: createTokenHeaders(token),
+    body: {
+      fieldId: String(payload?.fieldId || "").trim(),
+      key: String(payload?.key || "").trim(),
+      name: String(payload?.name || "").trim(),
+      type: normalizeFieldType(payload?.type || ""),
+      pricePerHour: Number(payload?.pricePerHour || 0),
+      openHours: String(payload?.openHours || "").trim(),
     },
-    RENDER_SHORT_READ_RETRY_CONFIG
-  )
+  })
+
+  const subField =
+    normalizeSubFieldItem(getObjectFromResponse(response, ["subField", "item", "record", "result"]))
+    || normalizeSubFieldItem(unwrapResponseData(response))
 
   return {
-    subField:
-      normalizeSubFieldItem(getObjectFromResponse(response, ["subField", "item", "record", "result"]))
-      || normalizeSubFieldItem(unwrapResponseData(response)),
+    subField,
     message: String(response?.message || "").trim(),
   }
 }
@@ -2064,11 +2079,13 @@ export const getFields = async (token = "") => {
     message: String(response?.message || "").trim(),
   }
 }
-export const getAllFieldForAdmin = async (token) => {
+
+const getFieldsByScopedPath = async (path, token, options = {}) => {
   const response = await requestWithTransientRetry(
-    "/field/getAllFieldForAdmin",
+    path,
     {
       headers: createTokenHeaders(token),
+      ...options,
     },
     RENDER_LONG_READ_RETRY_CONFIG
   )
@@ -2098,39 +2115,12 @@ export const getAllFieldForAdmin = async (token) => {
   }
 }
 
-export const getAllFieldForOwner = async (token) => {
-  const response = await requestWithTransientRetry(
-    "/field/getAllFieldForOwner",
-    {
-      headers: createTokenHeaders(token),
-    },
-    RENDER_LONG_READ_RETRY_CONFIG
-  )
+export const getAllFieldForAdmin = async (token) =>
+  getFieldsByScopedPath("/field/getAllFieldForAdmin", token)
 
-  const fields = await attachSubFieldsToFields(
-    getArrayFromResponse(response, [
-      "fields",
-      "items",
-      "docs",
-      "rows",
-      "records",
-      "results",
-      "list",
-      "fieldList",
-      "fields.docs",
-      "fields.items",
-      "result",
-    ])
-      .map((item) => normalizeFieldItem(item))
-      .filter(Boolean),
-    token
-  )
+export const getAllFieldForOwner = async (token) =>
+  getFieldsByScopedPath("/field/getAllFieldForOwner", token)
 
-  return {
-    fields,
-    message: String(response?.message || "").trim(),
-  }
-}
 export const getFieldById = async (fieldId, token = "") => {
   const encodedFieldId = encodeURIComponent(String(fieldId || "").trim())
   const detailPath = token
