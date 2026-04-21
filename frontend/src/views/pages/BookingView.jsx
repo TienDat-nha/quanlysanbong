@@ -493,7 +493,7 @@ const BookingView = ({
                   <strong>Địa chỉ:</strong> {selectedField.address}
                 </p>
                 <p>
-                  <strong>Khu vực:</strong> {selectedField.district}
+                  <strong>Khu vá»±c:</strong> {selectedField.district}
                 </p>
                 <p>
                   <strong>Giờ mở cửa:</strong> {selectedField.openHours}

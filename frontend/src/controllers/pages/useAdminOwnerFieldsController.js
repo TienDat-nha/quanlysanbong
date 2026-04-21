@@ -77,7 +77,7 @@ export const useAdminOwnerFieldsController = ({ authToken }) => {
         setError(null)
         setFields(await fetchFilteredFields(authToken, filterApprovalStatus))
       } catch (err) {
-        setError(err?.message || "Lỗi tải danh sách sân của chủ sân")
+        setError(err?.message || "Lá»—i táº£i danh sÃ¡ch sÃ¢n cá»§a chá»§ sÃ¢n")
       } finally {
         setLoading(false)
       }
@@ -106,7 +106,7 @@ export const useAdminOwnerFieldsController = ({ authToken }) => {
       )
       setFields(await fetchFilteredFields(authToken, filterApprovalStatus))
     } catch (err) {
-      setError(err?.message || "Lỗi phê duyệt sân")
+      setError(err?.message || "Lá»—i phÃª duyá»‡t sÃ¢n")
     } finally {
       setActionLoading(null)
     }
@@ -125,7 +125,7 @@ export const useAdminOwnerFieldsController = ({ authToken }) => {
       )
       setFields(await fetchFilteredFields(authToken, filterApprovalStatus))
     } catch (err) {
-      setError(err?.message || "Lỗi từ chối sân")
+      setError(err?.message || "Lá»—i tá»« chá»‘i sÃ¢n")
     } finally {
       setActionLoading(null)
     }
@@ -139,8 +139,8 @@ export const useAdminOwnerFieldsController = ({ authToken }) => {
 
     const normalizedFieldName = String(fieldName || "").trim()
     const confirmMessage = normalizedFieldName
-      ? `Xác nhận xóa sân "${normalizedFieldName}"?`
-      : "Xác nhận xóa sân này?"
+      ? `XÃ¡c nháº­n xÃ³a sÃ¢n "${normalizedFieldName}"?`
+      : "XÃ¡c nháº­n xÃ³a sÃ¢n nÃ y?"
 
     if (!window.confirm(confirmMessage)) {
       return
@@ -157,7 +157,7 @@ export const useAdminOwnerFieldsController = ({ authToken }) => {
       )
       setFields(await fetchFilteredFields(authToken, filterApprovalStatus))
     } catch (err) {
-      setError(err?.message || "Lỗi xóa sân")
+      setError(err?.message || "Lá»—i xÃ³a sÃ¢n")
     } finally {
       setActionLoading(null)
     }
