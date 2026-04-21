@@ -1494,18 +1494,46 @@ export const canSendManagedUserOtp = () => isManagedUserOtpConfigured()
 export const getManagedUserOtpSetupMessage = () => getManagedUserOtpConfigMessage()
 
 export const requestManagedUserOtp = async (payload = {}) => {
-  return requestRegisterOtp({
-    email: payload?.email,
-    purpose: payload?.purpose || "admin_create_user",
-  })
+  const requestedPurpose = normalizeOtpPurpose(payload?.purpose, "admin_create_user")
+
+  try {
+    return await requestRegisterOtp({
+      email: payload?.email,
+      purpose: requestedPurpose,
+    })
+  } catch (error) {
+    if (requestedPurpose === "register") {
+      throw error
+    }
+
+    return requestRegisterOtp({
+      email: payload?.email,
+      purpose: "register",
+    })
+  }
 }
 
-export const verifyManagedUserOtp = async (payload = {}) =>
-  verifyRegisterOtp({
-    email: payload?.email,
-    otp: payload?.otp || payload?.otpCode,
-    purpose: payload?.purpose || "admin_create_user",
-  })
+export const verifyManagedUserOtp = async (payload = {}) => {
+  const requestedPurpose = normalizeOtpPurpose(payload?.purpose, "admin_create_user")
+
+  try {
+    return await verifyRegisterOtp({
+      email: payload?.email,
+      otp: payload?.otp || payload?.otpCode,
+      purpose: requestedPurpose,
+    })
+  } catch (error) {
+    if (requestedPurpose === "register") {
+      throw error
+    }
+
+    return verifyRegisterOtp({
+      email: payload?.email,
+      otp: payload?.otp || payload?.otpCode,
+      purpose: "register",
+    })
+  }
+}
 
 export const registerUser = async (payload) => {
   const response = await requestFirstSuccess(REGISTER_PATHS, {

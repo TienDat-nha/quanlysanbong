@@ -284,7 +284,7 @@ const UsersView = ({
               name="role"
               value={formValues.role}
               onChange={onInputChange}
-              disabled={submitting}
+              disabled={submitting || isEditing}
             >
               {roleOptions.map((option) => (
                 <option key={option.value} value={option.value}>
@@ -293,6 +293,9 @@ const UsersView = ({
               ))}
             </select>
             <ErrorText text={formErrors?.role} />
+            {isEditing && (
+              <p className="usersPanelLead">Vai tro chi thiet lap khi tao moi tai khoan.</p>
+            )}
 
             {!isEditing && (
               <section className="usersOtpCard">

@@ -64,6 +64,10 @@ const formatOtpCountdown = (value) => {
   return `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`
 }
 
+const normalizeManagedEmail = (value) => String(value || "").trim().toLowerCase()
+
+const normalizeManagedPhone = (value) => String(value || "").replace(/\D/g, "")
+
 export const useUsersController = ({ authToken, currentUser }) => {
   const [users, setUsers] = useState([])
   const [loading, setLoading] = useState(true)
@@ -308,11 +312,11 @@ export const useUsersController = ({ authToken, currentUser }) => {
   const validateAdminFormWithFields = () => {
     const nextFormErrors = createManagedUserFormErrors()
     const normalizedName = String(formValues.name || "").trim()
-    const normalizedEmail = String(formValues.email || "").trim()
-    const normalizedPhone = String(formValues.phone || "").replace(/\D/g, "")
+    const normalizedEmail = normalizeManagedEmail(formValues.email)
+    const normalizedPhone = normalizeManagedPhone(formValues.phone)
     const normalizedPassword = String(formValues.password || "")
     const normalizedRole = String(formValues.role || "").trim().toUpperCase()
-
+    const editingId = String(editingUserId || "").trim()
     if (!canManageUsers) {
       return {
         isValid: false,
@@ -335,6 +339,38 @@ export const useUsersController = ({ authToken, currentUser }) => {
       nextFormErrors.phone = "Vui lòng nhập số điện thoại."
     } else if (!/^0\d{9}$/.test(normalizedPhone)) {
       nextFormErrors.phone = "Số điện thoại phải gồm 10 số và bắt đầu bằng số 0."
+    }
+
+    const duplicatedEmailUser = users.find((item) => {
+      const itemId = String(item?.id || "").trim()
+      if (editingId && itemId && itemId === editingId) {
+        return false
+      }
+
+      return Boolean(
+        normalizeManagedEmail(item?.email)
+        && normalizeManagedEmail(item?.email) === normalizedEmail
+      )
+    })
+
+    if (!nextFormErrors.email && duplicatedEmailUser) {
+      nextFormErrors.email = "Email da ton tai."
+    }
+
+    const duplicatedPhoneUser = users.find((item) => {
+      const itemId = String(item?.id || "").trim()
+      if (editingId && itemId && itemId === editingId) {
+        return false
+      }
+
+      return Boolean(
+        normalizeManagedPhone(item?.phone)
+        && normalizeManagedPhone(item?.phone) === normalizedPhone
+      )
+    })
+
+    if (!nextFormErrors.phone && duplicatedPhoneUser) {
+      nextFormErrors.phone = "So dien thoai da ton tai."
     }
 
     if (!editingUserId && !normalizedPassword.trim()) {
@@ -527,17 +563,20 @@ export const useUsersController = ({ authToken, currentUser }) => {
         otpInput: "",
       }))
     } catch (apiError) {
-      const message = String(apiError?.message || "Không thể xác nhận OTP lúc này. Vui lòng thử lại.").trim(); setError(message)
+      const message = String(
+        apiError?.message || "Khong the xac nhan OTP luc nay. Vui long thu lai."
+      ).trim()
+      setError(message)
       setFormErrors((currentErrors) => ({
         ...currentErrors,
-        otpInput: "Không thể xác nhận OTP lúc này. Vui lòng thử lại.",
+        otpInput: message,
       }))
       setOtpState((prev) => ({
         ...prev,
         verified: false,
         feedback: {
           type: "error",
-          text: "Không thể xác nhận OTP lúc này. Vui lòng thử lại.",
+          text: message,
         },
       }))
     } finally {
@@ -571,11 +610,6 @@ export const useUsersController = ({ authToken, currentUser }) => {
       return
     }
 
-    if (!editingUserId && !otpState.verified) {
-      setError("Vui lòng xác nhận OTP email trước khi tạo tài khoản.")
-      setSubmitting(false)
-      return
-    }
 
     try {
       const payload = {
@@ -761,3 +795,4 @@ export const useUsersController = ({ authToken, currentUser }) => {
     onRefresh: refreshUsers,
   }
 }
+
